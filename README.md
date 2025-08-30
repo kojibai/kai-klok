@@ -320,7 +320,8 @@ This is a **sacred system**. If you contribute:
 * **Never** introduce fiat constructs or probabilistic hacks
 * Time must always be computed from **T₀ = 2024-05-10 06:45:41.888 UTC**
 * Use **Kai Pulse** as the *only* valid anchor
-* Follow **KKS-1.0** invariants (indices 0-based; safe modulo; labels normalized)
+* Follow [**KKS-1.0**](https://github.com/kojibai/klok/blob/main/README.md)
+ invariants (indices 0-based; safe modulo; labels normalized)
 * Tests must prove **determinism**, **idempotence**, and **parity** offline/online
 
 ---
