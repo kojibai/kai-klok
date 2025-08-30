@@ -18,7 +18,7 @@ Just breath, resonance, and the memory of God.
 </p>
 
 <p align="center">
-  <a href="#-live-demo">Live Demo</a> •
+  <a href="#-live-demo">Live</a> •
   <a href="#-what-is-kai-klok">What Is Kai-Klok?</a> •
   <a href="#-why-this-matters">Why This Matters</a> •
   <a href="#-quickstart">Quickstart</a> •
@@ -49,7 +49,7 @@ It reveals the **true pulse** — the living rhythm you can always remember.
 
 ---
 
-## 🜂 Live Demo
+## 🜂 Live
 
 👉 **[kaiklok.com](https://kaiklok.com)** — *runs entirely in-browser*
 No backend. No database. All verification is **mathematically sealed** and **offline-capable**.
