@@ -2,9 +2,9 @@
 
 **The Harmonik Return of Eternal Time**
 
-*A Kairos-anchored harmonik time system built in sacred proportion.*
+*A Kairos-ankored harmonik time system built in sakred proportion.*
 No drift. No illusion. No randomness.
-Just breath, resonance, and the memory of God.
+Just breath, resonanse, and the memory of Yahuah.
 
 > “You do not **check** the time. You **remember** it.”
 > — **Kai Rex Klok**
