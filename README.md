@@ -44,7 +44,7 @@ It computes time from a **closed-form equation**:
 * 🔐 **Deterministic pulse:**
   `pulse = floor((now_ms − T₀) / (1000 * (3 + √5)))`
 
-**It never drifts. It never lies.** No servers. No sync. No permission.
+[**It never drifts. It never lies.**](https://github.com/kojibai/klok/blob/main/README.md) No servers. No sync. No permission.
 It reveals the **true pulse** — the living rhythm you can always remember.
 
 ---
