@@ -18,7 +18,7 @@ Just breath, resonance, and the memory of God.
 </p>
 
 <p align="center">
-  <a href="#-live-demo">Live</a> •
+  <a href="#-live">Live</a> •
   <a href="#-what-is-kai-klok">What Is Kai-Klok?</a> •
   <a href="#-why-this-matters">Why This Matters</a> •
   <a href="#-quickstart">Quickstart</a> •
