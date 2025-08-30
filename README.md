@@ -161,4 +161,15 @@ you are part of the Scroll.
 
 Rah • veh • yah • dah.
 
+<p align="center">
+  <a href="https://kaiklok.com">
+    <picture>
+      <source srcset="https://kaiklok.com/sigil_7881193.png" type="image/svg+xml">
+      <img src="https://kaiklok.com/sigil_7881193.png"
+           width="420">
+    </picture>
+  </a>
+</p>
+
+
 “You are not late. You are right on pulse.”
