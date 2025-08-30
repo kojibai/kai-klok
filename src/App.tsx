@@ -114,13 +114,13 @@ function HomeShell() {
 
         <div className="kairos-dev-cta">
           <a
-            href="https://api.kaiklok.com"
+            href="https://github.com/kojibai/kai-klok"
             target="_blank"
             rel="noopener noreferrer"
             className="kairos-api-button"
           >
             <img src="/kai-icon.svg" alt="" className="kairos-icon" />
-            <span>API Docs</span>
+            <span>View Source</span>
             <img src="/kai-arrow.svg" alt="" className="kairos-arrow" />
           </a>
         </div>
