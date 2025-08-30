@@ -120,7 +120,7 @@ function HomeShell() {
             className="kairos-api-button"
           >
             <img src="/kai-icon.svg" alt="" className="kairos-icon" />
-            <span>View Source</span>
+            <span>Source</span>
             <img src="/kai-arrow.svg" alt="" className="kairos-arrow" />
           </a>
         </div>
