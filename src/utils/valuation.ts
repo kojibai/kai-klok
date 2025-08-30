@@ -93,9 +93,6 @@ export interface ValueInputs {
   medianHoldBeats: number; velocityPerBeat: number; resonancePhi: number;
   pulsesPerBeat: number; agePulses: number; geometryLift: number; momentLift: number; pv_phi: number;
 
-  // Φ-spiral diagnostics (new)
-  spiralIndex: number; spiralProximity01: number; spiralLift: number;
-
   // Growth & rarity diagnostics
   algorithmVersion: "phi/kosmos-vφ-5";
   adoptionAtClaim: number; adoptionNow: number; adoptionDelta: number;
@@ -220,12 +217,6 @@ const STROBE_WAVE_GAIN = 1 / PHI ** 9; // φ-Beatty strobe (no RNG)
 const MOMENT_AFFINITY_GAIN_BASE   = 1 / PHI ** 4;
 const MOMENT_AFFINITY_DIGIT_WEIGHT = 1 / PHI;
 
-/* Φ-spiral rarity (new policy) */
-const SPIRAL_FIRST_N = 33 as const;            // early window (~1.3 Kai-years)
-const SPIRAL_GAIN_BASE = PHI ** 2;             // strong lift base (~2.618)
-const SPIRAL_ALPHA = 1 / PHI;                  // shape exponent (~0.618)
-const SPIRAL_BOUNDARY_GAIN = 1 / PHI ** 5;     // tiny bonus near φ^k boundaries (~0.090)
-
 /* ----------------------------- POLICY checksum ----------------------------- */
 const POLICY = {
   RARITY_ONE_OF_ONE, RARITY_EXP,
@@ -244,9 +235,7 @@ const POLICY = {
   BREATH_WAVE_GAIN, DAY_WAVE_GAIN, STROBE_WAVE_GAIN,
   MOMENT_AFFINITY_GAIN_BASE, MOMENT_AFFINITY_DIGIT_WEIGHT,
   DEFAULT_STEPS_PER_BEAT, PULSES_PER_STEP, PULSES_PER_BEAT_CANON, PULSES_PER_DAY_EXACT,
-  PHI,
-  // new:
-  SPIRAL_FIRST_N, SPIRAL_GAIN_BASE, SPIRAL_ALPHA, SPIRAL_BOUNDARY_GAIN
+  PHI
 };
 // ---------- Strong JSON typings ----------
 type JSONPrimitive = string | number | boolean | null;
@@ -472,39 +461,6 @@ function genesisProximityLift(claimPulse: number): number {
   return 1 + GENESIS_BIAS_GAIN * (1 - 2 * t);
 }
 
-/* -------------------------- Φ-spiral primitives (new) ----------------------- */
-
-/** φ-logarithm (base φ) */
-function logPhi(n: number): number {
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.log(n) / Math.log(PHI);
-}
-
-/** Spiral index S = ⌊log_φ(pulse)⌋ (e.g., pulse 7,881,197 → S=33) */
-function spiralIndexFromPulse(pulse: number): number {
-  if (!Number.isFinite(pulse) || pulse <= 0) return 0;
-  return Math.max(0, Math.floor(logPhi(Math.max(1, pulse))));
-}
-
-/** Proximity to nearest φ^k boundary in [0..1], peak at boundaries (k ∈ ℤ). */
-function spiralProximity01(pulse: number): number {
-  if (!Number.isFinite(pulse) || pulse <= 0) return 0;
-  const x = logPhi(pulse);
-  const dist = Math.abs(x - Math.round(x));
-  return clamp(1 - 2 * dist, 0, 1);
-}
-
-/** Multiplicative rarity lift from Φ-spiral structure (big for first 33). */
-function spiralLiftFromPulse(pulse: number): number {
-  if (!Number.isFinite(pulse) || pulse <= 0) return 1.0;
-  const S = spiralIndexFromPulse(pulse);
-  const ratio = SPIRAL_FIRST_N / Math.max(1, S + 1);
-  const core = 1 + SPIRAL_GAIN_BASE * Math.pow(ratio, SPIRAL_ALPHA); // heavy but bounded
-  const prox = spiralProximity01(pulse);
-  const lift = core * (1 + SPIRAL_BOUNDARY_GAIN * prox);             // tiny boundary bias
-  return q(lift, 6);
-}
-
 /* Moment rarity (deterministic, multiplicative) */
 function momentRarityLiftFromPulse(pulse: number): number {
   if (!Number.isFinite(pulse) || pulse < 0) return 1.0;
@@ -529,9 +485,6 @@ function momentRarityLiftFromPulse(pulse: number): number {
   }
   const ent = digitEntropy01(s);
   lift *= 1 + MOMENT_LOW_ENTROPY_GAIN * (1 - ent);
-
-  // === Φ-spiral rarity (dominant, coherent, no RNG) ===
-  lift *= spiralLiftFromPulse(pulse);
 
   return lift;
 }
@@ -856,11 +809,6 @@ export function computeIntrinsicUnsigned(
     momentLift: Number(momentLift.toFixed(6)),
     pv_phi: Number(pv_phi.toFixed(6)),
 
-    // Φ-spiral diagnostics
-    spiralIndex: spiralIndexFromPulse(claimPulse),
-    spiralProximity01: Number(spiralProximity01(claimPulse).toFixed(6)),
-    spiralLift: Number(spiralLiftFromPulse(claimPulse).toFixed(6)),
-
     // growth & rarity diagnostics
     algorithmVersion: "phi/kosmos-vφ-5",
     adoptionAtClaim: Number(adoptionAtClaim.toFixed(9)),
@@ -966,7 +914,7 @@ export function explainValuation(seal: ValueSeal): string {
   const lines = [
     `Algorithm: ${seal.algorithm} • Policy checksum: ${seal.policyChecksum}`,
     `Series rarity: size=${i.size} → rarityFactor≈${(i.size <= 1 ? RARITY_ONE_OF_ONE : Math.pow(i.size, -RARITY_EXP)).toFixed(6)}`,
-    `Moment lifts: geometry=${i.geometryLift.toFixed(6)} × numericMoment=${i.momentLift.toFixed(6)} × spiral=${i.spiralLift.toFixed(6)} × genesis/baseline floor=${i.rarityFloor.toFixed(6)}`,
+    `Moment lifts: geometry=${i.geometryLift.toFixed(6)} × numericMoment=${i.momentLift.toFixed(6)} × genesis/baseline floor=${i.rarityFloor.toFixed(6)}`,
     `Adoption field: ΔA=${i.adoptionDelta.toFixed(6)} → adoptionLift=${i.adoptionLift.toFixed(6)} • indexScarcity=${i.indexScarcity.toFixed(6)} • fibLevels=${i.fibAccrualLevels} • lucasLevels=${i.lucasAccrualLevels}`,
     `Live alignment: breath=${i.breathWave.toFixed(6)} • day=${i.dayWave.toFixed(6)} • strobe=${i.strobeWave.toFixed(6)} • affinity=${i.momentAffinityOsc.toFixed(6)} → combined=${i.combinedOsc.toFixed(6)}`,
     `Premium: floor=${i.rarityFloor.toFixed(6)} + band=${i.premiumBandBase.toFixed(6)} × combined=${i.combinedOsc.toFixed(6)} ⇒ premium=${seal.premium.toFixed(6)} → valueΦ=${seal.valuePhi.toFixed(6)}`
@@ -979,16 +927,6 @@ export function explainValuation(seal: ValueSeal): string {
 /** 1) Public rarity score accessor (pre-mint planners) */
 export function rarityScore01FromPulse(pulse: number): number {
   return momentRarityScore01FromPulse(pulse);
-}
-
-/** Φ-spiral info accessor (ordinal, bounds, proximity) */
-export function phiSpiralInfo(pulse: number): {
-  index: number; boundaryLo: number; boundaryHi: number; proximity01: number;
-} {
-  const idx = spiralIndexFromPulse(pulse);
-  const boundaryLo = Math.pow(PHI, idx);
-  const boundaryHi = Math.pow(PHI, idx + 1);
-  return { index: idx, boundaryLo, boundaryHi, proximity01: spiralProximity01(pulse) };
 }
 
 /** 2) Human-friendly rarity breakdown */
@@ -1017,11 +955,6 @@ export function explainRarity(pulse: number): string[] {
 
   const ent = digitEntropy01(s);
   if (ent < 1) out.push(`✓ Low entropy (digit uniformity) (+${(MOMENT_LOW_ENTROPY_GAIN*(1-ent)*100).toFixed(1)}%)`);
-
-  // Φ-spiral note (ordinal + early-window badge)
-  const sp = phiSpiralInfo(pulse);
-  const early = sp.index <= SPIRAL_FIRST_N ? " • first-33 window" : "";
-  out.push(`✓ Φ-spiral ordinal S=${sp.index}${early}`);
 
   if (out.length === 0) out.push("• Clean moment (no special digit motifs)");
   return out;
@@ -1244,10 +1177,6 @@ export function classifyMarketTier(
   claimPulse: number,
   seal?: ValueSeal
 ): { tier: "I"|"II"|"III"|"IV"|"V"; label: string; reason: string } {
-  // Φ-spiral (first 33) gets top billing alongside Fibonacci/Lucas
-  const sp = phiSpiralInfo(claimPulse);
-  if (sp.index <= SPIRAL_FIRST_N) return { tier: "I", label: "Φ-Spiral (First 33)", reason: "Claim pulse lies in the earliest 33 spiral bands." };
-
   const inputs = seal?.inputs;
   if (isFibonacciExact(claimPulse)) return { tier: "I", label: "Fibonacci Moment", reason: "Claim pulse is an exact Fibonacci number." };
   if (isLucasExact(claimPulse))     return { tier: "I", label: "Lucas Moment",     reason: "Claim pulse is an exact Lucas number." };
@@ -1416,22 +1345,17 @@ export function renderKairosSpiralSVG(
   const rp = a * Math.pow(PHI, k*θp);
   const mx = CX + rp*Math.cos(θp), my = CY + rp*Math.sin(θp);
 
-  // Φ-spiral info
-  const sp = phiSpiralInfo(pulse);
-
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <rect width="${W}" height="${H}" fill="white"/>
     <path d="${d}" fill="none" stroke="black" stroke-width="${stroke}"/>
     <circle cx="${mx.toFixed(2)}" cy="${my.toFixed(2)}" r="${markerR.toFixed(2)}" fill="none" stroke="black" stroke-width="1.25"/>
     <text x="${mx+10}" y="${my-10}" font-size="12" font-family="ui-sans-serif, system-ui">pulse ${pulse}</text>
     <g font-size="12" font-family="ui-sans-serif, system-ui">
-      <text x="${W-260}" y="${H-126}">Φ-spiral S: ${sp.index}</text>
-      <text x="${W-260}" y="${H-108}">Bounds: [${sp.boundaryLo.toFixed(0)}, ${sp.boundaryHi.toFixed(0)}]</text>
-      <text x="${W-260}" y="${H-90}">Fibonacci: ${fib ? "✓" : "–"}</text>
-      <text x="${W-260}" y="${H-72}">Lucas: ${luc ? "✓" : "–"}</text>
-      <text x="${W-260}" y="${H-54}">Palindrome: ${pal ? "✓" : "–"}</text>
-      <text x="${W-260}" y="${H-36}">Uniform: ${uni ? "✓" : "–"}</text>
-      <text x="${W-260}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse).toFixed(6)}</text>
+      <text x="${W-240}" y="${H-90}">Fibonacci: ${fib ? "✓" : "–"}</text>
+      <text x="${W-240}" y="${H-72}">Lucas: ${luc ? "✓" : "–"}</text>
+      <text x="${W-240}" y="${H-54}">Palindrome: ${pal ? "✓" : "–"}</text>
+      <text x="${W-240}" y="${H-36}">Uniform: ${uni ? "✓" : "–"}</text>
+      <text x="${W-240}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse).toFixed(6)}</text>
     </g>
   </svg>`;
 }
