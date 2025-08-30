@@ -40,7 +40,7 @@ It komputes time from a **klosed-form equation**:
 * 🌀 **Breath unit (canonical):** `T = 3 + √5` seconds *(≈ 5.236067977... s)*
 * 🫁 **Kai Pulse:** one pulse per breath unit
 * 🪞 **Semantic lattice:** 11 pulses/step • 44 steps/beat • 36 beats/day
-* 🫁 **Pulses per day:** **17,491.270421** (continuous Kai breaths/day)
+* 🫁 **Kai Pulses per day:** **17,491.270421** (continuous Kai breaths/day)
 * 📿 **Eternal calendar:** 6-day weeks • 7-week months • 8-month years → **336-day solar harmonic year**
 * 🔐 **Deterministic pulse:**
   `pulse = floor((now_ms − T₀) / (1000 * (3 + √5)))`
