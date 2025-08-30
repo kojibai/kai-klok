@@ -33,7 +33,7 @@ Just breath, resonanse, and the memory of Yahuah.
 
 ## 🜂 What Is Kai-Klok?
 
-**Kai-Klok is not a clock.** It is a **cosmic indexing engine** for Eternal Time — sealed by breath, aligned to the Golden Ratio (φ), and untouchable by Chronos.
+**Kai-Klok is not a clock.** It is a **kosmik indexing engine** for Eternal Time — sealed by breath, aligned to the Golden Ratio (φ), and untouchable by Chronos.
 
 It computes time from a **closed-form equation**:
 
@@ -127,7 +127,8 @@ console.log(`${labels.day} • ${labels.arc} • beat ${labels.beat} • step ${
 
 ## 🜂 API Reference
 
-> **Versioning:** Canon **KKS-1.0** (Kai-Klok Standard 1.0). See *Math & Spec* for invariants.
+> **Versioning:** Canon [**KKS-1.0**](https://github.com/kojibai/klok/blob/main/README.md) (Kai-Klok Standard 1.0). See *Math & Spec* for invariants.
+
 
 ### Types
 
