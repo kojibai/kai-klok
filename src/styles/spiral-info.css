@@ -1,0 +1,114 @@
+/* ────────────────────────────────────────────────────────────────
+   Spiral-info.css  –  Φ Spiral Summary & Modal Styling
+   v1.0 "Luminous Ether Veil"
+──────────────────────────────────────────────────────────────── */
+
+/* Spiral Info Button */
+.Spiral-info-button {
+    background: transparent;
+    border: 1px solid var(--Spiral-color, #7B1FA2);
+    color: #ffffff;
+    padding: 0.5rem 1.2rem;
+    font-size: 1rem;
+    border-radius: 1.5rem;
+    cursor: pointer;
+    margin-top: 1.2rem;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+    box-shadow: 0 0 12px rgba(123, 31, 162, 0.3);
+  }
+  .Spiral-info-button:hover {
+    background: var(--Spiral-color, #7B1FA2);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(123, 31, 162, 0.5);
+  }
+  
+  /* Spiral Info Panel (summary) */
+  .Spiral-info-panel {
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--Spiral-color, #7B1FA2);
+    animation: fadeIn 0.8s ease;
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.06);
+  }
+  
+  .Spiral-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+  }
+  
+  .Spiral-focus,
+  .Spiral-affirmation {
+    font-size: 0.92rem;
+    margin: 0.35rem 0;
+  }
+  
+  /* Spiral Modal Overlay */
+  .Spiral-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.4s ease;
+  }
+  
+  /* Spiral Modal Box */
+  .Spiral-modal {
+    background: #0f0f0f;
+    color: white;
+    border-radius: 1.5rem;
+    padding: 2.4rem;
+    max-width: 540px;
+    width: 90%;
+    box-shadow: 0 0 40px rgba(123, 31, 162, 0.45);
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(14px);
+    animation: slideUp 0.5s ease;
+  }
+  
+  /* Close Button */
+  .Spiral-modal-close {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.2rem;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    color: #bbb;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+  .Spiral-modal-close:hover {
+    color: white;
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  

@@ -1,0 +1,423 @@
+/* ────────────────────────────────────────────────────────────────
+   UpgradeSigilModal.css — “Atlantean Tech” edition ⚡
+   - Presence bump (no more faded/translucent look)
+   - Modal + Popover / Bottom-Sheet (mobile perfect)
+   - Busy shimmer + spinner + ripple feedback
+   - Safe-area insets (iOS), overscroll containment, a11y focus
+   - Motion-friendly (prefers-reduced-motion)
+────────────────────────────────────────────────────────────────── */
+
+/* Vars (inherit from page if present) */
+:root {
+    --pulse: 5.236s;
+    --ease-breath: cubic-bezier(.33,.01,.24,1);
+    --crystal-accent: #00FFD0;
+    --sp-text: #EAFBFF;
+    --sp-dim: #BFE9FF;
+    --sp-border: rgba(255,255,255,.18);
+    --sp-ring: rgba(0,255,208,.55);
+    --spinner-size: 18px;
+  }
+  
+  /* SR-only (just in case) */
+  .sr-only{
+    position:absolute!important; width:1px; height:1px;
+    padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+  
+  /* ── Presence bump for inline banner on page ─────────────────── */
+  .sigilpage .sp-upgrade{
+    background: linear-gradient(180deg, rgba(10,18,20,.99), rgba(10,18,20,.94)) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    box-shadow:
+      0 16px 48px rgba(0,0,0,.50),
+      inset 0 1px 0 rgba(255,255,255,.10),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 70%) !important;
+    z-index: 6; isolation: isolate;
+    animation: panel-breathe var(--pulse) var(--ease-breath) infinite;
+  }
+  @keyframes panel-breathe{
+    0%,100%{ transform: translateZ(0) scale(1); box-shadow: 0 16px 48px rgba(0,0,0,.50) }
+    50%    { transform: translateZ(0) scale(1.005); box-shadow: 0 18px 56px rgba(0,0,0,.54) }
+  }
+  .sigilpage .sp-upgrade .pill{
+    background: linear-gradient(180deg, rgba(255,170,64,.42), rgba(0,0,0,.24)) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    color: var(--sp-text);
+  }
+  .sigilpage .sp-upgrade .upg-btn{
+    --btn-bg: linear-gradient(180deg, rgba(55,230,212,.32), rgba(55,230,212,.16)) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    color: var(--sp-text) !important;
+    box-shadow:
+      0 12px 38px rgba(0,0,0,.50),
+      inset 0 1px 0 rgba(255,255,255,.10),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 70%) !important;
+    position: relative;
+    border-radius: 12px; padding: 10px 14px; min-height: 44px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    transition: transform .04s ease, box-shadow .18s ease, outline-color .18s ease, opacity .12s ease;
+  }
+  .sigilpage .sp-upgrade .upg-btn:hover{
+    outline: 2px solid var(--sp-ring);
+    box-shadow: 0 6px 28px rgba(55,230,212,.14);
+  }
+  .sigilpage .sp-upgrade .upg-btn:active{
+    transform: scale(.985);
+  }
+  /* Busy shimmer + spinner */
+  .sigilpage .sp-upgrade .upg-btn.is-busy,
+  .sigilpage .sp-upgrade .upg-btn[aria-busy="true"],
+  .sigilpage .sp-upgrade .upg-btn[data-busy="true"],
+  .sigilpage .sp-upgrade .upg-btn:disabled{
+    opacity: 1; cursor: progress;
+  }
+  .sigilpage .sp-upgrade .upg-btn.is-busy::after,
+  .sigilpage .sp-upgrade .upg-btn[aria-busy="true"]::after,
+  .sigilpage .sp-upgrade .upg-btn[data-busy="true"]::after,
+  .sigilpage .sp-upgrade .upg-btn:disabled::after{
+    content:""; position:absolute; inset:1px; border-radius:inherit; pointer-events:none;
+    background: repeating-linear-gradient(115deg,
+      rgba(55,230,212,.18) 0 14px,
+      rgba(92,225,255,.12) 14px 28px);
+    mix-blend-mode: screen; opacity:.55; animation: stripes 1.1s linear infinite;
+  }
+  .sigilpage .sp-upgrade .upg-btn.is-busy::before,
+  .sigilpage .sp-upgrade .upg-btn[aria-busy="true"]::before,
+  .sigilpage .sp-upgrade .upg-btn[data-busy="true"]::before,
+  .sigilpage .sp-upgrade .upg-btn:disabled::before{
+    content:""; position:absolute; top:8px; right:10px;
+    width:var(--spinner-size); height:var(--spinner-size);
+    border:2px solid rgba(255,255,255,.2); border-top-color: var(--crystal-accent);
+    border-radius:50%; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--crystal-accent) 60%, transparent));
+    animation: spin .7s linear infinite;
+  }
+  @keyframes stripes{ from{ background-position: 0 0 } to{ background-position: 140px 0 } }
+  @keyframes spin{ to{ transform: rotate(360deg) } }
+  
+  /* Ripple helper (reads --x/--y set via JS) */
+  .sigilpage .sp-upgrade .upg-btn:active::selection{ background: transparent; }
+  .sigilpage .sp-upgrade .upg-btn:active::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background: radial-gradient(220px 120px at var(--x,50%) var(--y,50%), rgba(255,255,255,.18), transparent 60%);
+    animation: ripple .45s ease-out forwards;
+  }
+  @keyframes ripple{ from{ opacity:.35 } to{ opacity:0 } }
+  
+  /* ── Modal overlay & dialog (solid, high-contrast) ───────────── */
+  .upgrade-modal{
+    position: fixed; inset: 0; z-index: 10020;
+    display: grid; place-items: center;
+    padding: 20px;
+    background:
+      radial-gradient(1200px 900px at 80% -10%, rgba(0,255,208,.14), transparent 55%),
+      radial-gradient(900px 700px at 0% 110%, rgba(64,160,255,.12), transparent 60%),
+      rgba(0,0,0,.55);
+    backdrop-filter: blur(8px) saturate(1.2);
+    -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  }
+  .upgrade-dialog{
+    position: relative;
+    width: min(760px, 92vw);
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  
+    background: linear-gradient(180deg, rgba(14,22,24,.99), rgba(14,22,24,.95));
+    border: 1px solid rgba(255,255,255,.24);
+    border-radius: 20px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow:
+      0 24px 80px rgba(0,0,0,.58),
+      inset 0 1px 0 rgba(255,255,255,.10),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 70%);
+    color: var(--sp-text);
+  }
+  .upgrade-dialog::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(60% 45% at 50% 50%, rgba(55,230,212,.10), transparent 65%);
+    opacity:.08; mix-blend-mode: normal;
+    animation: card-mist var(--pulse) var(--ease-breath) infinite;
+  }
+  @keyframes card-mist{
+    0%,100%{ opacity:.05; transform: scale(1) }
+    50%    { opacity:.12; transform: scale(1.01) }
+  }
+  
+  .upgrade-head{
+    position: sticky; top: 0; z-index: 1;
+    display:flex; align-items:center; gap:10px;
+    padding: 10px 6px 12px;
+    background: linear-gradient(180deg, rgba(14,22,24,.98), rgba(14,22,24,.85));
+    backdrop-filter: blur(3px);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .upgrade-title{
+    margin:0; font-weight: 800; font-size: 1.05rem;
+    text-shadow: 0 0 18px color-mix(in oklab, var(--crystal-accent) 35%, transparent);
+  }
+  .upgrade-close{
+    margin-left:auto; background: rgba(255,255,255,.10);
+    border:1px solid var(--sp-border); color: var(--sp-text);
+    border-radius:10px; padding:8px 10px; cursor:pointer; touch-action:manipulation;
+    transition: transform .04s ease, box-shadow .18s ease;
+  }
+  .upgrade-close:hover{ box-shadow:0 6px 18px rgba(0,255,208,.25); }
+  .upgrade-close:active{ transform: scale(.985); }
+  .upgrade-close:focus-visible{ outline:2px solid var(--sp-ring); outline-offset:2px; }
+  
+  .upgrade-body{ display:grid; gap: 12px; padding: 8px 4px 4px; }
+  
+  /* Status badge (polite live region) */
+  .upgrade-badge{
+    padding:8px 12px; border-radius:999px; border:1px solid var(--sp-border);
+    background: rgba(255,255,255,.05); font-size:.9rem; line-height:1.2;
+  }
+  .upgrade-badge--checking{ background: linear-gradient(180deg, rgba(126,167,255,.24), rgba(0,0,0,.12)); }
+  .upgrade-badge--ok{ color:#57f0c7; box-shadow:0 0 0 1px var(--sp-ring) inset; background: linear-gradient(180deg, rgba(36,230,162,.24), rgba(0,0,0,.12)); }
+  .upgrade-badge--bad{ color:#ff6b6b; background: linear-gradient(180deg, rgba(255,64,64,.26), rgba(0,0,0,.10)); }
+  .upgrade-badge--warn{ color:#ffd38d; background: linear-gradient(180deg, rgba(255,170,64,.26), rgba(0,0,0,.10)); }
+  
+  /* Key/Value grid */
+  .upgrade-row.upgrade-kv{
+    display:grid; grid-template-columns: 140px 1fr; gap: 8px 12px; align-items: start;
+    font-size: .95rem;
+  }
+  @media (max-width: 720px){
+    .upgrade-row.upgrade-kv{ grid-template-columns: 1fr; }
+  }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .mono-wrap{ word-break: break-word; overflow-wrap: anywhere; }
+  
+  /* Drop zone */
+  .upgrade-drop{
+    border: 1.5px dashed rgba(255,255,255,.22);
+    border-radius: 16px; padding: 16px 14px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    cursor: pointer; outline: none;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .upgrade-drop:hover,
+  .upgrade-drop:focus-visible{
+    border-color: rgba(255,255,255,.35);
+    box-shadow: 0 6px 28px rgba(55,230,212,.14), 0 0 0 2px var(--sp-ring) inset;
+  }
+  .upgrade-drop__title{ opacity:.95; margin-bottom: 6px; }
+  .upgrade-drop__sub{ font-size:.85rem; color: var(--sp-dim); }
+  
+  /* Hidden file input is given .sr-only in markup */
+  
+  /* URL box (appears after generating link) */
+  .upgrade-urlbox{
+    display:grid; gap: 10px; padding: 12px; border-radius: 14px;
+    border:1px solid var(--sp-border);
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  }
+  .upgrade-urlbox__head{ font-size:.95rem; }
+  
+  /* Actions — sticky on small screens for thumb reach */
+  .upgrade-actions{
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px;
+    position: sticky; bottom: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(14,22,24,0), rgba(14,22,24,.85));
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    backdrop-filter: blur(3px);
+  }
+  
+  /* Buttons (primary + ghost) */
+  .upgrade-cta,
+  .btn-ghost{
+    position:relative; min-height:48px; padding:12px 16px; border-radius:14px;
+    border:1px solid rgba(255,255,255,.24); font-weight:800; cursor:pointer;
+    transition: transform .04s ease, box-shadow .18s ease, outline-color .18s ease, opacity .12s ease;
+  }
+  .upgrade-cta{
+    background: linear-gradient(180deg, rgba(55,230,212,.32), rgba(55,230,212,.16));
+    color: var(--sp-text);
+    box-shadow:
+      0 12px 38px rgba(0,0,0,.50),
+      inset 0 1px 0 rgba(255,255,255,.10),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 70%);
+  }
+  .btn-ghost{
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+    color: var(--sp-text);
+    box-shadow:
+      0 10px 30px rgba(0,0,0,.35),
+      inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .upgrade-cta:hover,
+  .btn-ghost:hover{
+    outline: 2px solid var(--sp-ring);
+    box-shadow: 0 6px 28px rgba(55,230,212,.14);
+  }
+  .upgrade-cta:active,
+  .btn-ghost:active{ transform: scale(.985); }
+  .upgrade-cta:focus-visible,
+  .btn-ghost:focus-visible{ outline: 2px solid var(--sp-ring); outline-offset: 2px; }
+  
+  /* Busy states on primary CTA */
+  .upgrade-cta.is-busy,
+  .upgrade-cta[aria-busy="true"],
+  .upgrade-cta[data-busy="true"],
+  .upgrade-cta:disabled{ opacity: 1; cursor: progress; }
+  .upgrade-cta.is-busy::after,
+  .upgrade-cta[aria-busy="true"]::after,
+  .upgrade-cta[data-busy="true"]::after,
+  .upgrade-cta:disabled::after{
+    content:""; position:absolute; inset:1px; border-radius:inherit; pointer-events:none;
+    background: repeating-linear-gradient(115deg,
+      rgba(55,230,212,.18) 0 14px,
+      rgba(92,225,255,.12) 14px 28px);
+    mix-blend-mode: screen; opacity:.55; animation: stripes 1.1s linear infinite;
+  }
+  .upgrade-cta.is-busy::before,
+  .upgrade-cta[aria-busy="true"]::before,
+  .upgrade-cta[data-busy="true"]::before,
+  .upgrade-cta:disabled::before{
+    content:""; position:absolute; top:8px; right:10px;
+    width:var(--spinner-size); height:var(--spinner-size);
+    border:2px solid rgba(255,255,255,.2); border-top-color: var(--crystal-accent);
+    border-radius:50%; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--crystal-accent) 60%, transparent));
+    animation: spin .7s linear infinite;
+  }
+  
+  /* Ripple on both buttons (JS sets --x/--y) */
+  .upgrade-cta:active::after,
+  .btn-ghost:active::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background: radial-gradient(220px 120px at var(--x,50%) var(--y,50%), rgba(255,255,255,.18), transparent 60%);
+    animation: ripple .45s ease-out forwards;
+  }
+  
+  /* Inputs in modal — higher contrast */
+  .upgrade-file{
+    background: rgba(0,0,0,.34) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    color: var(--sp-text) !important;
+  }
+  .upgrade-file::file-selector-button,
+  .upgrade-file::-webkit-file-upload-button{
+    background: linear-gradient(180deg, rgba(55,230,212,.26), rgba(92,225,255,.16)) !important;
+    border-color: rgba(255,255,255,.24) !important;
+  }
+  
+  /* ── Popover (desktop) → Bottom-Sheet (mobile) ───────────────── */
+  .upgrade-pop-wrap{ position: relative; }
+  
+  /* Backdrop to catch outside clicks */
+  .upgrade-popover__backdrop{
+    position: fixed; inset: 0; z-index: 10012;
+    background: rgba(0,0,0,.25);
+    backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .upgrade-popover[data-open="true"] ~ .upgrade-popover__backdrop{
+    opacity: 1; pointer-events: auto;
+  }
+  
+  /* Panel (centered relative to button; no side clipping) */
+  .upgrade-popover{
+    position: absolute; z-index: 10015;
+    left: 50%; top: calc(100% + 10px);
+    transform: translateX(-50%) translateY(-6px);
+    opacity: 0; pointer-events: none;
+  
+    width: clamp(280px, 48vw, 420px);
+    max-width: calc(100vw - 20px);
+    max-height: min(70vh, 540px);
+    overflow: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  
+    background: linear-gradient(180deg, rgba(14,22,24,.98), rgba(14,22,24,.94));
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 14px;
+    box-shadow:
+      0 18px 60px rgba(0,0,0,.5),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 75%);
+    padding: 12px;
+    transition: opacity .14s ease, transform .16s var(--ease-breath, ease);
+  }
+  .upgrade-popover[data-open="true"]{
+    opacity: 1; pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  .upgrade-popover__arrow{
+    position: absolute; top: -8px; left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 14px; height: 14px;
+    background: linear-gradient(180deg, rgba(14,22,24,.98), rgba(14,22,24,.94));
+    border-left: 1px solid rgba(255,255,255,.22);
+    border-top: 1px solid rgba(255,255,255,.22);
+    box-shadow: -2px -2px 6px rgba(0,0,0,.18);
+  }
+  
+  /* Popover internals */
+  .upgrade-popover .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .upgrade-popover .lbl{ color: var(--sp-dim); font-size:.9rem; }
+  .upgrade-popover .badge{
+    padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.05); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85rem;
+  }
+  .upgrade-popover .badge--legacy{
+    background: linear-gradient(180deg, rgba(255,170,64,.32), rgba(0,0,0,.14));
+  }
+  .upgrade-popover .badge--modern{
+    color: #57f0c7; box-shadow: 0 0 0 1px var(--sp-ring) inset;
+  }
+  .upgrade-popover .actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+  .upgrade-popover .btn{
+    position:relative; min-height:40px; padding:10px 12px; border-radius:12px;
+    border:1px solid rgba(255,255,255,.22);
+    background: linear-gradient(180deg, rgba(55,230,212,.22), rgba(55,230,212,.10));
+    color: var(--sp-text); font-weight:800; cursor:pointer;
+    transition: transform .04s ease, box-shadow .18s ease, outline-color .18s ease;
+    box-shadow:
+      0 10px 30px rgba(0,0,0,.35),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px color-mix(in oklab, var(--crystal-accent), transparent 75%);
+  }
+  .upgrade-popover .btn:hover{ outline:2px solid var(--sp-ring); box-shadow:0 6px 28px rgba(55,230,212,.12); }
+  .upgrade-popover .btn:active{ transform: scale(.985); }
+  
+  /* Mobile: switch to bottom sheet — full-width, safe-area padding */
+  @media (max-width: 560px){
+    .upgrade-pop-wrap{ position: static; }
+  
+    .upgrade-popover{
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+      width: 100vw; max-width: 100vw;
+      max-height: min(86vh, 720px);
+      border-radius: 18px 18px 0 0;
+      transform: translateY(12px);
+      padding: 14px 14px calc(18px + env(safe-area-inset-bottom));
+    }
+    .upgrade-popover[data-open="true"]{ transform: translateY(0); }
+    .upgrade-popover__arrow{ display:none; }
+  
+    .upgrade-popover__backdrop{
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(3px) saturate(1.1);
+    }
+  
+    /* Snap handle */
+    .upgrade-popover::before{
+      content:""; position:absolute; top:6px; left:50%;
+      transform: translateX(-50%);
+      width: 44px; height: 4px; border-radius: 999px;
+      background: rgba(255,255,255,.28);
+    }
+  }
+  
+  /* A11y focus */
+  :focus-visible{ outline:2px solid var(--sp-ring); outline-offset:2px; }
+  
+  /* Motion safety */
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+  

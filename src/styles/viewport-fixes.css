@@ -1,0 +1,73 @@
+/* ═══════════════════════════════════════════════════════════════
+   ORACLE CHAT – ABSOLUTE FIXED LAYOUT   (v2 final)
+   Zero gaps • Zero drift • Desktop, iOS/Android, PWA
+════════════════════════════════════════════════════════════════*/
+
+/* 0. Reset the viewport chain */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;              /* page itself never scrolls */
+}
+
+/* ───────────────────────────
+   Config: single source of bar height
+───────────────────────────*/
+:root { --bar-h: 72px; }         /* keep in-sync with component */
+
+/* 1. Full-screen chat wrapper */
+.oracle-chat-page {
+  position: fixed;
+
+  /* pin to visual viewport respecting notches / indicators */
+  top:    env(safe-area-inset-top,    0px);
+  right:  env(safe-area-inset-right,  0px);
+  bottom: env(safe-area-inset-bottom, 0px);   /* ✱ no +bar-h anymore */
+  left:   env(safe-area-inset-left,   0px);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;               /* internal scroll only */
+  width: auto;                    /* ignore 100vw quirks */
+  background: inherit;
+  z-index: 0;                     /* sits under the input bar */
+}
+
+/* 2. Scrollable messages pane */
+.oracle-chat-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth iOS momentum */
+  padding: 16px 0 calc(var(--bar-h) + env(safe-area-inset-bottom, 0px));
+}
+
+/* 3. Fixed input bar (floating above home-indicator) */
+.oracle-chat-input {
+  position: fixed;
+  left:   env(safe-area-inset-left,  0px);
+  right:  env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom,0px);
+  height: var(--bar-h);
+
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+/* 4. Desktop override – no mobile padding / gaps */
+@media (pointer: fine) and (min-width: 821px) {
+  .oracle-chat-page {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+  .oracle-chat-messages {
+    padding: 16px 0 var(--bar-h);
+  }
+}

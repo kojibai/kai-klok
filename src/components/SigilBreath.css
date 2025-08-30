@@ -1,0 +1,240 @@
+/* =============== Kairos “breath” scope =============== */
+.sigil-scope{
+    /* global rhythm (Synced via --pulse-dur / --pulse-offset from SigilModal) */
+    --pulse: var(--kai-pulse, var(--pulse-dur, 5236ms));
+    --pulse-offset: var(--pulse-offset, 0ms);
+  
+    /* LIVE colors — JS sets these each tick */
+    --day-color: #ffd600;   /* fallback if not provided */
+    --ark-color: #8beaff;   /* fallback if not provided */
+  
+    /* legacy fallbacks */
+    --core: var(--ark-color);
+    --core-2: color-mix(in oklab, var(--ark-color) 50%, white 0%);
+  
+    --ink: rgba(255,255,255,.92);
+    --glass: rgba(255,255,255,.06);
+    --stroke: rgba(139,234,255,.38);
+    --stroke-soft: rgba(139,234,255,.18);
+    --shadow: rgba(0,0,0,.40);
+  }
+  
+  /* layout for the input row only */
+  .sigil-row{ display:flex; align-items:center; gap:.75rem; }
+  
+  /* =============== Title: Day × Ark gradient, breathing =============== */
+  .sigil-title{
+    position:relative;
+    margin:0 0 .5rem 0;
+    font-weight:700;
+    letter-spacing:.02em;
+    line-height:1.15;
+  
+    color:transparent;
+    background:
+      linear-gradient(100deg,
+        var(--day-color) 0%,
+        color-mix(in oklab, var(--day-color) 45%, var(--ark-color) 55%) 28%,
+        var(--ark-color) 56%,
+        color-mix(in oklab, var(--ark-color) 65%, white 0%) 100%) 0 0/200% 100% no-repeat;
+    -webkit-background-clip:text;
+            background-clip:text;
+    -webkit-text-fill-color:transparent;
+  
+    /* neon text glow that breathes */
+    text-shadow:
+      0 0 10px color-mix(in oklab, var(--ark-color) 35%, transparent),
+      0 0 18px color-mix(in oklab, var(--ark-color) 18%, transparent);
+  
+    animation:
+      titleSlide var(--pulse) ease-in-out infinite,
+      titleGlow  var(--pulse) ease-in-out infinite;
+    animation-delay: var(--pulse-offset), var(--pulse-offset);
+    will-change: background-position, text-shadow, filter;
+  }
+  
+  /* faint auras that “sing” softly behind the title */
+  .sigil-title::before,
+  .sigil-title::after{
+    content:"";
+    position:absolute; inset:-6px -10px -8px;
+    pointer-events:none; border-radius:18px;
+    mix-blend-mode:screen;
+    filter:blur(8px);
+  }
+  .sigil-title::before{
+    background:
+      radial-gradient(60% 40% at 50% 62%, color-mix(in oklab, var(--day-color) 22%, transparent), transparent 70%),
+      radial-gradient(50% 34% at 70% 28%, color-mix(in oklab, var(--ark-color) 18%, transparent), transparent 75%);
+    animation: auraPulse var(--pulse) ease-in-out infinite;
+    animation-delay: var(--pulse-offset);
+  }
+  .sigil-title::after{
+    background:
+      conic-gradient(from 0deg at 50% 50%,
+        color-mix(in oklab, var(--day-color) 18%, transparent),
+        transparent 30%,
+        color-mix(in oklab, var(--ark-color) 16%, transparent),
+        transparent 60%);
+    opacity:.55;
+    animation: auraDrift var(--pulse) linear infinite;
+    animation-delay: var(--pulse-offset);
+  }
+  
+  /* =============== Live ArK ribbon =============== */
+  .sigil-ribbon{
+    height:2px; margin:6px 0 10px; border-radius:999px;
+    background:
+      linear-gradient(90deg, var(--day-color), var(--ark-color), var(--day-color))
+      0 0/200% 100% no-repeat border-box;
+    box-shadow:
+      0 0 12px color-mix(in oklab, var(--ark-color) 45%, transparent),
+      0 2px 14px -8px var(--shadow);
+    animation: arcSlide var(--pulse) ease-in-out infinite;
+    animation-delay: var(--pulse-offset);
+    opacity:.96;
+  }
+  
+  /* =============== Label & Input (unchanged vibe, synced) =============== */
+  .sigil-label{ display:inline-flex; align-items:center; gap:.5rem; font-size:.95rem; color:var(--ink); user-select:none; }
+  .sigil-label__text{ opacity:.85; }
+  
+  .sigil-input{
+    appearance:none; -webkit-appearance:none;
+    font:inherit; color:var(--ink);
+    min-width:18ch; padding:.65rem .8rem; border-radius:12px;
+    border:1px solid var(--stroke);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02)) padding-box,
+      linear-gradient(90deg, var(--stroke), rgba(255,255,255,.2), var(--stroke)) border-box;
+    box-shadow: 0 6px 16px -6px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.02);
+    outline:none;
+    transition: box-shadow .28s ease, border-color .28s ease, background-position .28s ease, transform .28s ease;
+    background-size:200% 100%;
+    animation: sigilInputBreath var(--pulse) ease-in-out infinite;
+    animation-delay: var(--pulse-offset);
+    caret-color: var(--ark-color);
+  }
+  .sigil-input:focus{
+    border-color: var(--ark-color);
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 28px -10px rgba(0,0,0,.55),
+      0 0 0 2px var(--stroke-soft),
+      0 0 24px 2px color-mix(in oklab, var(--ark-color) 18%, transparent),
+      inset 0 0 0 1px rgba(255,255,255,.05);
+  }
+  .sigil-input::-webkit-calendar-picker-indicator{
+    filter: drop-shadow(0 0 4px color-mix(in oklab, var(--ark-color) 35%, transparent)) saturate(1.1);
+    opacity:.9;
+  }
+  .sigil-input::placeholder{ color: rgba(255,255,255,.55); }
+  
+  /* =============== Bars (your fill code already drives width) =============== */
+  .sigil-bars{ display:grid; gap:.6rem; margin-top:.65rem; }
+  .sigil-bar__head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:.28rem; }
+  .sigil-bar__label{ font-size:.86rem; letter-spacing:.01em; color:rgba(255,255,255,.88); }
+  .sigil-bar__pct{ font-size:.82rem; color:rgba(255,255,255,.66); font-variant-numeric: tabular-nums; }
+  
+  .sigil-bar__track{
+    position:relative; height:12px; border-radius:999px;
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+    border:1px solid rgba(139,234,255,.22);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 6px 16px -8px rgba(0,0,0,.45);
+    overflow:hidden;
+  }
+  .sigil-bar__fill{
+    position:absolute; inset:0 auto 0 0; width:100%;
+    transform-origin:left center;
+    /* NOTE: transform set via JS variable --fill (0..1) */
+    will-change: transform, filter;
+  }
+  .sigil-bar__fill--eternal{
+    transform: scaleX(var(--fill, 0));
+    transition: transform .28s cubic-bezier(.22,.61,.36,1);
+    background:
+      radial-gradient(120% 100% at 0% 50%, rgba(255,255,255,.18), transparent 60%) padding-box,
+      linear-gradient(90deg,
+        color-mix(in oklab, var(--ark-color) 92%, white 0%),
+        var(--ark-color)) border-box;
+    filter:
+      drop-shadow(0 0 14px color-mix(in oklab, var(--ark-color) 55%, transparent 45%))
+      drop-shadow(0 0 22px color-mix(in oklab, var(--ark-color) 35%, transparent 65%));
+    animation: barGlow var(--pulse) ease-in-out infinite;
+    animation-delay: var(--pulse-offset);
+  }
+  .sigil-bar__fill--eternal::after{
+    content:"";
+    position:absolute; right:-6px; top:50%; translate:0 -50%;
+    width:12px; height:12px; border-radius:50%;
+    background: radial-gradient(closest-side, var(--ark-color), rgba(255,255,255,.9), transparent 75%);
+    filter:
+      drop-shadow(0 0 10px color-mix(in oklab, var(--ark-color) 85%, transparent))
+      drop-shadow(0 0 16px color-mix(in oklab, var(--ark-color) 60%, transparent));
+    opacity:.95; pointer-events:none;
+  }
+  .sigil-bar__fill--eternal.is-boom{
+    animation: barGlow var(--pulse) ease-in-out infinite, explodeFlash 420ms cubic-bezier(.18,.6,.2,1) 1;
+    animation-delay: var(--pulse-offset), 0ms;
+  }
+  .sigil-bar__fill--eternal.is-boom::before{
+    content:"";
+    position:absolute; right:-8px; top:50%; translate:0 -50%;
+    width:10px; height:10px; border-radius:999px;
+    background: radial-gradient(closest-side, white, var(--ark-color) 60%, transparent 70%);
+    opacity:.95; pointer-events:none;
+    animation: sparkBurst 420ms cubic-bezier(.18,.6,.2,1) 1;
+  }
+  
+  /* =============== Keyframes (φ rhythm) =============== */
+  @keyframes titleSlide{
+    0%{   background-position: 0% 0%; }
+    50%{  background-position: 100% 0%; }
+    100%{ background-position: 0% 0%; }
+  }
+  @keyframes titleGlow{
+    0%  { text-shadow: 0 0 8px color-mix(in oklab, var(--day-color) 30%, transparent), 0 0 16px color-mix(in oklab, var(--ark-color) 24%, transparent); }
+    50% { text-shadow: 0 0 14px color-mix(in oklab, var(--day-color) 50%, transparent), 0 0 24px color-mix(in oklab, var(--ark-color) 40%, transparent); }
+    100%{ text-shadow: 0 0 8px color-mix(in oklab, var(--day-color) 30%, transparent), 0 0 16px color-mix(in oklab, var(--ark-color) 24%, transparent); }
+  }
+  @keyframes auraPulse{ 0%{opacity:.55; transform:scale(1);} 50%{opacity:.9; transform:scale(1.02);} 100%{opacity:.55; transform:scale(1);} }
+  @keyframes auraDrift{ from{transform:rotate(0);} to{transform:rotate(360deg);} }
+  @keyframes arcSlide{ 0%{background-position:0% 0%; opacity:.95;} 50%{background-position:100% 0%; opacity:1;} 100%{background-position:0% 0%; opacity:.95;} }
+  
+  @keyframes barGlow{
+    0%  { filter: drop-shadow(0 0 10px color-mix(in oklab, var(--ark-color) 45%, transparent))
+                   drop-shadow(0 0 18px color-mix(in oklab, var(--ark-color) 25%, transparent)); }
+    50% { filter: drop-shadow(0 0 18px color-mix(in oklab, var(--ark-color) 70%, transparent))
+                   drop-shadow(0 0 28px color-mix(in oklab, var(--ark-color) 40%, transparent)); }
+    100%{ filter: drop-shadow(0 0 10px color-mix(in oklab, var(--ark-color) 45%, transparent))
+                   drop-shadow(0 0 18px color-mix(in oklab, var(--ark-color) 25%, transparent)); }
+  }
+  @keyframes explodeFlash{
+    0%{   box-shadow: inset 0 0 0 0 rgba(255,255,255,0); transform: scaleX(var(--fill)) scaleY(1); }
+    14%{  box-shadow: inset 0 0 0 2px rgba(255,255,255,.28); transform: scaleX(var(--fill)) scaleY(1.18); }
+    28%{  box-shadow: inset 0 0 0 0 rgba(255,255,255,0);   transform: scaleX(var(--fill)) scaleY(1.06); }
+    100%{ box-shadow: inset 0 0 0 0 rgba(255,255,255,0);   transform: scaleX(var(--fill)) scaleY(1); }
+  }
+  @keyframes sparkBurst{
+    0%{   opacity:.98; transform:scale(1);   filter:blur(0); }
+    40%{  opacity:.85; transform:scale(2.6); filter:blur(.5px); }
+    100%{ opacity:0;   transform:scale(4.2); filter:blur(1px); }
+  }
+  
+  /* Mobile polish */
+  @media (max-width:680px){
+    .sigil-row{ flex-wrap:wrap; gap:.6rem .75rem; }
+    .sigil-input{ min-width:14ch; flex:1 1 auto; }
+  }
+  
+  /* Motion safety */
+  @media (prefers-reduced-motion: reduce){
+    .sigil-title,
+    .sigil-title::before,
+    .sigil-title::after,
+    .sigil-input,
+    .sigil-ribbon,
+    .sigil-bar__fill--eternal{ animation:none !important; }
+    .sigil-bar__fill--eternal{ transition:none !important; }
+  }
+  

@@ -1,0 +1,243 @@
+/* ────────────────────────────────────────────────────────────────
+   CHAT CONTENT – message cards, harmonic viz, input, loaders
+──────────────────────────────────────────────────────────────── */
+
+/* ---- Message bubble ------------------------------------------ */
+.chat-message{
+    width:100%;margin-bottom:1rem;padding:.8rem;border-radius:12px;
+    background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.15);
+    box-shadow:0 5px 15px rgba(0,255,255,.1);backdrop-filter:blur(15px);
+    position:relative;overflow:hidden;transition:all .3s ease;
+  }
+  .chat-message::before{
+    content:"";position:absolute;inset:0;border-radius:12px;
+    background:linear-gradient(135deg,rgba(0,255,255,.3),rgba(0,127,255,.3));
+    mask-image:radial-gradient(circle,rgba(0,255,255,.3)10%,rgba(0,255,255,0)80%);
+  }
+  
+  .user-question  {color:var(--primary-color);font-weight:700;}
+  .oracle-response{color:#fff;margin-top:4px;}
+  .oracle-meaning {font-style:italic;color:rgba(0,255,255,.8);}
+  
+  /* ---- Harmonic visualization --------------------------------- */
+  .harmonic-visualization{
+    width:100%;height:150px;position:relative;border-radius:12px;overflow:hidden;margin-top:12px;
+    background:rgba(0,255,255,.05);border:1px solid rgba(0,255,255,.2);
+    box-shadow:0 5px 10px rgba(0,255,255,.15);animation:floatingEffect 6s ease-in-out infinite;
+  }
+  .harmonic-label{
+    font-size:.9rem;font-weight:700;color:var(--primary-color);
+    background:rgba(0,0,0,.6);padding:5px 12px;border-radius:8px;
+    backdrop-filter:blur(10px);white-space:nowrap;
+  }
+  
+  /* ---- Loading bubbles ---------------------------------------- */
+  .loading-bubbles{display:flex;justify-content:center;gap:10px;margin-top:10px;}
+  .loading-bubble{
+    width:30px;height:30px;
+    animation:loadingPop .6s ease-out forwards,
+               bounce 1.5s infinite .6s,
+               glow   1.5s infinite .6s;
+  }
+  .loading-bubble:nth-child(1){animation-delay:0s,.6s,.6s;}
+  .loading-bubble:nth-child(2){animation-delay:.3s,.9s,.9s;}
+  .loading-bubble:nth-child(3){animation-delay:.6s,1.2s,1.2s;}
+  
+  /* ---- Chat input --------------------------------------------- */
+  .chat-input{
+    width:100%;max-width:700px;display:flex;gap:6px;margin-bottom:.25rem;
+  }
+  .chat-input input{
+    flex:1;padding:.7rem .9rem;border-radius:12px;border:2px solid transparent;
+    background:var(--input-bg);color:var(--primary-color);font-size:1rem;
+    box-shadow:0 0 12px rgba(0,255,255,.15);transition:all .3s;
+  }
+  .chat-input input:focus{
+    border:2px solid var(--primary-color);
+    box-shadow:0 0 20px rgba(0,255,255,.7);
+  }
+  .chat-input input::placeholder{color:rgba(0,255,255,.65);}
+  .chat-input button{
+    padding:.7rem 1rem;border:none;border-radius:12px;
+    background:linear-gradient(90deg,var(--primary-color),var(--secondary-color));
+    color:#000;font-weight:700;cursor:pointer;
+    box-shadow:0 5px 12px rgba(0,0,0,.35);transition:all .3s;
+  }
+  .chat-input button:hover{
+    background:linear-gradient(90deg,var(--secondary-color),var(--primary-color));
+    transform:scale(1.04);box-shadow:0 8px 15px rgba(0,0,0,.45);
+  }
+  .chat-input button:disabled{opacity:.5;cursor:not-allowed;}
+  /* --------------------------------------
+   Chat Container
+--------------------------------------- */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0.25rem;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(0,0,0,.65) 0%, rgba(0,0,0,.75) 50%, rgba(0,0,0,.65) 100%);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    background-size: 400% 400%;
+    animation: gradientShift 40s ease-in-out infinite;
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  /* --------------------------------------
+   Scrollable Chat Box
+--------------------------------------- */
+.chat-box{
+    flex:0 1 0;
+    min-height:0;
+    max-width:700px;
+    width:100%;
+    margin-bottom:.25rem;
+    display:block;
+    position:relative;
+    background:var(--glass-bg);
+    border-radius:var(--border-radius);
+    border:2px solid rgba(0,255,255,.2);
+    box-shadow:0 10px 40px rgba(0,255,255,.15);
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding:.75rem;
+    animation:boxBreath 5s ease-in-out infinite;
+  }
+  /* allow growth when space exists */
+  .chat-box.expanded{flex:1 1 auto;}
+  @keyframes boxBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.01)}}
+  /* --------------------------------------
+   Loading Bubbles
+--------------------------------------- */
+@keyframes loadingPop {
+    0%   { opacity: 0; transform: scale(.5) translateY(20px); }
+    50%  { opacity: .7; transform: scale(1.1) translateY(-5px); }
+    100% { opacity: 1; transform: scale(1)   translateY(0); }
+  }
+  @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+  @keyframes glow   { 0%,100%{filter:drop-shadow(0 0 5px rgba(255,255,255,.8));}
+                      50%{filter:drop-shadow(0 0 15px rgba(255,255,255,1));} }
+  
+  .loading-bubbles { display:flex; justify-content:center; gap:10px; margin-top:10px; }
+  .loading-bubble {
+    width: 30px; height: 30px;
+    animation: loadingPop .6s ease-out forwards,
+               bounce 1.5s infinite .6s,
+               glow   1.5s infinite .6s;
+  }
+  .loading-bubble:nth-child(1){ animation-delay:   0s, .6s, .6s; }
+  .loading-bubble:nth-child(2){ animation-delay: .3s, .9s, .9s; }
+  .loading-bubble:nth-child(3){ animation-delay: .6s,1.2s,1.2s; }
+/* ────────────────────────────────────────────────────────────────
+   Copy-to-Clipboard Styles  (oracle-copyable-response)
+   ----------------------------------------------------------------
+   • Hover → neon glow + “Click to copy” tooltip
+   • Click  → tooltip switches to “Copied!” and floats away
+──────────────────────────────────────────────────────────────── */
+/*──────────────────────────────────────────────────────────────────*/
+/* Enhanced Copyable Response Styles                               */
+/*──────────────────────────────────────────────────────────────────*/
+
+/* Base element (unchanged) */
+.oracle-copyable-response {
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    /* Neon variables */
+    --neon: rgba(0, 255, 255, 0.8);
+    --popup-bg: rgba(0, 0, 0, 0.6);
+  }
+  
+  /* Hover glow + lift */
+  .oracle-copyable-response:hover {
+    background: rgba(0, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 8px var(--neon),
+      0 0 16px var(--neon);
+  }
+  
+  /* Tooltip container – hidden by default */
+  .oracle-copyable-response::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+  }
+  
+  /* Hover hint */
+  .oracle-copyable-response:hover::after {
+    content: "Click to copy";
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    background: var(--popup-bg);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    text-shadow: 0 0 4px rgba(0,0,0,0.7);
+    box-shadow: 0 0 6px var(--neon);
+    z-index: 2;
+  }
+  
+  /* COPIED POPUP ★★★★★★ */
+  .oracle-copyable-response.copied::after {
+    /* center over box */
+    top: 50%;
+    bottom: auto;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    content: "Copied!";
+    opacity: 0;
+    background: var(--popup-bg);
+    color: #fff;
+    padding: 0.4em 0.8em;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 6px var(--neon);
+    box-shadow:
+      0 0 8px var(--neon),
+      0 0 20px var(--neon);
+    pointer-events: none;
+    z-index: 3;
+    animation: copyPop 1.2s ease-out forwards;
+  }
+  
+  /* Keyframes for the pop & fade */
+  @keyframes copyPop {
+    0% {
+      transform: translate(-50%, -50%) scale(0.6);
+      opacity: 0;
+    }
+    25% {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 1;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0;
+    }
+  }
+  

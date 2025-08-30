@@ -1,0 +1,31 @@
+.kairos-guide-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .kairos-guide-modal {
+    background: #111;
+    border: 2px solid #444;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 400px;
+    text-align: center;
+    color: white;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .kairos-guide-modal button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #1e1e1e;
+    border: 1px solid #888;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  

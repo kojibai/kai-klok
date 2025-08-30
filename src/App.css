@@ -1,0 +1,674 @@
+/* =======================================================
+   Kai-Klok — Alien Atlantean Super-Tech Edition
+   Full-screen • Hi-Def • Breathing • Volumetric Neon
+   (Drop-in replacement for App.css)
+   ======================================================= */
+/* ============================
+   Floating API Docs CTA (mobile-safe)
+   ============================ */
+
+/* Height of the button (used for page padding) */
+:root { --cta-h: 56px; }
+
+/* Ensure the app uses dynamic viewport on mobile (prevents jumpy 100vh) */
+.app-root { min-height: 100dvh; }
+
+/* Let page content never sit under the floating CTA */
+.main-ui {
+  padding-bottom: calc(var(--cta-h) + max(24px, env(safe-area-inset-bottom, 0px)));
+}
+
+/* Make the CTA float centered above the bottom toolbars/notches */
+.kairos-dev-cta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); /* sits above iOS/Android bars */
+  display: flex;
+  justify-content: center;
+  z-index: 1000;           /* above page content */
+  pointer-events: none;    /* so only the button itself is interactive */
+}
+
+/* Re-enable clicks on the button itself */
+.kairos-dev-cta .kairos-api-button {
+  pointer-events: auto;
+  height: var(--cta-h);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-radius: 999px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Older Safari fallback (no max() in calc): provide a base bottom */
+@supports not (bottom: max(0px)) {
+  .kairos-dev-cta {
+    bottom: 12px;
+  }
+}
+/* ---------- Global Variables ---------- */
+:root {
+  /* Brand & glow */
+  --primary-color      : #00ffff;
+  --secondary-color    : #0077ff;
+  --accent-color       : #00ff88;
+
+  /* Background gradient */
+  --background-start   : #05090f;
+  --background-middle  : #0e1b22;
+  --background-end     : #0c2231;
+
+  /* Glass & borders */
+  --glass-bg           : rgba(0, 12, 20, 0.72);
+  --glass-bright       : rgba(0, 255, 255, 0.22);
+  --input-bg           : rgba(255, 255, 255, 0.08);
+  --border-radius      : 20px;
+
+  /* High-def scale */
+  --ui-scale           : clamp(1.05, 1.2vmin + 1.2vmax, 1.6);
+
+  /* Fluid typography */
+  --font-base          : clamp(16px, 1.2vmin + 1.2vmax, 22px);
+  --font-large         : calc(var(--font-base) * 1.35);
+  --font-xlarge        : calc(var(--font-base) * 1.75);
+
+  /* Breath + motion */
+  --breath             : 5.236s;        /* Kai breath */
+  --golden             : 1.618;
+  --spin-fast          : 11s;
+  --spin-mid           : 22s;
+  --spin-slow          : 44s;
+
+  /* Shadows */
+  --glow-1             : 0 0 12px rgba(0, 255, 255, 0.25);
+  --glow-2             : 0 0 32px rgba(0, 155, 255, 0.20);
+  --glow-3             : 0 0 64px rgba(46, 0, 255, 0.24);
+
+  /* Depth helpers */
+  --z-bg    : 0;
+  --z-aura  : 1;
+  --z-stage : 2;
+  --z-ui    : 3;
+}
+
+/* ---------- Resets & Root Sizing ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+html {
+  font-size: var(--font-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  body {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+               "Inter", "SF Pro Text", Roboto, Helvetica, Arial, sans-serif;
+  color: #e8feff;
+  background:
+    radial-gradient(120vmax 120vmax at 50% 10%, rgba(0, 80, 120, 0.25), transparent 45%),
+    linear-gradient(to bottom, var(--background-start), var(--background-middle), var(--background-end));
+  position: relative;
+  isolation: isolate;
+}
+
+/* ===== Atmosphere: breathing aurora & star mist (no extra DOM) ===== */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -10vmax;
+  z-index: var(--z-bg);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform, opacity, filter;
+}
+
+/* Aurora dome (slow scale + subtle rotate) */
+body::before {
+  background:
+    radial-gradient(70% 60% at 50% 20%, rgba(0, 255, 255, 0.10), transparent 70%),
+    radial-gradient(50% 40% at 30% 10%, rgba(120, 0, 255, 0.12), transparent 70%),
+    radial-gradient(60% 50% at 70% 10%, rgba(0, 180, 255, 0.12), transparent 70%);
+  filter: blur(32px);
+  animation:
+    breathe-scale var(--breath) ease-in-out infinite,
+    slow-tilt var(--spin-slow) linear infinite;
+  opacity: .9;
+}
+
+/* Star mist (parallax drift) */
+body::after {
+  background:
+    radial-gradient(closest-side, rgba(255,255,255,.09), transparent 70%) 8% 12% / 240px 240px no-repeat,
+    radial-gradient(closest-side, rgba(255,255,255,.06), transparent 70%) 78% 18% / 300px 300px no-repeat,
+    radial-gradient(closest-side, rgba(255,255,255,.08), transparent 70%) 42% 70% / 260px 260px no-repeat;
+  filter: blur(6px);
+  animation: parallax-drift var(--spin-mid) linear infinite;
+  opacity: .7;
+}
+
+/* ---------- App Root ---------- */
+.app-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  isolation: isolate;
+}
+
+/* ---------- Splash ---------- */
+.hidden-behind-splash { opacity: 0; pointer-events: none; }
+.main-ui {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity 0.45s ease 0.1s;
+}
+
+/* ---------- Hero Stage (center) ---------- */
+.hero-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+  z-index: var(--z-stage);
+  contain: layout paint style;
+}
+
+/* Stage volumetric domes under the dial */
+.hero-stage::before,
+.hero-stage::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  width: min(120vmin, 1600px);
+  height: min(120vmin, 1600px);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(36px);
+  mix-blend-mode: screen;
+  transform-origin: 50% 55%;
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  z-index: var(--z-aura);
+}
+.hero-stage::before {
+  background:
+    radial-gradient(closest-side, rgba(0,255,255,0.18), rgba(0,160,255,0.08) 60%, transparent 70%);
+  animation:
+    breathe-scale var(--breath) ease-in-out infinite,
+    slow-tilt calc(var(--spin-slow) * 1.2) linear infinite;
+}
+.hero-stage::after {
+  background:
+    radial-gradient(closest-side, rgba(190,0,255,0.16), rgba(0,0,0,0) 70%),
+    radial-gradient(closest-side, rgba(255,255,255,0.05), rgba(0,0,0,0) 80%);
+  animation:
+    breathe-opacity var(--breath) ease-in-out infinite,
+    slow-tilt var(--spin-mid) linear infinite reverse;
+  opacity: .8;
+}
+
+/* ---------- The Dial Container (BIG, living) ---------- */
+.floating-klock {
+  width: clamp(520px, calc(62vmin * var(--ui-scale)), 1200px);
+  max-width: 90vmin;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  position: relative;
+  transform: translateZ(0);
+  will-change: transform, filter, box-shadow;
+
+  background:
+    radial-gradient(60% 60% at 50% 50%, rgba(0, 64, 96, 0.18), transparent 70%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05) inset,
+    0 0 24px rgba(0, 255, 255, 0.18),
+    0 0 64px rgba(0, 160, 255, 0.20);
+
+  /* Core breathing + micro sway */
+  animation:
+    breathe-scale var(--breath) ease-in-out infinite,
+    micro-sway calc(var(--breath) * var(--golden)) ease-in-out infinite;
+}
+
+/* Plasma ring + prism sweep layers */
+.floating-klock::before,
+.floating-klock::after {
+  content: "";
+  position: absolute;
+  inset: -2%;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.floating-klock::before {
+  /* spinning plasma ring */
+  background:
+    conic-gradient(from 0deg,
+      rgba(0,255,255,.0) 0turn,
+      rgba(0,255,255,.22) .08turn,
+      rgba(120,0,255,.22) .16turn,
+      rgba(0,140,255,.20) .24turn,
+      rgba(0,255,255,.0) .32turn,
+      rgba(255,255,255,.07) .40turn,
+      rgba(0,255,255,.0) 1turn);
+  filter: blur(12px);
+  animation:
+    ring-spin var(--spin-mid) linear infinite,
+    breathe-opacity var(--breath) ease-in-out infinite;
+}
+
+.floating-klock::after {
+  /* prism sweep highlight */
+  background:
+    linear-gradient(120deg,
+      rgba(255,255,255,0) 30%,
+      rgba(255,255,255,.16) 45%,
+      rgba(255,255,255,0) 60%);
+  background-size: 200% 200%;
+  filter: blur(10px);
+  animation:
+    prism-sweep calc(var(--breath) * 2) ease-in-out infinite;
+  opacity: .75;
+}
+
+/* Hover lift (desktop) */
+.klock-hero {
+  transition: transform 420ms ease, box-shadow 420ms ease, filter 420ms ease;
+}
+.klock-hero:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+  filter: drop-shadow(0 0 8px rgba(0,255,255,.25));
+}
+
+/* ---------- Full-screen Eternal panel ---------- */
+.eternal-klock-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: var(--z-ui);
+}
+
+.eternal-klock-panel {
+  pointer-events: auto;
+  width: clamp(720px, calc(78vmin * var(--ui-scale)), 1320px);
+  max-width: min(88vw, 1300px);
+  min-height: clamp(380px, 44vmin, 820px);
+  padding: clamp(20px, 2.4vmin, 36px);
+  border-radius: var(--border-radius);
+  background: linear-gradient(180deg, rgba(8,22,32,.92), rgba(6,12,18,.88));
+  border: 1px solid var(--glass-bright);
+  box-shadow: var(--glow-1), var(--glow-2), var(--glow-3),
+              0 0 0 100vmax rgba(0, 0, 0, 0.25) inset;
+  backdrop-filter: blur(16px) saturate(1.18);
+  -webkit-backdrop-filter: blur(16px) saturate(1.18);
+  animation:
+    panelPop .6s cubic-bezier(.2,.8,.2,1),
+    breathe-border var(--breath) ease-in-out infinite;
+  position: relative;
+  contain: layout paint style;
+}
+
+/* Panel aura rings */
+.eternal-klock-panel::before,
+.eternal-klock-panel::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: -1;
+}
+.eternal-klock-panel::before {
+  background: radial-gradient(60% 70% at 50% 50%, rgba(0,255,255,.18), transparent 70%);
+  filter: blur(24px);
+  animation: breathe-opacity var(--breath) ease-in-out infinite;
+}
+.eternal-klock-panel::after {
+  background: conic-gradient(from 220deg,
+    rgba(0,255,255,.0) 0turn, rgba(0,255,255,.16) .08turn,
+    rgba(120,0,255,.16) .18turn, rgba(0,0,0,0) .32turn,
+    rgba(255,255,255,.06) .50turn, rgba(0,0,0,0) 1turn);
+  filter: blur(18px);
+  animation: ring-spin var(--spin-slow) linear infinite reverse;
+}
+
+/* ---------- CTA Button ---------- */
+.kairos-dev-cta {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(14px, 3vmin, 40px);
+  transform: translateX(-50%);
+  z-index: var(--z-ui);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.kairos-api-button {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(10px, 1.3vmin, 16px);
+  padding: clamp(10px, 1.4vmin, 16px) clamp(16px, 2.2vmin, 28px);
+  font-weight: 700;
+  font-size: clamp(0.95rem, 1rem + 0.3vmin, 1.25rem);
+  letter-spacing: .02em;
+
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+
+  background: radial-gradient(120% 120% at 30% 40%,
+              rgba(0, 242, 255, 0.22), rgba(46, 0, 255, 0.14));
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+
+  box-shadow:
+    0 0 2px rgba(255, 255, 255, 0.05),
+    0 0 10px rgba(0, 255, 255, 0.18),
+    0 0 26px rgba(0, 144, 255, 0.18),
+    0 0 64px rgba(46, 0, 255, 0.22),
+    inset 0 0 14px rgba(255, 255, 255, 0.06);
+  text-shadow: 0 0 6px #00ffffaa, 0 0 12px #ffffffaa;
+
+  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+  animation: breathe-scale var(--breath) ease-in-out infinite reverse;
+}
+.kairos-api-button:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow:
+    0 0 6px rgba(0, 255, 255, 0.35),
+    0 0 18px rgba(0, 168, 255, 0.45),
+    0 0 84px 10px rgba(47, 134, 255, 0.25),
+    inset 0 0 22px rgba(255, 255, 255, 0.10);
+}
+
+.kairos-icon,
+.kairos-arrow {
+  width: clamp(18px, 2.1vmin, 26px);
+  height: clamp(18px, 2.1vmin, 26px);
+  object-fit: contain;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px #00e6ff88);
+}
+.kairos-icon { margin-right: 2px; }
+.kairos-arrow { margin-left: clamp(6px, .9vmin, 10px); }
+
+/* ---------- Spiral Logo ---------- */
+.spiral-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 2.2rem;
+  width: 100%;
+  z-index: 20;
+}
+.spiral-logo {
+  width: clamp(80px, 12vmin, 160px);
+  height: clamp(80px, 12vmin, 160px);
+  animation:
+    breathe-scale var(--breath) ease-in-out infinite,
+    slow-tilt var(--spin-mid) linear infinite;
+  filter: drop-shadow(0 0 12px #00f2ff);
+  opacity: .95;
+  user-select: none;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes panelPop {
+  from { transform: translateY(12px) scale(.985); opacity: 0; }
+  to   { transform: translateY(0)   scale(1);     opacity: 1; }
+}
+@keyframes breathe-scale {
+  0%,100% { transform: scale(1);     opacity: .96; }
+  50%     { transform: scale(1.035); opacity: 1;   }
+}
+@keyframes breathe-opacity {
+  0%,100% { opacity: .75; }
+  50%     { opacity: 1;   }
+}
+@keyframes micro-sway {
+  0%,100% { transform: translate3d(0,0,0) rotate(0deg); }
+  50%     { transform: translate3d(0, -0.6vh, 0) rotate(.35deg); }
+}
+@keyframes parallax-drift {
+  0%   { transform: translate3d(-2vw, 0, 0) scale(1); }
+  50%  { transform: translate3d( 2vw, 1vh, 0) scale(1.02); }
+  100% { transform: translate3d(-2vw, 0, 0) scale(1); }
+}
+@keyframes slow-tilt {
+  to { transform: rotate(360deg); }
+}
+@keyframes ring-spin {
+  to { transform: rotate(1turn); }
+}
+@keyframes prism-sweep {
+  0%,100% { background-position: 120% 120%; opacity: .7; }
+  50%     { background-position: -40% -40%;  opacity: 1;  }
+}
+@keyframes breathe-border {
+  0%,100% { box-shadow: var(--glow-1), var(--glow-2), var(--glow-3), 0 0 0 100vmax rgba(0,0,0,.25) inset; }
+  50%     { box-shadow:
+              0 0 18px rgba(0,255,255,.35),
+              0 0 44px rgba(0,155,255,.28),
+              0 0 88px rgba(120,0,255,.26),
+              0 0 0 100vmax rgba(0,0,0,.24) inset; }
+}
+
+/* ---------- Accessibility / Reduce Motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .klock-hero:hover { transform: none; }
+  .spiral-logo,
+  .floating-klock,
+  .floating-klock::before,
+  .floating-klock::after,
+  .hero-stage::before,
+  .hero-stage::after,
+  .eternal-klock-panel,
+  .kairos-api-button,
+  body::before,
+  body::after { animation: none !important; }
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 600px) {
+  :root {
+    --ui-scale : 1.4;           /* keep it BIG on phones */
+    --font-base: clamp(17px, 3.6vw, 20px);
+  }
+  .floating-klock { width: min(92vw, 92vh); }
+  .eternal-klock-panel {
+    max-width: 94vw;
+    padding: clamp(14px, 4.2vw, 22px);
+  }
+}
+
+/* ---------- Ultra-wide / desktop XL ---------- */
+@media (min-width: 1600px) and (min-height: 900px) {
+  :root { --ui-scale: 1.55; --font-base: 20px; }
+  .floating-klock { width: clamp(820px, 54vmin, 1280px); }
+  .eternal-klock-panel { width: clamp(980px, 64vmin, 1480px); }
+}
+/* ---------- Mobile Input Fixes ---------- */
+
+/* Allow scrolling + trusted taps on iOS and Android */
+body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Use this class only when you need to lock the screen for modals or splash */
+body.lock-scroll {
+  overflow: hidden !important;
+}
+
+/* Ensure file inputs work on all platforms */
+input[type="file"] {
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+  font-size: 16px; /* avoids iOS zoom */
+}
+
+/* Disable aurora and blur interference on mobile browsers */
+@media (hover: none) and (pointer: coarse) {
+  body::before,
+  body::after {
+    display: none !important;
+  }
+}:root{
+  --atl-ink: #eaf7ff;
+  --atl-glassA: rgba(255,255,255,.16);
+  --atl-glassB: rgba(255,255,255,.06);
+  --atl-edge: rgba(255,255,255,.55);
+  --atl-shadow: 0 24px 80px rgba(0,0,0,.45);
+  --atl-accent: #37e6d4;         /* Atlantean light */
+  --atl-aurora: #a8e0ff;         /* soft halo */
+
+  /* Updated at runtime to φ */
+  --pulse-dur: 5236ms;
+  --pulse-offset: 0ms;
+}
+
+/* Live sigil region */
+.sigil-live-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding: 18px 0 8px;
+  margin-top: 28px;
+  position: relative;
+  isolation: isolate;
+}
+
+.sigil-button{
+  all: unset;
+  position: relative;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  width: clamp(168px, 26vw, 220px);
+  height: clamp(168px, 26vw, 220px);
+  border-radius: 24px;
+
+  background:
+    radial-gradient(140% 140% at 50% 0%, rgba(255,255,255,.14), rgba(255,255,255,.05)),
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  box-shadow:
+    var(--atl-shadow),
+    inset 0 0 0 1px rgba(255,255,255,.22);
+
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  will-change: transform, filter;
+
+  /* Breath in-phase with φ; App.tsx sets vars */
+  animation: sigilBreath var(--pulse-dur) ease-in-out var(--pulse-offset) infinite;
+}
+
+.sigil-button:hover{
+  transform: translateY(-2px) scale(1.012);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.52),
+    inset 0 0 0 1px rgba(255,255,255,.28);
+}
+
+.sigil-button:active{
+  transform: translateY(0) scale(.992);
+}
+
+.sigil-aura{
+  position:absolute;
+  inset:-16px;
+  border-radius: 28px;
+  background:
+    radial-gradient(60% 60% at 50% 35%, rgba(55,230,212,.22), transparent 60%),
+    radial-gradient(100% 100% at 50% 110%, rgba(168,224,255,.18), transparent 60%);
+  filter: blur(18px);
+  pointer-events:none;
+  mix-blend-mode: screen;
+  opacity:.85;
+  animation: haloShift calc(var(--pulse-dur) * 2) ease-in-out var(--pulse-offset) infinite;
+}
+
+.sigil-caption{
+  margin-top: 10px;
+  font-size: 13px;
+  letter-spacing: .3px;
+  color: var(--atl-ink);
+  opacity: .82;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.sigil-pulse{
+  padding: 6px 10px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.22),
+    0 10px 28px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px) saturate(120%);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  line-height: 1;
+}
+
+/* Breath animation (subtle, φ-locked) */
+@keyframes sigilBreath{
+  0%,100%{ transform: scale(1); filter: saturate(110%) brightness(1.00); }
+  50%    { transform: scale(1.024); filter: saturate(125%) brightness(1.06); }
+}
+
+/* Slow halo drift */
+@keyframes haloShift{
+  0%,100%{ opacity:.80; transform: translateY(0) scale(1); }
+  50%    { opacity:.95; transform: translateY(-2px) scale(1.02); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .sigil-button, .sigil-aura { animation: none !important; }
+}
+
+/* Small devices tuning */
+@media (max-width: 420px){
+  .sigil-caption{ font-size: 12px; }
+}

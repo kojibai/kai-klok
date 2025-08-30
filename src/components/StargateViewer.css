@@ -1,0 +1,410 @@
+/* ════════════════════════════════════════════════════════════════
+   StargateViewer.css · Ω-Gate · Atlantean LumeniTech (v6.0+)
+   Drop-in: same class names/selectors; richer chrome, zero overflow,
+   mobile-first, HDR-friendly, and synchronized “breath”.
+═════════════════════════════════════════════════════════════════ */
+
+/* Custom properties registration (for smooth math) */
+@property --kai-phase  { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --kai-breath { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --tiltX      { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --tiltY      { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+/* Optional DPR tuning (JS can also set --dpr) */
+:root { --dpr: 1; }
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) { :root { --dpr: 1.5; } }
+@media (-webkit-min-device-pixel-ratio: 2),   (min-resolution: 192dpi) { :root { --dpr: 2;   } }
+
+/* ----------------------------------------------------------------
+   Root viewer container
+---------------------------------------------------------------- */
+.stargate-viewer {
+  --size : clamp(220px, 90vmin, 640px);
+  --hue  : 180;
+  --sat  : 100%;
+  --lum  : 60%;
+
+  position: relative;
+  width: var(--size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  /* breathing macro-scale (driven by JS via --kai-breath) */
+  transform: scale(calc(0.985 + (var(--kai-breath) * 0.03)));
+
+  /* holographic aura */
+  box-shadow:
+    0 0 calc(var(--size)*.08)  hsl(var(--hue) var(--sat) 80% / .55),
+    0 0 calc(var(--size)*.18)  hsl(calc(var(--hue) + 26) var(--sat) 65% / .28) inset;
+  transition: box-shadow .4s ease, transform .4s cubic-bezier(.16,1,.3,1);
+}
+
+/* State helpers */
+.stargate-viewer.no-motion,
+.stargate-viewer[data-paused="true"] { transform: none; }
+.stargate-viewer[data-dragging="true"] { outline: 2px dashed hsl(var(--hue) var(--sat) 75% / .5); outline-offset: 4px; }
+
+@media (hover: hover) {
+  .stargate-viewer:hover {
+    box-shadow:
+      0 0 calc(var(--size)*.12) hsl(var(--hue) var(--sat) 88% / .9),
+      0 0 calc(var(--size)*.20) hsl(calc(var(--hue) + 32) var(--sat) 68% / .5) inset;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stargate-viewer { transition: none; transform: none; }
+}
+
+/* ----------------------------------------------------------------
+   Deep star-field (subtle, HDR-friendly)
+---------------------------------------------------------------- */
+.stargate-viewer::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  background:
+    radial-gradient(circle at 50% 50%, #fff8 0%, #fff0 60%),
+    repeating-radial-gradient(circle at 50% 50%, #fff5 0 0.8px, transparent 0.8px 2.4px);
+  background-blend-mode: screen;
+  filter: blur(calc(2px * var(--dpr)));
+  animation: starDrift 80s linear infinite;
+  pointer-events: none;
+}
+@keyframes starDrift {
+  from { transform: translate3d(-6%, -6%, 0) scale(1.08); }
+  to   { transform: translate3d( 6%,  6%, 0) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) { .stargate-viewer::before { animation-duration: 160s; } }
+
+/* ----------------------------------------------------------------
+   Gate bezel + ticks + specular glints (conic layers)
+---------------------------------------------------------------- */
+.gate-frame{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  pointer-events:none;
+  filter: saturate(120%) blur(calc(2px * var(--dpr)));
+
+  /* base chrome sweep */
+  background:
+    conic-gradient(
+      from calc(360deg * var(--kai-phase)),
+      hsl(var(--hue) var(--sat) 90% / .28) 0 70deg,
+      transparent 70deg 180deg,
+      hsl(var(--hue) var(--sat) 78% / .18) 180deg 255deg,
+      transparent 255deg 360deg
+    );
+  animation: gateSweep 21s linear infinite;
+}
+@keyframes gateSweep{ to{ transform:rotate(360deg); } }
+
+/* inner etched tick ring */
+.gate-frame::before{
+  content:"";
+  position:absolute; inset:2.5%;
+  border-radius:50%;
+  background:
+    repeating-conic-gradient(
+      from calc(-90deg + 360deg * var(--kai-phase)),
+      hsl(var(--hue) var(--sat) 95% / .18) 0 1.4deg,
+      transparent 1.4deg 4.236deg
+    );
+  mask: radial-gradient(circle, #0000 76%, #000 78%, #000 100%);
+  filter: blur(calc(1.2px * var(--dpr)));
+}
+
+/* specular glass arc */
+.gate-frame::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:50%;
+  background:
+    conic-gradient(from 220deg,
+      #ffffff99 0deg 12deg,
+      #ffffff10 50deg 120deg,
+      #ffffff00 180deg);
+  mix-blend-mode: screen;
+  opacity:.6;
+  transform: rotate(calc(18deg * var(--kai-breath)));
+}
+
+/* ----------------------------------------------------------------
+   φ-spiral overlay (slow) + caustic shimmer (breath)
+---------------------------------------------------------------- */
+.spiral-overlay{
+  position:absolute;
+  inset:-50%;
+  border-radius:50%;
+  pointer-events:none;
+  background:
+    repeating-conic-gradient(
+      hsl(var(--hue) var(--sat) 90% / .12) 0 2deg,
+      transparent 2deg 4.236deg
+    );
+  mask: radial-gradient(circle, transparent 40%, #000 42%);
+  animation: spin 55s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.spiral-overlay::after{
+  content:"";
+  position:absolute; inset:33%;
+  border-radius:50%;
+  background:
+    radial-gradient(120% 160% at 30% 20%, hsl(var(--hue) var(--sat) 85% / .22), transparent 60%),
+    radial-gradient(120% 160% at 70% 80%, hsl(calc(var(--hue)+40) var(--sat) 75% / .18), transparent 60%);
+  filter: blur(calc(8px * var(--dpr)));
+  transform: scale(calc(0.95 + var(--kai-breath)*0.06));
+  opacity: calc(.25 + var(--kai-breath) * .25);
+}
+
+/* ----------------------------------------------------------------
+   Breathing inner halo (sync to --kai-breath)
+---------------------------------------------------------------- */
+.stargate-viewer::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  background:radial-gradient(circle,
+    hsl(var(--hue) var(--sat) 95% / .28) 0%,
+    hsl(var(--hue) var(--sat) 75% / 0) 55%);
+  transform: scale(calc(0.92 + (var(--kai-breath) * 0.14)));
+  opacity: calc(0.38 + (var(--kai-breath) * 0.34));
+  transition: transform .12s linear, opacity .12s linear;
+  pointer-events:none;
+}
+@media (prefers-reduced-motion: reduce){ .stargate-viewer::after{ transition:none; } }
+
+/* ----------------------------------------------------------------
+   Breath gauze + corner runes (extra gloss)
+---------------------------------------------------------------- */
+.breath-gauze{
+  position:absolute; inset:12%;
+  border-radius:50%;
+  background:
+    radial-gradient(120% 160% at 15% 10%, rgba(255,255,255,.07), transparent 60%),
+    radial-gradient(120% 160% at 85% 90%, rgba(255,255,255,.05), transparent 60%);
+  mix-blend-mode: screen;
+  filter: blur(calc(8px * var(--dpr)));
+  opacity: calc(.18 + var(--kai-breath) * .18);
+  transform: scale(calc(0.98 + var(--kai-breath) * .04));
+  pointer-events: none;
+}
+
+.light-corners{
+  position:absolute; inset:0; border-radius:50%; pointer-events:none;
+}
+.light-corners::before,
+.light-corners::after{
+  content:"";
+  position:absolute; width:24%; height:24%;
+  border-radius:50%;
+  filter: blur(calc(10px * var(--dpr)));
+  mix-blend-mode: screen; opacity:.35;
+}
+.light-corners::before{ left:-6%; top:-6%;
+  background: radial-gradient(circle at 60% 60%, hsl(var(--hue) 100% 80% / .6), transparent 70%);
+}
+.light-corners::after{ right:-6%; bottom:-6%;
+  background: radial-gradient(circle at 40% 40%, hsl(calc(var(--hue)+50) 100% 75% / .55), transparent 70%);
+}
+
+/* ----------------------------------------------------------------
+   Drag/drop hint (appears when data-dragging="true")
+---------------------------------------------------------------- */
+.drop-hint{
+  position:absolute; inset:0; display:grid; place-content:center;
+  gap: .4rem; text-align:center; pointer-events:none;
+  opacity: 0; transform: scale(.98);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.stargate-viewer[data-dragging="true"] .drop-hint{ opacity:1; transform: none; }
+
+.drop-glyph{
+  font-size: clamp(1.2rem, 6vmin, 2rem);
+  color: hsl(var(--hue) var(--sat) 90% / .85);
+  text-shadow: 0 8px 24px rgba(0,0,0,.55);
+}
+.drop-text{
+  font: 700 clamp(.75rem, 1.8vmin, .9rem)/1 "JetBrains Mono", monospace;
+  color: hsl(var(--hue) var(--sat) 92% / .9);
+  padding: .45rem .8rem; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border: 1px solid hsl(var(--hue) var(--sat) 65% / .45);
+  backdrop-filter: blur(8px) saturate(150%);
+}
+
+/* ----------------------------------------------------------------
+   Sigil content (IMG or SVG wrapper)
+---------------------------------------------------------------- */
+.sigil-svg-wrap,
+.sigil-img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  pointer-events:none;
+  will-change: transform, filter;
+  transition: filter .25s linear;
+  /* lively but tasteful color drift via JS hue-rotate on element */
+}
+
+/* fallback text (rare) */
+.sigil-placeholder{
+  position:absolute; inset:0;
+  display:grid; place-content:center;
+  font-family:"JetBrains Mono", monospace;
+  font-size:clamp(.8rem,2.2vw,1rem);
+  letter-spacing:.05em;
+  color:hsl(var(--hue) var(--sat) 85% / .95);
+  text-shadow:0 0 4px hsl(var(--hue) var(--sat) 95% / .6);
+  backdrop-filter:blur(3px);
+  pointer-events:none;
+}
+
+/* ----------------------------------------------------------------
+   Pulse badge (frosted chip)
+---------------------------------------------------------------- */
+.pulse-tag{
+  position:absolute;
+  bottom:calc(6% + env(safe-area-inset-bottom, 0px));
+  left:50%;
+  translate:-50%;
+  padding:.42em 1.0em;
+  background:hsl(var(--hue) 60% 10% / .45);
+  border:1px solid hsl(var(--hue) var(--sat) 65% / .5);
+  border-radius:9999px;
+  font:700 .72rem/1 "JetBrains Mono",monospace;
+  color:#e9ffff;
+  white-space:nowrap;
+  backdrop-filter:blur(10px) saturate(140%);
+  text-shadow:0 0 4px hsl(var(--hue) var(--sat) 80%);
+  box-shadow: 0 6px 18px hsl(var(--hue) var(--sat) 20% / .35);
+}
+:fullscreen .pulse-tag { bottom:calc(4% + env(safe-area-inset-bottom, 0px)); }
+
+/* ----------------------------------------------------------------
+   Gate controls (glassy runes)
+---------------------------------------------------------------- */
+.gate-controls{
+  position:absolute;
+  top:calc(4% + env(safe-area-inset-top, 0px));
+  right:calc(4% + env(safe-area-inset-right, 0px));
+  display:flex;
+  gap:.42em;
+  filter: drop-shadow(0 6px 14px hsl(var(--hue) 80% 10% / .5));
+}
+
+.gate-controls button{
+  all:unset;
+  display:grid;
+  place-content:center;
+  width:calc(var(--size)*.07);
+  height:calc(var(--size)*.07);
+  min-width:28px;
+  min-height:28px;
+  font:700 clamp(.55rem,.9vw,.75rem)/1.1 "JetBrains Mono",monospace;
+  color:hsl(var(--hue) var(--sat) 90%);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)),
+    hsl(var(--hue) 60% 10% / .35);
+  border:1px solid hsl(var(--hue) var(--sat) 60% / .4);
+  border-radius:10px;
+  cursor:pointer;
+  backdrop-filter: blur(8px) saturate(160%);
+  transition: background .25s ease, transform .2s ease, box-shadow .25s ease;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.06),
+    0 6px 14px rgba(0,0,0,.35);
+}
+
+.gate-controls button:hover:not(:active){
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06)),
+    hsl(var(--hue) var(--sat) 25% / .55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.1),
+    0 10px 22px rgba(0,0,0,.45);
+}
+.gate-controls button:active{ transform:scale(.92); }
+.gate-controls button:focus-visible{
+  outline:2px solid hsl(var(--hue) var(--sat) 85%);
+  outline-offset:2px;
+}
+
+@media (pointer:coarse){
+  .gate-controls button{ font-size:1rem; border-radius:12px; }
+}
+
+/* ----------------------------------------------------------------
+   Full-screen polish
+---------------------------------------------------------------- */
+:fullscreen .stargate-viewer,
+.stargate-viewer:fullscreen {
+  --size: 96vmin;
+  box-shadow:
+    0 0 calc(var(--size)*.10) hsl(var(--hue) var(--sat) 82% / .6),
+    0 0 calc(var(--size)*.22) hsl(calc(var(--hue) + 24) var(--sat) 70% / .32) inset;
+}
+
+/* ----------------------------------------------------------------
+   Accessibility — contrast & motion & forced colors
+---------------------------------------------------------------- */
+@media (prefers-contrast: more){
+  .stargate-viewer{ outline:2px solid hsl(var(--hue) var(--sat) 50%); }
+  .gate-controls button{ border-color: hsl(var(--hue) var(--sat) 70% / .6); }
+}
+@media (prefers-reduced-motion: reduce){
+  .gate-frame,
+  .spiral-overlay,
+  .stargate-viewer::before{ animation-duration: 160s; }
+}
+@media (forced-colors: active){
+  .pulse-tag, .gate-controls button{
+    background: Canvas; color: CanvasText; border: 1px solid CanvasText;
+  }
+}
+
+/* ----------------------------------------------------------------
+   Light Mode (optional, if app supports)
+---------------------------------------------------------------- */
+@media (prefers-color-scheme: light){
+  .stargate-viewer{
+    box-shadow:
+      0 0 calc(var(--size)*.06)  hsl(var(--hue) 60% 45% / .35),
+      0 0 calc(var(--size)*.12)  hsl(calc(var(--hue) + 26) 60% 55% / .22) inset;
+  }
+  .pulse-tag{
+    background:hsl(var(--hue) 85% 95% / .65);
+    color:#041616;
+    border-color:hsl(var(--hue) 60% 55% / .5);
+    text-shadow:none;
+  }
+  .gate-controls button{
+    color:#073032;
+    border-color:hsl(var(--hue) 40% 45% / .35);
+  }
+}
+
+/* ----------------------------------------------------------------
+   Bonus: subtle grain (opt-in by setting data-grain="1")
+---------------------------------------------------------------- */
+.stargate-viewer[data-grain="1"]::before{
+  mask-image: radial-gradient(circle at 50% 50%, #000 55%, #0000 75%);
+  background-blend-mode: screen, normal;
+  background-image:
+    radial-gradient(circle at 50% 50%, #fff8 0%, #fff0 60%),
+    url("data:image/svg+xml;utf8,\
+      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 140'>\
+        <filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='1' stitchTiles='stitch'/></filter>\
+        <rect width='100%' height='100%' filter='url(%23n)' opacity='.035'/>\
+      </svg>");
+  background-size: auto, 300px 300px;
+}

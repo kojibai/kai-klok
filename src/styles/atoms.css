@@ -1,0 +1,46 @@
+/* ────────────────────────────────────────────────────────────────
+   ATOMS – icons, pulses, membership blurb
+──────────────────────────────────────────────────────────────── */
+
+/* ---- Dashboard icon ------------------------------------------ */
+.dashboard-btn-container{
+    width:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;
+  }
+  .dashboard-btn-container img{
+    width:100%;height:auto;display:block;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))
+           drop-shadow(0 0 6px rgba(0,255,255,.45));
+    transition:transform .3s ease,filter .3s ease;
+  }
+  .dashboard-btn-container img:hover{
+    transform:scale(1.05);
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))
+           drop-shadow(0 0 10px rgba(0,255,255,.7));
+  }
+  /* desktop spacing tweak */
+  .button-group .dashboard-btn-container{margin-left:1.2rem;}
+  @media(max-width:768px){.dashboard-btn-container{width:26px;}}
+  
+  /* ---- Ancient Codex icon -------------------------------------- */
+  .ancient-codex-container{width:30px;margin:0 auto 1rem;}
+  .ancient-codex-container svg{width:100%;height:auto;}
+  .ancient-codex-container svg rect{filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));}
+  .ancient-codex-container svg text{font-family:serif;font-size:.75rem;letter-spacing:.5px;}
+  .ancient-codex-container svg:hover{transform:scale(1.05);transition:transform .3s;}
+  .button-group .ancient-codex-container{margin:0;}
+  
+  /* ---- Pulse utility ------------------------------------------- */
+  .pulse-button{
+    animation:pulseGlow 2.5s ease-in-out infinite;
+    filter:drop-shadow(0 0 8px #4f46e5) drop-shadow(0 0 16px #7c3aed);
+  }
+  
+  /* ---- Membership blurb ---------------------------------------- */
+  .membership-message{
+    font-size:1.2rem;text-align:center;margin-bottom:1rem;color:#d1d5db;
+  }
+  .membership-benefits{
+    list-style:none;margin:1rem 0;padding:0;font-size:1rem;color:#cbd5e1;line-height:1.6;
+  }
+  .membership-benefits li{margin:.4rem 0;display:flex;align-items:center;gap:.6rem;}
+  

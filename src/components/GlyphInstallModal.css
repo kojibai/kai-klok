@@ -1,0 +1,64 @@
+.glyph-install-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .glyph-install-box {
+    background: linear-gradient(145deg, #0e1117, #161b22);
+    padding: 2rem;
+    border-radius: 1.25rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    position: relative;
+  }
+  
+  .install-icon {
+    color: #37ffe4;
+    margin-bottom: 1rem;
+  }
+  
+  .install-title {
+    font-size: 1.5rem;
+    color: #e8fbf8;
+    margin-bottom: 0.5rem;
+  }
+  
+  .install-subtitle {
+    font-size: 0.95rem;
+    color: #aee8df;
+    margin-bottom: 1.5rem;
+  }
+  
+  .install-action-btn {
+    background: #37ffe4;
+    color: #0a0d12;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .install-action-btn:hover {
+    background: #2ddac4;
+  }
+  
+  .install-close-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+  }
+  

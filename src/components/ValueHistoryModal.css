@@ -1,0 +1,432 @@
+/* ─────────────────────────────────────────────────────────────
+   K A I R O S   V A L U E   H I S T O R Y   M O D A L
+   Living gradient • Breath rhythm 5.236s • No spinning rings
+   ───────────────────────────────────────────────────────────── */
+
+   .valuehist-overlay {
+    /* theme tokens */
+    --hue: var(--crystal-hue, 180);
+    --accent: var(--crystal-accent, #37e6d4);
+  
+    /* breath & dynamics */
+    --breath: 5.236s;            /* 3 + √5 seconds */
+    --breath-2: calc(var(--breath) * 2);
+    --lift: 1.0;                 /* global intensity scaler */
+  
+    /* inks & surfaces */
+    --ink-0: #e7fbf7;
+    --ink-1: rgba(231, 251, 247, 0.78);
+    --ink-dim: rgba(231, 251, 247, 0.55);
+    --bg-0: rgba(2, 8, 12, 0.88);
+    --bg-1: rgba(8, 22, 24, 0.85);
+  
+    --line: rgba(255, 255, 255, 0.12);
+    --line-2: rgba(255, 255, 255, 0.18);
+    --shadow: 0 20px 40px rgba(0, 0, 0, 0.55), 0 2px 16px rgba(0, 0, 0, 0.35);
+    --radius-xl: 18px;
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --blur: 18px;
+  
+    /* breathing variables (animated) */
+    --breathe-scale: 1;         /* 0.96..1.04 */
+    --breathe-bright: 0;        /* 0..1 */
+    --breathe-hue: 0deg;        /* ±6deg */
+  }
+  
+  /* enable smooth animation of custom properties in modern browsers */
+  @supports (background: paint(something)) or (offset: path('M0,0')) {
+    @property --breathe-scale { syntax: "<number>"; inherits: true; initial-value: 1; }
+    @property --breathe-bright { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @property --breathe-hue { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+  }
+  
+  /* ——— Overlay ——— */
+  .valuehist-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: clamp(8px, 2.4vmin, 24px);
+    color: var(--ink-0);
+  
+    /* living, layered background — slow drift + breathing bloom */
+    background:
+      radial-gradient(1200px 800px at 70% -10%,
+        color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 56%), transparent 84%) 0%,
+        transparent 65%),
+      radial-gradient(900px 600px at 15% 110%,
+        color-mix(in hsl, hsl(calc(var(--hue) - var(--breathe-hue)) 100% 56%), transparent 82%) 0%,
+        transparent 70%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    background-size:
+      calc(100% * var(--breathe-scale)) calc(100% * var(--breathe-scale)),
+      calc(100% * var(--breathe-scale)) calc(100% * var(--breathe-scale)),
+      100% 100%;
+    backdrop-filter: blur(var(--blur)) saturate(calc(1.05 + var(--breathe-bright) * 0.15 * var(--lift)));
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(calc(1.05 + var(--breathe-bright) * 0.15 * var(--lift)));
+  
+    animation:
+      kai-breathe var(--breath) ease-in-out infinite,
+      kai-drift   var(--breath-2) linear infinite;
+  }
+  
+  /* ——— Exit button ——— */
+  .valuehist-exit {
+    position: absolute;
+    top: clamp(8px, 2vmin, 16px);
+    right: clamp(8px, 2vmin, 16px);
+    z-index: 2;
+    appearance: none;
+    border: 0;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background:
+      radial-gradient(60% 60% at 50% 35%, rgba(255,255,255,0.18), rgba(255,255,255,0) 70%),
+      linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03));
+    box-shadow:
+      0 0 0 1px color-mix(in hsl, hsl(var(--hue) 100% 50%), transparent 70%),
+      0 0 24px color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 60%), transparent 65%);
+    color: var(--ink-0);
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .valuehist-exit:hover { transform: translateY(-1px) scale(1.03); }
+  .valuehist-exit:active { transform: translateY(0) scale(0.98); }
+  .valuehist-exit:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  
+  /* ——— Stage & Panel ——— */
+  .valuehist-stage { width: min(1120px, 100%); display: grid; place-items: stretch; }
+  
+  .valuehist-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+    box-shadow: var(--shadow);
+    isolation: isolate;
+  }
+  
+  /* Subtle living aura — replaces any spinning conic rings (gone) */
+  .valuehist-panel::before,
+  .valuehist-panel::after {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .valuehist-panel::before {
+    /* soft inner glow that inhales/exhales */
+    background:
+      radial-gradient(140% 120% at 50% 0%,
+        color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 62%), transparent 85%),
+        transparent 60%),
+      radial-gradient(160% 120% at 50% 100%,
+        color-mix(in hsl, hsl(calc(var(--hue) - var(--breathe-hue)) 100% 60%), transparent 87%),
+        transparent 62%);
+    filter: blur(calc(14px + var(--breathe-bright) * 10px * var(--lift)));
+    opacity: calc(0.45 + var(--breathe-bright) * 0.25 * var(--lift));
+    transform: scale(var(--breathe-scale));
+    transition: opacity .25s ease;
+  }
+  .valuehist-panel::after {
+    /* faint grain shimmer for life */
+    background:
+      radial-gradient(110% 140% at 10% 10%, rgba(255,255,255,0.05), transparent 60%),
+      radial-gradient(120% 140% at 90% 90%, rgba(255,255,255,0.035), transparent 62%);
+    mix-blend-mode: screen;
+    opacity: .35;
+    animation: kai-shimmer var(--breath-2) ease-in-out infinite;
+  }
+  
+  /* ——— Header ——— */
+  .valuehist-head {
+    display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: baseline;
+    padding: clamp(12px, 2.2vmin, 18px) clamp(14px, 2.4vmin, 20px);
+    border-bottom: 1px solid var(--line-2);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  }
+  .valuehist-title {
+    margin: 0; font-weight: 700; letter-spacing: .2px; font-size: clamp(16px, 2.2vmin, 18px);
+    background: linear-gradient(90deg,
+      color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 70%), #fff 12%), #fff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 calc(12px + var(--breathe-bright) * 16px * var(--lift))
+      color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 65%), transparent 60%);
+  }
+  
+  /* Latest badge */
+  .valuehist-head .badge {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+    border-radius: 999px; font-size: 12px; color: var(--ink-0);
+    background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    white-space: nowrap;
+  }
+  .valuehist-head .badge strong { font-weight: 700; }
+  
+  /* Range switcher */
+  .valuehist-ranges {
+    margin-left: auto; display: inline-flex; gap: 6px; padding: 3px;
+    border-radius: 999px; background: rgba(255,255,255,0.06);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  }
+  .valuehist-ranges .btn-ghost {
+    appearance: none; border: 0; padding: 8px 12px; border-radius: 999px;
+    font-size: 12px; line-height: 1; color: var(--ink-1); background: transparent;
+    cursor: pointer; transition: color .15s ease, transform .12s ease; position: relative;
+  }
+  .valuehist-ranges .btn-ghost:hover { color: var(--ink-0); transform: translateY(-0.5px); }
+  .valuehist-ranges .btn-ghost.btn-primary { color: #04110e; font-weight: 600; }
+  .valuehist-ranges .btn-ghost.btn-primary::before {
+    content: ""; position: absolute; inset: 0; border-radius: 999px;
+    background: linear-gradient(180deg,
+      color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 65%), #fff 15%),
+      color-mix(in hsl, hsl(var(--hue) 100% 55%), #000 5%));
+    box-shadow: 0 6px 14px color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 60%), transparent 70%);
+    z-index: -1;
+  }
+  
+  /* ——— Chart frame ——— */
+  .valuehist-frame {
+    position: relative; margin: clamp(8px, 1.8vmin, 14px);
+    border-radius: var(--radius-lg); padding: clamp(6px, 1vmin, 10px);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.10),
+      0 0 0 1px color-mix(in hsl, hsl(var(--hue) 100% 50%), transparent 78%),
+      0 0 calc(24px + 8px * var(--breathe-bright) * var(--lift))
+        color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 58%), transparent 80%);
+    overflow: hidden; isolation: isolate;
+  }
+  .valuehist-frame::before,
+  .valuehist-frame::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+  }
+  .valuehist-frame::before {
+    /* faint hatch grid, masked and breathing */
+    background:
+      linear-gradient(transparent 23px, rgba(255,255,255,0.06) 24px),
+      linear-gradient(90deg, transparent 23px, rgba(255,255,255,0.06) 24px);
+    background-size: 24px 24px, 24px 24px;
+    mask: radial-gradient(120% 120% at 50% 50%, #000 68%, transparent 75%);
+    opacity: calc(0.12 + var(--breathe-bright) * 0.06 * var(--lift));
+  }
+  .valuehist-frame::after {
+    border-radius: inherit;
+    box-shadow: inset 0 0 calc(40px + var(--breathe-bright) * 20px * var(--lift))
+      color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 58%), transparent 72%);
+    mix-blend-mode: screen;
+    opacity: .7;
+  }
+  
+  /* Canvas */
+  .valuehist-frame canvas {
+    display: block; width: 100%; height: auto;
+    border-radius: calc(var(--radius-lg) - 4px);
+    background:
+      radial-gradient(120% 120% at -10% -20%,
+        color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 60%), transparent 90%), transparent 60%),
+      radial-gradient(120% 120% at 110% 120%,
+        color-mix(in hsl, hsl(calc(var(--hue) - var(--breathe-hue)) 100% 60%), transparent 90%), transparent 60%);
+    transform: translateZ(0); /* crisp on animation */
+  }
+  
+  /* Empty state */
+  .valuehist-empty {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 13px; color: var(--ink-dim);
+    pointer-events: none; text-align: center;
+  }
+  
+  /* Actions */
+  .valuehist-actions {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    padding: 0 clamp(14px, 2.4vmin, 20px) clamp(12px, 2.2vmin, 18px);
+  }
+  .valuehist-actions .btn-ghost {
+    appearance: none; border: 0; padding: 10px 14px; border-radius: var(--radius-md);
+    font-size: 13px; color: var(--ink-0);
+    background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    cursor: pointer; transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .valuehist-actions .btn-ghost:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.16),
+      0 10px 18px color-mix(in hsl, hsl(calc(var(--hue) + var(--breathe-hue)) 100% 60%), transparent 80%);
+  }
+  .valuehist-actions .btn-ghost:active { transform: translateY(0); }
+  .valuehist-actions .btn-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  
+  /* ——— Motion keyframes (breath ♥) ——— */
+  @keyframes kai-breathe {
+    0%,
+    100% {
+      --breathe-scale: 0.98;
+      --breathe-bright: 0.05;
+      --breathe-hue: -6deg;
+    }
+    50% {
+      --breathe-scale: 1.04;
+      --breathe-bright: 1;
+      --breathe-hue: 6deg;
+    }
+  }
+  
+  @keyframes kai-drift {
+    0%   { background-position: 0% 0%, 100% 100%, 0% 0%; }
+    50%  { background-position: 2% -1%, 98% 101%, 0% 0%; }
+    100% { background-position: 0% 0%, 100% 100%, 0% 0%; }
+  }
+  
+  @keyframes kai-shimmer {
+    0%, 100% { opacity: .28; transform: translateY(0) scale(1); }
+    50%      { opacity: .40; transform: translateY(-1.2%) scale(1.01); }
+  }
+  
+  /* ——— Reduced motion ——— */
+  @media (prefers-reduced-motion: reduce) {
+    .valuehist-overlay,
+    .valuehist-panel::before,
+    .valuehist-panel::after { animation: none !important; }
+    .valuehist-overlay { --breathe-scale: 1; --breathe-bright: 0; --breathe-hue: 0deg; }
+    .valuehist-exit,
+    .valuehist-ranges .btn-ghost,
+    .valuehist-actions .btn-ghost { transition: none !important; }
+  }
+  
+  /* ——— Mobile ——— */
+  @media (max-width: 640px) {
+    .valuehist-head { align-items: center; }
+    .valuehist-ranges { margin-left: 0; order: 3; width: 100%; justify-content: center; }
+    .valuehist-head .badge { order: 2; }
+    .valuehist-title { flex: 1 1 100%; order: 1; }
+    .valuehist-actions { justify-content: center; }
+  }
+  
+  /* ——— Light mode resilience ——— */
+  @media (prefers-color-scheme: light) {
+    .valuehist-overlay {
+      --bg-0: rgba(248, 252, 255, 0.86);
+      --bg-1: rgba(235, 247, 250, 0.88);
+      --ink-0: #062920;
+      --ink-1: rgba(6, 41, 32, 0.85);
+      --ink-dim: rgba(6, 41, 32, 0.65);
+      --line: rgba(0, 30, 22, 0.12);
+      --line-2: rgba(0, 30, 22, 0.18);
+    }
+    .valuehist-head .badge { color: #062920; }
+    .valuehist-ranges .btn-ghost.btn-primary { color: #00110c; }
+  }
+  
+  /* ——— Selection ——— */
+  .valuehist-overlay *::selection {
+    background: color-mix(in hsl, hsl(var(--hue) 100% 60%), #000 20%);
+    color: #00110c;
+  }
+  /* ─────────────────────────────────────────────────────────────
+   LIVE PRICE FLICKER — green on up, red on down
+   Works for:
+   - .sp-price-chip.flash-up / .sp-price-chip.flash-down
+   - .valuehist-head .badge.flash-up / .valuehist-head .badge.flash-down
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+    --phi-up-hsl: 160 85% 54%;   /* vibrant green-cyan, fits the accent */
+    --phi-down-hsl: 6 84% 58%;   /* vivid red */
+    --phi-up: hsl(var(--phi-up-hsl));
+    --phi-down: hsl(var(--phi-down-hsl));
+  }
+  
+  /* common flash envelope */
+  @keyframes phiFlashUp {
+    0% {
+      color: var(--ink-0, #e7fbf7);
+      text-shadow: none;
+      box-shadow: none;
+      filter: none;
+    }
+    12% {
+      color: var(--phi-up);
+      text-shadow: 0 0 10px color-mix(in hsl, var(--phi-up), transparent 35%);
+      box-shadow:
+        0 0 0 1px color-mix(in hsl, var(--phi-up), transparent 70%),
+        0 0 24px color-mix(in hsl, var(--phi-up), transparent 70%);
+      filter: saturate(1.25) brightness(1.05);
+    }
+    100% {
+      color: var(--ink-0, #e7fbf7);
+      text-shadow: none;
+      box-shadow: none;
+      filter: none;
+    }
+  }
+  
+  @keyframes phiFlashDown {
+    0% {
+      color: var(--ink-0, #e7fbf7);
+      text-shadow: none;
+      box-shadow: none;
+      filter: none;
+    }
+    12% {
+      color: var(--phi-down);
+      text-shadow: 0 0 10px color-mix(in hsl, var(--phi-down), transparent 35%);
+      box-shadow:
+        0 0 0 1px color-mix(in hsl, var(--phi-down), transparent 72%),
+        0 0 24px color-mix(in hsl, var(--phi-down), transparent 75%);
+      filter: saturate(1.15) brightness(0.98);
+    }
+    100% {
+      color: var(--ink-0, #e7fbf7);
+      text-shadow: none;
+      box-shadow: none;
+      filter: none;
+    }
+  }
+  
+  /* price chip flash (you already toggle `flash-up` / `flash-down`) */
+  .sp-price-chip.flash-up,
+  .sp-price-chip.flash-down {
+    will-change: color, filter, box-shadow, text-shadow;
+    animation-duration: 0.42s;       /* crisp flicker */
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+  }
+  .sp-price-chip.flash-up   { animation-name: phiFlashUp; }
+  .sp-price-chip.flash-down { animation-name: phiFlashDown; }
+  
+  /* modal "Latest" badge flash — add class when the number moves */
+  .valuehist-head .badge.flash-up,
+  .valuehist-head .badge.flash-down {
+    will-change: color, filter, box-shadow, text-shadow;
+    animation-duration: 0.42s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+    /* keep the pill visible while flashing */
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14);
+  }
+  .valuehist-head .badge.flash-up   { animation-name: phiFlashUp; }
+  .valuehist-head .badge.flash-down { animation-name: phiFlashDown; }
+  
+  /* reduced motion: still give a quick color cue without animation */
+  @media (prefers-reduced-motion: reduce) {
+    .sp-price-chip.flash-up,
+    .valuehist-head .badge.flash-up {
+      animation: none !important;
+      color: var(--phi-up) !important;
+    }
+    .sp-price-chip.flash-down,
+    .valuehist-head .badge.flash-down {
+      animation: none !important;
+      color: var(--phi-down) !important;
+    }
+  }
+  

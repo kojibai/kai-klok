@@ -1,0 +1,70 @@
+/* ────────────────────────────────────────────────────────────────
+   MODALS – logout pop-over & PWA install pop-over
+──────────────────────────────────────────────────────────────── */
+
+/* ---- Logout pop-over ----------------------------------------- */
+.logout-popover-overlay{
+    position:fixed;top:0;left:0;width:100vw;height:100vh;
+    background:radial-gradient(ellipse at center,rgba(0,20,40,.9),rgba(0,0,0,1));
+    display:flex;align-items:center;justify-content:center;z-index:9999;
+    animation:fadeInBackdrop .8s ease forwards;
+  }
+  .logout-popover{
+    display:flex;flex-direction:column;align-items:center;
+    background:rgba(10,10,30,.8);padding:3rem 2.5rem;border-radius:20px;
+    box-shadow:0 0 40px rgba(0,255,255,.4);animation:popIn 1s ease forwards;
+  }
+  .logout-icon{
+    width:96px;height:96px;margin-bottom:1.5rem;
+    filter:drop-shadow(0 0 10px #00f5ff) brightness(1.4);
+    animation:pulseIcon 2s infinite alternate;
+  }
+  .logout-message{
+    font-size:2.4rem;color:#fff;text-shadow:0 0 10px #00f5ff;
+    letter-spacing:1px;margin-top:0;animation:glowText 2s infinite alternate;
+  }
+  
+  /* ---- Install pop-over ---------------------------------------- */
+  .install-popover{
+    position:fixed;inset:0;background:rgba(0,0,0,.8);
+    backdrop-filter:blur(8px) saturate(1.2);z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .install-popover-content{
+    position:relative;background:rgba(255,255,255,.1);
+    border:2px solid rgba(0,255,255,.2);border-radius:16px;padding:2rem;
+    max-width:90%;max-height:80%;box-shadow:0 0 30px rgba(0,255,255,.25);
+    color:#fff;overflow-y:auto;text-align:center;
+  }
+  .install-close-button{
+    position:absolute;top:1rem;right:1rem;background:none;border:none;
+    font-size:1.5rem;color:#fff;cursor:pointer;
+    transition:transform .2s,color .2s,text-shadow .2s;
+  }
+  .install-close-button:hover{
+    transform:scale(1.2);
+    text-shadow:0 0 5px var(--primary-color),0 0 10px var(--secondary-color);
+  }
+  
+  /* neon pill buttons */
+  .install-confirm-button,
+  .install-dismiss-button{
+    display:inline-block;position:relative;margin-top:1rem;
+    padding:.75rem 1.75rem;border:none;border-radius:9999px;cursor:pointer;font-weight:700;color:#fff;
+    background:linear-gradient(90deg,var(--primary-color),var(--secondary-color));
+    transition:transform .3s,box-shadow .3s;
+    box-shadow:0 0 10px var(--primary-color),0 0 20px var(--secondary-color);
+  }
+  .install-confirm-button::before,
+  .install-dismiss-button::before{
+    content:"";position:absolute;top:-6px;left:-6px;width:calc(100% + 12px);height:calc(100% + 12px);
+    background:linear-gradient(90deg,var(--secondary-color),var(--primary-color));
+    border-radius:inherit;filter:blur(15px);opacity:.65;z-index:-1;
+    animation:neonPulse 3s ease-in-out infinite;
+  }
+  .install-confirm-button:hover,
+  .install-dismiss-button:hover{
+    transform:scale(1.04);
+    box-shadow:0 0 15px var(--secondary-color),0 0 30px var(--primary-color);
+  }
+  

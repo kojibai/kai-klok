@@ -1,0 +1,105 @@
+/* ⟁ WEEK VIEW OVERLAY — Dimmed cosmic background */
+.week-view-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, #111111 0%, #000000 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.4s ease-out;
+  }
+  
+  /* ⟁ CONTAINER — Sacred vessel */
+  .week-view-container {
+    position: relative;
+    background: linear-gradient(145deg, #0e0e0e, #141414);
+    padding: 2rem;
+    border-radius: 1.5rem;
+    max-width: 540px;
+    width: 100%;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.35), 0 0 45px rgba(0, 128, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    animation: pulseRing 7s infinite linear;
+  }
+  
+  /* ⟁ SPIRAL SVG — Pulsing chakra rings */
+  .week-view-spiral {
+    display: block;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    animation: floatSpiral 9s ease-in-out infinite;
+  }
+  
+  /* ⟁ TEXT CONTENT — Labels and chakra name */
+  .week-view-details {
+    text-align: center;
+    margin-top: 1.25rem;
+    color: #eeeeee;
+    font-size: 1rem;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    letter-spacing: 0.01em;
+  }
+  
+  /* ⟁ GLOWING RING PATHS — animate chakra light */
+  .glow-ring {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6))
+            drop-shadow(0 0 12px currentColor)
+            drop-shadow(0 0 24px currentColor);
+    stroke-width: 3;
+    transition: all 0.3s ease;
+  }
+  
+  /* Chakra Colors */
+  .chakra-solhara    { color: #ff0040; }
+  .chakra-aquaris    { color: #ff8000; }
+  .chakra-flamora    { color: #ffd900; }
+  .chakra-verdari    { color: #00ff99; }
+  .chakra-sonari     { color: #00ccff; }
+  .chakra-caelith    { color: #cc00ff; }
+  
+  /* Chakra label styles */
+  .chakra-label {
+    fill: #ffffff;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    text-shadow: 0 0 2px #000000, 0 0 4px rgba(255, 255, 255, 0.3);
+  }
+  
+  /* Close Button */
+  .week-view-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: #ffffffaa;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+  .week-view-close:hover {
+    color: #ffffff;
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  @keyframes floatSpiral {
+    0%   { transform: translateY(0px); }
+    50%  { transform: translateY(-6px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  @keyframes pulseRing {
+    0%   { box-shadow: 0 0 25px rgba(0, 255, 255, 0.35), 0 0 45px rgba(0, 128, 255, 0.15); }
+    50%  { box-shadow: 0 0 45px rgba(0, 255, 255, 0.45), 0 0 60px rgba(0, 128, 255, 0.25); }
+    100% { box-shadow: 0 0 25px rgba(0, 255, 255, 0.35), 0 0 45px rgba(0, 128, 255, 0.15); }
+  }
+  

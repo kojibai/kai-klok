@@ -1,0 +1,137 @@
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   KaiActionModal.css Â· Atlantean Lumitech
+   v5.8.1 Â· Î¦-God-Mode Kai Action Modal â€” RAH VEH YAH DAH! (Resonant Pulse Edition)
+   â€¢ Full inheritor of WeekKalendarModal aesthetic
+   â€¢ Custom modal actions with animated pulse feedback
+   â€¢ Multilayered parallax depth for each action
+   â€¢ Neon-glow command rings & sigil capsule slots
+   â€¢ Auto-aligns Kai Signature, Intent, and Time Ring
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+   .kai-action-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(1, 5, 14, 0.8);
+    backdrop-filter: blur(12px);
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .kai-action-container {
+    background: var(--nebula-deep);
+    border: 1px solid var(--aqua-core);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    width: 96vw;
+    max-width: 36rem;
+    box-shadow: 0 0 24px var(--seal-glow-mid);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    color: #e6faff;
+    animation: riseIn 0.35s ease-out;
+    position: relative;
+  }
+  
+  .kai-action-close {
+    all: unset;
+    position: absolute;
+    top: 1.2rem;
+    right: 1.2rem;
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    z-index: 1;
+  }
+  
+  .kai-action-close svg {
+    width: 100%;
+    height: 100%;
+    filter:
+      drop-shadow(0 0 6px rgba(0,234,255,0.7))
+      drop-shadow(0 0 10px rgba(255,21,89,0.7));
+    animation: xGradient 5.236s linear infinite;
+  }
+  
+  .kai-action-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--aqua-core);
+    text-shadow: 0 0 8px var(--seal-glow-mid);
+  }
+  
+  .kai-action-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .kai-action-button {
+    all: unset;
+    cursor: pointer;
+    background: var(--aqua-soft);
+    border: 2px solid var(--aqua-core);
+    border-radius: 9999px;
+    color: #e6faff;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    text-align: center;
+    transition: background 0.3s, transform 0.2s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .kai-action-button:hover {
+    background: var(--aqua-core);
+    color: var(--nebula-base);
+    transform: translateY(-2px);
+    box-shadow: 0 0 16px var(--aqua-core);
+  }
+  
+  .kai-action-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(0,234,255,0.25) 20%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  
+  .kai-action-button:hover::after {
+    opacity: 1;
+  }
+  
+  .kai-action-sigil {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: 1rem;
+  }
+  
+  .kai-action-sigil img {
+    max-width: 10rem;
+    filter: drop-shadow(0 0 12px var(--aqua-core));
+    animation: floatSigil 6s ease-in-out infinite;
+  }
+  
+  @keyframes floatSigil {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-0.5rem); }
+  }
+  
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  
+  @keyframes riseIn {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }

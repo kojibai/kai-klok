@@ -1,0 +1,163 @@
+.glyph-vault-container {
+    padding: 2rem;
+    color: var(--ink);
+    background: transparent;
+  }
+  
+  .vault-title {
+    font-size: 1.8rem;
+    margin-bottom: 0.2rem;
+  }
+  
+  .vault-subtitle {
+    font-size: 1rem;
+    color: var(--ink-dim);
+    margin-bottom: 1.5rem;
+  }
+  
+  .vault-empty {
+    padding: 1rem;
+    color: var(--warn);
+  }
+  
+  .glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .glyph-card {
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    transition: all 0.2s ease;
+  }
+  
+  .glyph-card:hover {
+    border-color: var(--seal-core);
+  }
+  
+  .glyph-card-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .glyph-hash {
+    color: var(--seal-text);
+  }
+  
+  .glyph-pulse {
+    color: var(--seal-text-dim);
+  }
+  
+  .glyph-card-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+  }
+  
+  .glyph-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.7rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .glyph-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--seal-core);
+  }
+  .glyph-vault-container {
+    padding: 1.5rem;
+    max-width: 1200px;
+    margin: auto;
+  }
+  
+  .vault-title {
+    font-size: 1.8rem;
+    color: var(--seal-text);
+    margin-bottom: 0.2rem;
+  }
+  
+  .vault-subtitle {
+    font-size: 1rem;
+    color: var(--seal-text-dim);
+    margin-bottom: 1rem;
+  }
+  
+  .vault-empty {
+    text-align: center;
+    color: var(--seal-text-dim);
+    padding: 2rem;
+  }
+  
+  .glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  
+  .glyph-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 0 12px rgba(0, 255, 208, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .glyph-card-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--seal-text-dim);
+    margin-bottom: 0.5rem;
+  }
+  
+  .glyph-value-label {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--seal-text);
+    margin-top: 0.5rem;
+  }
+  
+  .glyph-card-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+  }
+  
+  .glyph-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--seal-text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.5rem;
+    margin: 0 0.25rem;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  
+  .glyph-btn:hover {
+    background: rgba(0, 255, 208, 0.1);
+  }
+  

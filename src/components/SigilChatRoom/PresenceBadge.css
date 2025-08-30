@@ -1,0 +1,39 @@
+.presence-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1rem;
+    border-radius: 999px;
+    font-weight: 600;
+    color: white;
+    font-size: 0.75rem;
+    user-select: none;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+  }
+  
+  .presence-badge.small {
+    font-size: 0.6rem;
+    padding: 0.35rem 0.6rem;
+  }
+  
+  .presence-badge.pulse {
+    animation: glowPulse 5.236s ease-in-out infinite;
+  }
+  
+  @keyframes glowPulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+    }
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
+    }
+  }
+  
+  .presence-label {
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  

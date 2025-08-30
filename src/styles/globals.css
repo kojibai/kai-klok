@@ -1,0 +1,47 @@
+/* ────────────────────────────────────────────────────────────────
+   GLOBALS
+   • Root colour tokens & radius
+   • Universal reset
+   • Makes every animation name available via @import
+──────────────────────────────────────────────────────────────── */
+
+/* ---- tokens -------------------------------------------------- */
+:root {
+    --primary-color      : #00ffff;
+    --secondary-color    : #0077ff;
+    --accent-color       : #00ff00;
+  
+    --background-start   : #0f2027;
+    --background-middle  : #203a43;
+    --background-end     : #2c5364;
+  
+    --glass-bg           : rgba(0, 0, 0, 0.75);
+    --input-bg           : rgba(255, 255, 255, 0.1);
+  
+    --border-radius      : 16px;
+  }
+  
+  /* ---- reset --------------------------------------------------- */
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;           /* lock outer scroll */
+    font-family: sans-serif;
+    box-sizing: border-box;
+  
+    /* seamless gradient behind iOS status-bar band */
+    background: linear-gradient(
+      to bottom,
+      var(--background-start),
+      var(--background-middle),
+      var(--background-end)
+    );
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  
+  /* ---- animation names (import) -------------------------------- */
+  @import "./animations.css";
+  

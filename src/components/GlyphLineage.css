@@ -1,0 +1,50 @@
+/* src/components/GlyphLineage.css */
+
+.glyph-lineage-node {
+    border-left: 2px solid var(--seal-aura, #00FFD0);
+    padding-left: 8px;
+    margin-top: 12px;
+  }
+  
+  .glyph-card {
+    background: rgba(10, 14, 20, 0.9);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    border-radius: 12px;
+    padding: 12px;
+    color: var(--seal-text, #e8fbf8);
+    box-shadow: 0 0 12px rgba(0, 255, 208, 0.15);
+  }
+  
+  .glyph-hash {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--seal-accent-3, #5ce1ff);
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  
+  .glyph-meta {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  
+  .glyph-sent-log {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--seal-text-dim, #aee8df);
+  }
+  
+  .glyph-sent-log ul {
+    list-style: none;
+    padding-left: 10px;
+    margin: 4px 0 0;
+  }
+  
+  .glyph-sent-log li {
+    padding: 2px 0;
+  }
+  
+  .glyph-children {
+    margin-top: 8px;
+  }
+  

@@ -1,0 +1,80 @@
+/* ────────────────────────────────────────────────────────────────
+   CHAT SHELL – outer layout, header, scroll box, icon row
+──────────────────────────────────────────────────────────────── */
+
+/* ---- Frosted container --------------------------------------- */
+.chat-container{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    padding:.25rem;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,rgba(0,0,0,.65)0%,rgba(0,0,0,.75)50%,rgba(0,0,0,.65)100%);
+    backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);
+    background-size:400% 400%;animation:gradientShift 40s ease-in-out infinite;
+    border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 40px rgba(0,0,0,.4);
+  }
+  
+  /* ---- Header stack -------------------------------------------- */
+  .chat-header{display:flex;flex-direction:column;align-items:center;gap:.15rem;margin-bottom:.25rem;}
+  .logo-container{margin:0;padding:0;}
+  .top-logo{max-width:50px;height:auto;display:block;margin:0 auto;}
+  .title{
+    font-size:1.2rem;margin:0;
+    background:linear-gradient(90deg,#00ffff,#0077ff);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 0 20px rgba(0,255,255,.7);
+  }
+  .message-count{font-size:.65rem;color:#00f2ff;margin:0;}
+  .clock-wrapper{margin-top:.25rem;}
+  
+  /* ---- Icon row ------------------------------------------------- */
+  .icon-row{display:flex;justify-content:center;align-items:center;gap:1.2rem;margin:.6rem 0;}
+  
+  /* ---- Scrollable chat box ------------------------------------- */
+  .chat-box{
+    flex:0 1 0;min-height:0;max-width:700px;width:100%;margin-bottom:.25rem;
+    display:block;position:relative;
+    background:var(--glass-bg);border-radius:var(--border-radius);
+    border:2px solid rgba(0,255,255,.2);box-shadow:0 10px 40px rgba(0,255,255,.15);
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:.75rem;animation:boxBreath 5s ease-in-out infinite;
+  }
+  /* let it grow when vertical space exists */
+  .chat-box.expanded{flex:1 1 auto;}
+  
+  /* Placeholder text & :empty rule */
+  .placeholder-text{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:90%;text-align:center;font-size:1.1rem;font-style:italic;
+    color:rgba(0,255,255,.85);pointer-events:none;user-select:none;margin:0;
+  }
+  .chat-box:has(.chat-message) .placeholder-text{display:none;}
+  .chat-box:empty::before{
+    content:"Ask anything…";display:flex;align-items:center;justify-content:center;
+    width:100%;height:100%;color:rgba(0,255,255,.9);font-size:1.1rem;font-style:italic;
+    pointer-events:none;
+  }
+  
+  /* Radiant scrollbar */
+  .chat-box::-webkit-scrollbar{width:10px;}
+  .chat-box::-webkit-scrollbar-track{background:rgba(255,255,255,.05);border-radius:8px;}
+  .chat-box::-webkit-scrollbar-thumb{
+    background:linear-gradient(135deg,#00ffff,#0077ff);border-radius:8px;
+    box-shadow:0 0 5px rgba(0,255,255,.7);border:2px solid rgba(0,0,0,.4);
+  }
+  .chat-box::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(135deg,#0077ff,#00ffff);
+    box-shadow:0 0 7px rgba(0,255,255,.9);
+  }
+  
+  /* ---- Mobile tweaks ------------------------------------------- */
+  @media(max-width:768px){
+    .chat-container{
+      padding:calc(.25rem + env(safe-area-inset-top)) .25rem .25rem;
+    }
+    .logo-container{margin-top:env(safe-area-inset-top);}
+    .top-logo{max-width:40px;}
+    .title{font-size:1rem;margin:.05rem 0;}
+    .chat-box{margin-bottom:.1rem;}
+    .chat-input{flex-direction:column;gap:4px;}
+    .chat-input input,.chat-input button{width:100%;}
+  }
+  

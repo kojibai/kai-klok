@@ -1,0 +1,147 @@
+/* ────────────────────────────────────────────────────────────────
+   HarmonicLoginModal.css · Atlantean Lumitech
+   v1.0 — Breath-aligned, neon-glass login styling
+   (Only class names referenced in TSX; no clashes with Tailwind.)
+────────────────────────────────────────────────────────────────── */
+
+/* ╔═ GLOBAL PAGE-FREEZE WHEN OVERLAY IS PRESENT ═════════════════ */
+html:has(.harmonic-login-overlay),
+body:has(.harmonic-login-overlay) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+/* ╔═ IMMERSIVE BACKDROP ════════════════════════════════════════ */
+.harmonic-login-overlay {
+  pointer-events: auto;
+  backdrop-filter: blur(22px) saturate(190%);
+  background:
+    radial-gradient(800px 500px at 50% 30%,
+      rgba(0,255,230,.08) 0%,
+      rgba(0,200,255,.05) 45%,
+      transparent 70%)
+    no-repeat,
+    #03070b;
+  animation: fadeIn 0.6s ease-out both;
+}
+
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+/* ╔═ MODAL CARD ═════════════════════════════════════════════════ */
+.harmonic-login-card {
+  pointer-events: auto;
+  overflow: visible;
+  padding:
+    calc(32px + env(safe-area-inset-top)) 28px
+    calc(38px + env(safe-area-inset-bottom));
+  border-radius: 22px;
+  background: linear-gradient(145deg, #10171e 0%, #05080c 100%);
+  border: 1px solid rgba(0,255,235,.15);
+  box-shadow:
+    0 12px 48px rgba(0,255,230,.28),
+    inset 0 0 12px rgba(0,255,230,.18);
+  color: #d9ffff;
+  text-align: center;
+  animation: cardPop .5s cubic-bezier(.24,1.35,.45,1.05) both;
+}
+
+@keyframes cardPop {
+  0%  { opacity:0; transform: translateY(42px) scale(.88) rotateX(7deg) }
+  70% { transform: translateY(-8px) scale(1.04) }
+  100%{ opacity:1; transform:none }
+}
+
+/* ╔═ CLOSE BUTTON ═══════════════════════════════════════════════ */
+.close-btn {
+  --pulse-dur: 5236ms;
+  --pulse-offset: 0ms;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: none; padding: 0;
+  cursor: pointer; border-radius: 50%;
+  isolation: isolate;
+  color: #9bd;
+  box-shadow:
+    0 0 12px #00ffe055,
+    inset 0 0 8px #00ffe033;
+  transition: transform .33s cubic-bezier(.23,1.6,.45,1.15),
+              box-shadow .28s, color .25s;
+}
+.close-btn::after {
+  content: "";
+  position: absolute; inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(0,255,240,.35) 0 18%, transparent 60%);
+  animation: pulseWave var(--pulse-dur) ease-out infinite var(--pulse-offset);
+}
+@keyframes pulseWave {
+  0%  { transform: scale(.25); opacity:.9 }
+  60% { transform: scale(1.8); opacity:0 }
+  100%{ transform: scale(1.8); opacity:0 }
+}
+.close-btn:hover {
+  transform: scale(1.15) rotateX(12deg) rotateY(-14deg);
+  box-shadow:
+    0 0 22px #00ffe0e0,
+    inset 0 0 14px #00ffe080;
+  color:#fff;
+}
+
+/* ╔═ PULSE BUBBLE (fills colours via JS keyframe) ═══════════════ */
+.pulse-bubble span:first-child { background:#00ffe0 }
+.pulse-bubble span:last-child  { background:#00d8ff }
+
+/* ╔═ INPUT & BUTTONS ════════════════════════════════════════════ */
+.login-input {
+  background:#0d1118;
+  color:#d8feff;
+  border:1px solid #00ffe059;
+  padding:10px 14px;
+  border-radius:9px;
+  transition:border-color .22s, box-shadow .22s;
+}
+.login-input:focus-visible {
+  border-color:#00ffe0;
+  box-shadow:0 0 0 2px #00ffe030;
+  outline:none;
+}
+
+.login-btn {
+  background:linear-gradient(135deg,#00ffe0 0%,#00bfff 100%);
+  color:#001015;
+  padding:14px 0;
+  font-size:1.05rem;
+  font-weight:700;
+  border:none;
+  border-radius:14px;
+  cursor:pointer;
+  letter-spacing:.45px;
+  box-shadow:0 0 28px #00ffe080;
+  transition:transform .24s, box-shadow .24s;
+}
+.login-btn:hover:not(:disabled) {
+  transform:translateY(-3px) scale(1.06);
+  box-shadow:0 0 36px #00ffe0e0;
+}
+.login-btn:disabled {
+  opacity:.55; cursor:not-allowed;
+}
+
+.copy-btn {
+  padding:4px 9px;
+  font-size:.72rem;
+  background:#0ff3;
+  color:#09f;
+  border:1px solid #0ff7;
+  border-radius:6px;
+  transition:background .18s,color .18s;
+}
+.copy-btn:hover { background:#00ffe0; color:#001015 }
+
+/* ╔═ REDUCED-MOTION FALLBACK ═══════════════════════════════════ */
+@media (prefers-reduced-motion:reduce) {
+  *{animation:none!important;transition:none!important}
+}

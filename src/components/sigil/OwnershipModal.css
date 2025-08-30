@@ -1,0 +1,106 @@
+/* src/components/sigil/OwnershipModal.css
+   — Production-tuned styles for the Ownership panel & icon trigger
+   — Mobile-first, safe-area aware, no pointer-event conflicts
+*/
+
+/* Scope helper (keeps things predictable when embedded in other pages) */
+.ownership-modal {
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+  }
+  
+  /* ────────────────────────────────────────────────────────────
+     Icon button used to open the Ownership flow
+  ──────────────────────────────────────────────────────────── */
+  .ownership-modal .btn-icon {
+    background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px;
+    padding: 8px;
+    margin-left: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+  
+  .ownership-modal .btn-icon:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 18px rgba(0,255,208,0.35);
+  }
+  
+  .ownership-modal .btn-icon:active {
+    transform: scale(0.98);
+  }
+  
+  .ownership-modal .btn-icon:focus-visible {
+    outline: 2px solid var(--crystal-accent, #00FFD0);
+    outline-offset: 2px;
+    border-color: color-mix(in oklab, var(--crystal-accent, #00FFD0) 50%, rgba(255,255,255,0.16));
+  }
+  
+  .ownership-modal .icon-verify-ownership {
+    stroke: var(--crystal-accent, #00FFD0);
+    transition: stroke 0.2s ease;
+  }
+  
+  .ownership-modal .btn-icon:hover .icon-verify-ownership {
+    stroke: #ffffff;
+  }
+  
+  /* Larger hit target on coarse pointers (phones/tablets) */
+  @media (hover: none) and (pointer: coarse) {
+    .ownership-modal .btn-icon {
+      padding: 12px;
+      border-radius: 14px;
+    }
+  }
+  
+  /* ────────────────────────────────────────────────────────────
+     Optional overlay (if your parent uses it for local panels)
+     NOTE: This is *not* the modal sheet overlay; the modal injects its own CSS.
+  ──────────────────────────────────────────────────────────── */
+  .ownership-modal .ownership-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(3px);
+    overscroll-behavior: contain;
+    padding:
+      max(0px, env(safe-area-inset-top))
+      max(0px, env(safe-area-inset-right))
+      max(0px, env(safe-area-inset-bottom))
+      max(0px, env(safe-area-inset-left));
+  }
+  
+  /* ────────────────────────────────────────────────────────────
+     Mobile utilities for the primary CTA in OwnershipPanel
+     (Used by the “Verify Ownership” button)
+  ──────────────────────────────────────────────────────────── */
+  .sp-btn-full { width: 100%; }
+  
+  @media (max-width: 480px) {
+    .btn-primary--xl {
+      min-height: 56px;
+      border-radius: 14px;
+      font-size: 16px; /* Avoid iOS zoom-on-tap */
+    }
+  }
+  
+  /* Disabled/aria-busy affordances (non-destructive, complements existing styles) */
+  .btn-primary[disabled],
+  .btn-primary[aria-disabled="true"] {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  /* ────────────────────────────────────────────────────────────
+     IMPORTANT: Removed legacy rules that broke overlay taps
+     (Do not reintroduce .ovm-overlay/.ovm-modal pointer-events hacks)
+  ──────────────────────────────────────────────────────────── */
+  /* (intentionally empty) */
+  
