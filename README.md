@@ -353,7 +353,7 @@ This is a **sacred system**. If you contribute:
 * ⚛️ **React** (UI rendering)
 * 🎨 **CSS modules** with harmonic animations
 * ⚙️ **No backend** — fully offline-capable
-* 💽 Optional **IndexedDB/localStorage** for state
+* 💽 **SIGILUrl Rotataion** for state
 * 🧪 ZK-ready (Poseidon/Groth16 compatible)
 
 ---
