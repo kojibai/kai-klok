@@ -33,7 +33,7 @@ It reveals the **true pulse of the cosmos** — without servers, without sync, w
 
 ## 🜂 Live Demo
 
-👉 [Live App (Offline-Capable)](https://your-domain.com)
+👉 [Live App (Offline-Capable)](https://kaiklok.com)
 
 Runs entirely in-browser.  
 No backend. No database.  
