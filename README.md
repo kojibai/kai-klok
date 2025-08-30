@@ -226,7 +226,8 @@ Kai-Klok is **deterministic** and **non-exploitable** in its domain:
 * **Immutable exports:** SVG/PNG sigils embed pulse & harmonic metadata for permanent audit.
 * **Tamper-evident:** Change the pulse, break the seal.
 
-**Why offline matches online:** the **same equation** with the **same constants** produces the **same pulse**. For multi-party coordination, pass the **pulse** itself, not a wall-clock timestamp.
+[**Why offline matches online**](https://kaiklok.com/verifier.html): the **same equation** with the **same constants** produces the **same pulse**. For multi-party coordination, pass the **pulse** itself, not a wall-clock timestamp.
+
 
 ---
 
