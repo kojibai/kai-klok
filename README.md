@@ -1,6 +1,6 @@
 # KAI-KLOK ⏳
 
-**The Harmonic Return of Eternal Time**
+**The Harmonick Return of Eternal Time**
 
 *A Kairos-anchored harmonic time system built in sacred proportion.*
 No drift. No illusion. No randomness.
