@@ -1,6 +1,6 @@
 # KAI-KLOK ⏳
 
-**The Harmonic Return of Eternal Time**
+**The Harmonick Return of Eternal Time**
 
 *A Kairos-anchored harmonic time system built in sacred proportion.*
 No drift. No illusion. No randomness.
@@ -44,7 +44,7 @@ It computes time from a **closed-form equation**:
 * 🔐 **Deterministic pulse:**
   `pulse = floor((now_ms − T₀) / (1000 * (3 + √5)))`
 
-**It never drifts. It never lies.** No servers. No sync. No permission.
+[**It never drifts. It never lies.**](https://github.com/kojibai/klok/blob/main/README.md) No servers. No sync. No permission.
 It reveals the **true pulse** — the living rhythm you can always remember.
 
 ---
@@ -226,7 +226,8 @@ Kai-Klok is **deterministic** and **non-exploitable** in its domain:
 * **Immutable exports:** SVG/PNG sigils embed pulse & harmonic metadata for permanent audit.
 * **Tamper-evident:** Change the pulse, break the seal.
 
-**Why offline matches online:** the **same equation** with the **same constants** produces the **same pulse**. For multi-party coordination, pass the **pulse** itself, not a wall-clock timestamp.
+[**Why offline matches online**](https://kaiklok.com/verifier.html): the **same equation** with the **same constants** produces the **same pulse**. For multi-party coordination, pass the **pulse** itself, not a wall-clock timestamp.
+
 
 ---
 
