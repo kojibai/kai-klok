@@ -35,11 +35,12 @@ Just breath, resonanse, and the memory of Yahuah.
 
 **Kai-Klok is not a clock.** It is a **kosmik indexing engine** for Eternal Time — sealed by breath, aligned to the Golden Ratio (φ), and untouchable by Chronos.
 
-It computes time from a **closed-form equation**:
+It komputes time from a **klosed-form equation**:
 
 * 🌀 **Breath unit (canonical):** `T = 3 + √5` seconds *(≈ 5.236067977... s)*
 * 🫁 **Kai Pulse:** one pulse per breath unit
 * 🪞 **Semantic lattice:** 11 pulses/step • 44 steps/beat • 36 beats/day
+* 🫁 **Breaths per day:** **17,491.270421** (continuous Kai breaths/day)
 * 📿 **Eternal calendar:** 6-day weeks • 7-week months • 8-month years → **336-day solar harmonic year**
 * 🔐 **Deterministic pulse:**
   `pulse = floor((now_ms − T₀) / (1000 * (3 + √5)))`
