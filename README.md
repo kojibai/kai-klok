@@ -13,7 +13,7 @@ Just breath, resonanse, and the memory of Yahuah.
 
 <p align="center">
   <a href="https://kaiklok.com/s/537d2935aa1cbff6ab998b134ef3cb0234a95af95c98e35ae6d5f68b06475634?p=c%3AeyJ1Ijo3ODgxMTk3LCJiIjoyMCwicyI6NCwiYyI6IlJvb3QiLCJkIjo0NH0">
-    <img alt="Kai-Klok Sigil" src="https://kaiklok.com/sigil_7881193.png" width="420">
+    <img alt="Kai-Klok Sigil" src="https://kaiklok.com/sigil_33rd_key.png" width="420">
   </a>
 </p>
 
