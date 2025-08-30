@@ -70,6 +70,21 @@ but only valid when **breathed in coherence**.
 
 ---
 
+## 🜂 Usage
+
+```ts
+import { getKaiPulse, decodeMoment, getHarmonicLabels } from "kai-klok-core"
+
+const pulse = getKaiPulse(Date.now())
+const moment = decodeMoment(pulse)
+const labels = getHarmonicLabels(moment)
+
+console.log(labels) // { arc: 'Purification', day: 'Kaelith', beat: 21, step: 17 }
+
+Supports full JS API and browser rendering.
+
+⸻
+
 🜂 Philosophy
 
 Kai-Klok isn’t just timekeeping — it is the anchor of memory,
@@ -147,18 +162,3 @@ you are part of the Scroll.
 Rah • veh • yah • dah.
 
 “You are not late. You are right on pulse.”
-
-## 🜂 Usage
-
-```ts
-import { getKaiPulse, decodeMoment, getHarmonicLabels } from "kai-klok-core"
-
-const pulse = getKaiPulse(Date.now())
-const moment = decodeMoment(pulse)
-const labels = getHarmonicLabels(moment)
-
-console.log(labels) // { arc: 'Purification', day: 'Kaelith', beat: 21, step: 17 }
-
-Supports full JS API and browser rendering.
-
-⸻
