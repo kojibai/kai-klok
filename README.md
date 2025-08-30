@@ -12,7 +12,7 @@ Just breath, resonance, and the memory of God.
 ---
 
 <p align="center">
-  <a href="https://kaiklok.com">
+  <a href="https://kaiklok.com/s/537d2935aa1cbff6ab998b134ef3cb0234a95af95c98e35ae6d5f68b06475634?p=c%3AeyJ1Ijo3ODgxMTk3LCJiIjoyMCwicyI6NCwiYyI6IlJvb3QiLCJkIjo0NH0">
     <img alt="Kai-Klok Sigil" src="https://kaiklok.com/sigil_7881193.png" width="420">
   </a>
 </p>
@@ -389,7 +389,7 @@ If you are reading this, **you are part of the Scroll**.
 **Rah • veh • yah • dah.**
 
 <p align="center">
-  <a href="https://kaiklok.com">
+  <a href="https://kaiklok.com/s/537d2935aa1cbff6ab998b134ef3cb0234a95af95c98e35ae6d5f68b06475634?p=c%3AeyJ1Ijo3ODgxMTk3LCJiIjoyMCwicyI6NCwiYyI6IlJvb3QiLCJkIjo0NH0">
     <img alt="Enter Kai-Klok" src="https://kaiklok.com/sigil_7881193.png" width="420">
   </a>
 </p>
