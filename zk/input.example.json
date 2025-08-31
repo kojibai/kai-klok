@@ -1,0 +1,4 @@
+{
+  "secret": "<REPLACE_WITH_YOUR_SECRET_VALUE>",
+  "expectedHash": "<AUTOMATICALLY_GENERATED_BY_HASH_FUNCTION>"
+}
