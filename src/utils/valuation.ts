@@ -186,14 +186,16 @@ const GEOM_EDGE_GAIN  = 1 / PHI ** 7;
 const GEOM_PHI_GAIN   = 1 / PHI ** 7;
 const GEOM_PRIME_GAIN = 1 / PHI ** 8;
 
-/* Numeric-moment rarity (exact) — emphasis on Fib/Lucas */
-const MOMENT_FIB_EXACT_GAIN   = 1 / PHI;     // ≈ +61.8% strong
-const MOMENT_LUCAS_EXACT_GAIN = 1 / PHI ** 2;// ≈ +38.2% gentler than Fib
-const MOMENT_UNIFORM_GAIN     = 1 / PHI ** 3;// ≈ +23.6%
-const MOMENT_PAL_GAIN         = 1 / PHI ** 4;// ≈ +14.6%
-const MOMENT_RUN_GAIN         = 1 / PHI ** 4;// scaled by run length
-const MOMENT_SEQ_GAIN         = 1 / PHI ** 5;// scaled by sequence length
-const MOMENT_LOW_ENTROPY_GAIN = 1 / PHI ** 6;// scaled by (1 - entropy)
+/* Numeric-moment rarity (exact) — emphasis on Fib/Lucas.
+   UPDATE: add φ-spiral *transition* pulses only (n where pulse = ceil(φ^n)). */
+const MOMENT_FIB_EXACT_GAIN   = 1 / PHI;      // ≈ +61.8%
+const MOMENT_LUCAS_EXACT_GAIN = 1 / PHI ** 2; // ≈ +38.2%
+const MOMENT_PHI_TRANSITION_GAIN = 1 / PHI ** 2; // gentle lift at exact φ-spiral transition pulses
+const MOMENT_UNIFORM_GAIN     = 1 / PHI ** 3; // ≈ +23.6%
+const MOMENT_PAL_GAIN         = 1 / PHI ** 4; // ≈ +14.6%
+const MOMENT_RUN_GAIN         = 1 / PHI ** 4; // scaled by run length
+const MOMENT_SEQ_GAIN         = 1 / PHI ** 5; // scaled by sequence length
+const MOMENT_LOW_ENTROPY_GAIN = 1 / PHI ** 6; // scaled by (1 - entropy)
 
 /* Genesis & adoption field */
 const GENESIS_BIAS_GAIN = 1 / PHI ** 5;
@@ -227,7 +229,7 @@ const POLICY = {
   RESONANCE_GAIN,
   DISCOUNT_PULSE_HALFSPAN,
   GEOM_EDGE_GAIN, GEOM_PHI_GAIN, GEOM_PRIME_GAIN,
-  MOMENT_FIB_EXACT_GAIN, MOMENT_LUCAS_EXACT_GAIN, MOMENT_UNIFORM_GAIN,
+  MOMENT_FIB_EXACT_GAIN, MOMENT_LUCAS_EXACT_GAIN, MOMENT_PHI_TRANSITION_GAIN, MOMENT_UNIFORM_GAIN,
   MOMENT_PAL_GAIN, MOMENT_RUN_GAIN, MOMENT_SEQ_GAIN, MOMENT_LOW_ENTROPY_GAIN,
   GENESIS_BIAS_GAIN, YEAR_PULSES_APPROX,
   ADOPTION_TAU_PULSES, ADOPTION_GAIN_BASE, ADOPTION_GAIN_RARE,
@@ -461,15 +463,36 @@ function genesisProximityLift(claimPulse: number): number {
   return 1 + GENESIS_BIAS_GAIN * (1 - 2 * t);
 }
 
+/* φ-spiral transition membership:
+   EXACT transition integers s_n = ceil(φ^n), n ≥ 1. Only these pulses qualify. */
+function phiTransitionIndexFromPulse(pulse: number): number | null {
+  if (!Number.isFinite(pulse) || pulse < 1) return null;
+  const N = Math.trunc(pulse);
+  const nApprox = Math.log(N) / Math.log(PHI);
+  const start = Math.max(1, Math.floor(nApprox) - 2);
+  for (let n = start; n <= start + 6; n++) {
+    const s = Math.ceil(Math.pow(PHI, n));
+    if (s === N) return n;
+  }
+  return null;
+}
+
 /* Moment rarity (deterministic, multiplicative) */
 function momentRarityLiftFromPulse(pulse: number): number {
   if (!Number.isFinite(pulse) || pulse < 0) return 1.0;
   const s = absDigits(pulse), len = s.length;
   let lift = 1.0;
 
+  // Exact numeric sets
   if (isFibonacciExact(pulse)) lift *= 1 + MOMENT_FIB_EXACT_GAIN;
   if (isLucasExact(pulse))     lift *= 1 + MOMENT_LUCAS_EXACT_GAIN;
 
+  // φ-spiral transition ONLY (update)
+  if (phiTransitionIndexFromPulse(pulse) !== null) {
+    lift *= 1 + MOMENT_PHI_TRANSITION_GAIN;
+  }
+
+  // Digit geometry motifs
   if (allSameDigit(s))         lift *= 1 + MOMENT_UNIFORM_GAIN;
   if (isPalindromeDigits(s))   lift *= 1 + MOMENT_PAL_GAIN;
 
@@ -489,7 +512,8 @@ function momentRarityLiftFromPulse(pulse: number): number {
   return lift;
 }
 
-/* rarity score in [0..1] (for adoption exponent shaping) */
+/* rarity score in [0..1] (for adoption exponent shaping) — unchanged.
+   (φ-spiral transition does NOT affect this shaping signal.) */
 function momentRarityScore01FromPulse(pulse: number): number {
   if (!Number.isFinite(pulse) || pulse < 0) return 0;
   const s = absDigits(pulse), len = s.length;
@@ -937,6 +961,7 @@ export function explainRarity(pulse: number): string[] {
 
   if (isFibonacciExact(pulse)) out.push(`✓ Fibonacci exact (+${(MOMENT_FIB_EXACT_GAIN*100).toFixed(1)}%)`);
   if (isLucasExact(pulse))     out.push(`✓ Lucas exact (+${(MOMENT_LUCAS_EXACT_GAIN*100).toFixed(1)}%)`);
+  if (phiTransitionIndexFromPulse(pulse) !== null) out.push(`✓ φ-spiral transition (+${(MOMENT_PHI_TRANSITION_GAIN*100).toFixed(1)}%)`);
 
   if (allSameDigit(s)) out.push(`✓ Uniform digits (${s[0].repeat(Math.max(1, len))}) (+${(MOMENT_UNIFORM_GAIN*100).toFixed(1)}%)`);
   if (isPalindromeDigits(s)) out.push(`✓ Palindrome (+${(MOMENT_PAL_GAIN*100).toFixed(1)}%)`);
@@ -1215,6 +1240,7 @@ export function scanKairosWindow(
     const tags: string[] = [];
     if (isFibonacciExact(p)) tags.push("FIB");
     if (isLucasExact(p)) tags.push("LUC");
+    if (phiTransitionIndexFromPulse(p) !== null) tags.push("PHI△");
     const ds = absDigits(p);
     if (allSameDigit(ds)) tags.push("UNI");
     if (isPalindromeDigits(ds)) tags.push("PAL");
@@ -1335,6 +1361,7 @@ export function renderKairosSpiralSVG(
 
   const fib = isFibonacciExact(pulse);
   const luc = isLucasExact(pulse);
+  const phiTran = phiTransitionIndexFromPulse(pulse) !== null;
   const ds = absDigits(pulse);
   const pal = isPalindromeDigits(ds);
   const uni = allSameDigit(ds);
@@ -1351,11 +1378,12 @@ export function renderKairosSpiralSVG(
     <circle cx="${mx.toFixed(2)}" cy="${my.toFixed(2)}" r="${markerR.toFixed(2)}" fill="none" stroke="black" stroke-width="1.25"/>
     <text x="${mx+10}" y="${my-10}" font-size="12" font-family="ui-sans-serif, system-ui">pulse ${pulse}</text>
     <g font-size="12" font-family="ui-sans-serif, system-ui">
-      <text x="${W-240}" y="${H-90}">Fibonacci: ${fib ? "✓" : "–"}</text>
-      <text x="${W-240}" y="${H-72}">Lucas: ${luc ? "✓" : "–"}</text>
-      <text x="${W-240}" y="${H-54}">Palindrome: ${pal ? "✓" : "–"}</text>
-      <text x="${W-240}" y="${H-36}">Uniform: ${uni ? "✓" : "–"}</text>
-      <text x="${W-240}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse).toFixed(6)}</text>
+      <text x="${W-260}" y="${H-108}">Fibonacci: ${fib ? "✓" : "–"}</text>
+      <text x="${W-260}" y="${H-90}">Lucas: ${luc ? "✓" : "–"}</text>
+      <text x="${W-260}" y="${H-72}">φ transition: ${phiTran ? "✓" : "–"}</text>
+      <text x="${W-260}" y="${H-54}">Palindrome: ${pal ? "✓" : "–"}</text>
+      <text x="${W-260}" y="${H-36}">Uniform: ${uni ? "✓" : "–"}</text>
+      <text x="${W-260}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse).toFixed(6)}</text>
     </g>
   </svg>`;
 }

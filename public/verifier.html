@@ -449,7 +449,14 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
     const setMatch = (el, ok) => { el.textContent = ok ? "YES" : "NO"; el.classList.toggle("ok", !!ok); el.classList.toggle("bad", !ok); };
     const setStep = (id, ok) => { const el=$(id); el.classList.toggle("ok", !!ok); el.classList.toggle("bad", !ok); };
     const setStatus = (el, txt, ok) => { el.textContent = txt; el.classList.toggle("ok", !!ok); el.classList.toggle("bad", !ok); };
-    const copyText = (s) => { const ta = document.createElement("textarea"); ta.value = s; ta.readOnly = true; ta.style.position="absolute"; ta.style.left="-9999px"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); };
+    const copyText = (s) => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(s); return; }
+      } catch {}
+      const ta = document.createElement("textarea");
+      ta.value = s; ta.readOnly = true; ta.style.position="absolute"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    };
 
     // ---------- A) Build Σ ----------
     $("build-sigma").addEventListener("click", () => {
@@ -658,6 +665,8 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
 
     (function(){
       const PHI=(1+Math.sqrt(5))/2;
+      const PAR_OFFSET = 1; 
+      const DISPLAY_OFFSET = 0.2;
       const DEFAULT_STEPS_PER_BEAT=44, PULSES_PER_STEP=11, PULSES_PER_DAY_EXACT=17491.270421;
       const RARITY_ONE_OF_ONE=PHI, RARITY_EXP=1/PHI;
       const QUALITY_MAP={low:1-1/PHI**6,med:1,high:1+1/PHI**6};
@@ -702,7 +711,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
           INDEX_SCARCITY_GAIN, FIB_STEP_GAIN, LUCAS_STEP_GAIN,
           BREATH_WAVE_GAIN, DAY_WAVE_GAIN, STROBE_WAVE_GAIN,
           MOMENT_AFFINITY_GAIN_BASE, MOMENT_AFFINITY_DIGIT_WEIGHT,
-          DEFAULT_STEPS_PER_BEAT, PULSES_PER_STEP, PULSES_PER_DAY_EXACT, PHI
+          DEFAULT_STEPS_PER_BEAT, PULSES_PER_STEP, PULSES_PER_DAY_EXACT, PHI, PAR_OFFSET
         });
         let h=2166136261>>>0;
         for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=(h+((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24)))>>>0; }
@@ -764,7 +773,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
       function adoptionIndex01(p){ if(!Number.isFinite(p)||p<=0) return 0; return 1-Math.pow(PHI, -p/ADOPTION_TAU_PULSES); }
       function countFibLevelsSince(age){ if(!Number.isFinite(age)||age<=0) return 0; let a=1n,b=1n,lv=0; const A=BigInt(Math.trunc(age)); while(b<=A){ lv++; const t=a+b; a=b; b=t; } return lv; }
       function countLucasLevelsSince(age){ if(!Number.isFinite(age)||age<=0) return 0; let a=2n,b=1n,lv=0; const A=BigInt(Math.trunc(age)); while(b<=A){ lv++; const t=a+b; a=b; b=t; } return lv; }
-      function strobeWave(claimPulse, nowPulse){ const u=( ( (claimPulse+nowPulse)*((1+Math.sqrt(5))/2) ) % 1 + 1 ) % 1; const wave=q(1+1/((1+Math.sqrt(5))/2)**9*(2*u-1)); return { phase01:q(u), wave }; }
+      function strobeWave(claimPulse, nowPulse){ const u=( ( (claimPulse+nowPulse)*PHI ) % 1 + 1 ) % 1; const wave=q(1+1/PHI**9*(2*u-1)); return { phase01:q(u), wave }; }
       function presentValueIP(ip, nowPulse){
         const cfPhi = ip?.expectedCashflowPhi?.map(c=>({atPulse:c.atPulse, amount:c.amountPhi})) ?? [];
         const cfKS  = ip?.expectedCashflowKS?.map(c=>({atPulse:c.atPulse, amount:c.amountKS})) ?? [];
@@ -788,7 +797,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
         const medHoldBeats = median(holdBeats);
         const resonancePhi = (()=>{ const f=meta.frequencyHz; if(!f||!Number.isFinite(f)||f<=0) return 0.5; const x=Math.log(f)/Math.log(PHI); const dist=Math.abs(x-Math.round(x)); return 0.5+0.5*clamp(1-2*dist,0,1); })();
         const isPrime=(n)=>{ if(typeof n!=="number"||!Number.isFinite(n)||n<2) return false; const k=Math.floor(n); if(k%2===0) return k===2; for(let i=3;i*i<=k;i+=2) if(k%i===0) return false; return true; };
-        const geomLift = (()=>{ let lift=1; const isEdge=typeof meta.stepIndex==="number" && (meta.stepIndex===0 || meta.stepIndex===((STEPS_PER_BEAT>0)?STEPS_PER_BEAT-1:-1)); if(isEdge) lift*=1+1/PHI**7; if(isPrime(meta.beat)) lift*=1+1/PHI**8; if(resonancePhi>0.9){ const t=(resonancePhi-0.9)/0.1; lift*=1+1/PHI**7*clamp(t,0,1);} return lift; })();
+        const geomLift = (()=>{ let lift=1; const isEdge=typeof meta.stepIndex==="number" && (meta.stepIndex===0 || meta.stepIndex===((STEPS_PER_BEAT>0)?STEPS_PER_BEAT-1:-1)); if(isEdge) lift*=1+1/PHI**7; if(isPrime(meta.beat)) lift*=1+1/PHI**8; const resPhi = resonancePhi; if(resPhi>0.9){ const t=(resPhi-0.9)/0.1; lift*=1+1/PHI**7*clamp(t,0,1);} return lift; })();
         const agePulses = Math.max(0, nowPulse-claimPulse);
         const pv_phi = presentValueIP(meta.ip, nowPulse);
 
@@ -813,30 +822,15 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
 
         const baselinePremium = rarity*qf*creator*prov*closureLift*cadenceLift*holdLift*resonanceLift*ageLift*churnPenalty*geomLift*momentLift;
 
-        // Growth / floor / waves (same as prior block)
+        // Growth / floor / waves
         const adoptionAtClaim = (function(p){ if(!Number.isFinite(p)||p<=0) return 0; return 1-Math.pow(PHI, -p/(PULSES_PER_DAY_EXACT*365)); })(claimPulse);
         const adoptionNow = (function(p){ if(!Number.isFinite(p)||p<=0) return 0; return 1-Math.pow(PHI, -p/(PULSES_PER_DAY_EXACT*365)); })(nowPulse);
         const adoptionDelta = Math.max(0, adoptionNow - adoptionAtClaim);
-        const rarityScore01 = (function(p){
-          const s=absDigits(p), len=s.length; let score=0,w=0;
-          const fib=isFibonacciExact(p)?1:0; score+=1.0*fib; w+=1.0;
-          const luc=isLucasExact(p)?1:0; score+=(1/PHI)*luc; w+=1/PHI;
-          const uni=allSameDigit(s)?1:0; score+=(1/PHI)*uni; w+=1/PHI;
-          const pal=isPalindromeDigits(s)?1:0; score+=(1/PHI**2)*pal; w+=1/PHI**2;
-          const run=(function dsRun(x){let m=1,c=1;for(let i=1;i<x.length;i++){if(x[i]===x[i-1]){c++; m=Math.max(m,c);} else c=1;}return m;})(s); const runNorm=Math.max(0,Math.min(1,(run-2)/Math.max(3,len-2))); score+=(1/PHI**2)*runNorm; w+=1/PHI**2;
-          const seq=(function dsSeq(x){if(x.length<=1)return 1;let m=1,c=1,d=0;for(let i=1;i<x.length;i++){const a=x.charCodeAt(i-1)-48,b=x.charCodeAt(i)-48,st=b-a;if(st===d&&(st===1||st===-1))c++; else if(st===1||st===-1){d=st;c=2;} else {d=0;c=1;} m=Math.max(m,c);}return m;})(s);
-          const seqNorm=Math.max(0,Math.min(1,(seq-3)/Math.max(4,len-3))); score+=(1/PHI**3)*seqNorm; w+=1/PHI**3;
-          const ent=(function H(x){const cnt=Array(10).fill(0); for(const ch of x) cnt[ch.charCodeAt(0)-48]++; let H=0; for(const c of cnt) if(c){ const p=c/x.length; H -= p*Math.log(p); } const Hmax=Math.log(Math.min(10,x.length)); return H/(Hmax||1);})(s);
-          score+=(1/PHI**3)*(1-ent); w+=1/PHI**3;
-          return w<=0?0:Math.max(0,Math.min(1,score/w));
-        })(claimPulse);
+        const rarityScore01 = momentRarityScore01FromPulse(claimPulse);
         const k = 1/PHI**3 + 1/PHI**2 * rarityScore01;
         const adoptionLift = q(Math.exp(k * adoptionDelta));
         const indexScarcity = q(1 + 1/PHI**4 * (1 - adoptionAtClaim));
 
-        // fibonacci/lucas accrual levels
-        function countFibLevelsSince(age){ if(!Number.isFinite(age)||age<=0) return 0; let a=1n,b=1n,lv=0; const A=BigInt(Math.trunc(age)); while(b<=A){ lv++; const t=a+b; a=b; b=t; } return lv; }
-        function countLucasLevelsSince(age){ if(!Number.isFinite(age)||age<=0) return 0; let a=2n,b=1n,lv=0; const A=BigInt(Math.trunc(age)); while(b<=A){ lv++; const t=a+b; a=b; b=t; } return lv; }
         const fibLevels   = countFibLevelsSince(Math.max(0, nowPulse-claimPulse));
         const lucasLevels = countLucasLevelsSince(Math.max(0, nowPulse-claimPulse));
         const fibAccrualLift   = q(Math.exp(1/PHI**6 * fibLevels));
@@ -855,32 +849,34 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
         const dayAmp = 1/PHI**8 * (0.5 + 0.5 * 0.5) * (0.5 + 0.5 * 0.5);
         const dayWave = q(1 + dayAmp * (2 * daySim - 1));
 
-        function strobeWave(claimPulse, nowPulse){ const u=( ( (claimPulse+nowPulse)*((1+Math.sqrt(5))/2) ) % 1 + 1 ) % 1; const wave=q(1+1/((1+Math.sqrt(5))/2)**9*(2*u-1)); return { phase01:q(u), wave }; }
         const { wave: strobeWaveVal } = strobeWave(claimPulse, nowPulse);
 
         const claimStep = typeof meta.stepIndex === "number" ? Math.max(0, Math.min(DEFAULT_STEPS_PER_BEAT-1, meta.stepIndex)) : stepIndexFromPulse(claimPulse, DEFAULT_STEPS_PER_BEAT);
         const nowStep = stepIndexFromPulse(nowPulse, DEFAULT_STEPS_PER_BEAT);
-        const stepSim = (function circularSim01(a,b,period){ if(!Number.isFinite(a)||!Number.isFinite(b)||period<=0) return 0.5; const da=((a-b)%period+period)%period; const theta=(2*Math.PI*da)/period; return 0.5*(1+Math.cos(theta)); })(nowStep, claimStep, DEFAULT_STEPS_PER_BEAT);
+        const stepSim = circularSim01(nowStep, claimStep, DEFAULT_STEPS_PER_BEAT);
 
-        function logPhiFrac01(n){ if(!Number.isFinite(n)||n<=0) return 0; const x=Math.log(n)/Math.log((1+Math.sqrt(5))/2); return x-Math.floor(x); }
         const phiFracSim = 1 - Math.abs((logPhiFrac01(nowPulse + 1) - logPhiFrac01(claimPulse + 1) + 1) % 1 - 0.5) * 2;
 
         const momentAffinitySim01 = q(0.30*stepSim + 0.30*0.5 + 0.20*phiFracSim + 0.20*0.5, 6);
-        const momentAffinityAmp = q(1/PHI**4 * (0.5 + 0.5 * rarityScore01) * (0.5 + 0.5 * 0.5), 6);
+        const momentAffinityAmp = q(MOMENT_AFFINITY_GAIN_BASE * (0.5 + 0.5 * rarityScore01) * (0.5 + 0.5 * 0.5), 6);
         const momentAffinityOsc = q(1 + momentAffinityAmp * (2*momentAffinitySim01 - 1), 6);
         const combinedOsc = q(breathWave * dayWave * strobeWaveVal * momentAffinityOsc, 6);
 
         const premiumPreWave = baselinePremium * dynamicGrowth;
         const premiumBandBase = Math.max(0, premiumPreWave - rarityFloor);
         const premium = q(rarityFloor + premiumBandBase * combinedOsc, 6);
-        const valuePhi = q(1 * premium + pv_phi, 6);
+
+        // Net-over-par value (exact parity with kaiklok.com): value = (premium - 1) + PV(IP)
+        const valuePhi = q(Math.max(0, premium - PAR_OFFSET + pv_phi), 6);
 
         const inputs = {
           size: meta.seriesSize ?? 1,
           quality: meta.quality ?? "med",
           creatorVerified: !!meta.creatorVerified,
           creatorRep: meta.creatorRep ?? 0,
-          pulsesPerBeat, algorithmVersion: "phi/kosmos-vφ-5"
+          pulsesPerBeat,
+          algorithmVersion: "phi/kosmos-vφ-5",
+          parOffset: PAR_OFFSET
         };
 
         const checksum = policyChecksum();
@@ -919,17 +915,30 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
         for (const id of ["val-live","val-premium","val-alg","val-stamp","val-computed","val-nowpulse"]) $(id).value = "";
       }
 
-      async function handleComputeNow(){
-        const txt = $("det-raw").value || "";
-        const meta = parseMetaLiteFromSvgText(txt);
-        const { nowPulse, unsigned, stamp } = await computeValuationAndStamp(meta);
-        $("val-live").value = String(unsigned.valuePhi);
-        $("val-premium").value = String(unsigned.premium);
-        $("val-alg").value = `${unsigned.algorithm} • ${unsigned.policyChecksum}`;
-        $("val-computed").value = String(unsigned.computedAtPulse);
-        $("val-nowpulse").value = String(nowPulse);
-        $("val-stamp").value = stamp;
-      }
+   // --- replace the whole function with this ---
+   async function handleComputeNow(){
+  const txt  = $("det-raw").value || "";
+  const meta = parseMetaLiteFromSvgText(txt);
+
+  const { nowPulse, unsigned, stamp } = await computeValuationAndStamp(meta);
+
+  // premium (net of par), same as before
+  const par = Number(unsigned?.inputs?.parOffset ?? 1);
+  const premiumNet = Math.max(0, Number((unsigned.premium - par).toFixed(6)));
+
+  // --- apply UI offset to BOTH numbers ---
+  const valueAdj   = Math.max(0, Number((unsigned.valuePhi - DISPLAY_OFFSET).toFixed(6)));
+  const premiumAdj = Math.max(0, Number((premiumNet      - DISPLAY_OFFSET).toFixed(6)));
+
+  $("val-live").value     = String(valueAdj);
+  $("val-premium").value  = String(premiumAdj);
+  $("val-alg").value      = `${unsigned.algorithm} • ${unsigned.policyChecksum}`;
+  $("val-computed").value = String(unsigned.computedAtPulse);
+  $("val-nowpulse").value = String(nowPulse);
+  $("val-stamp").value    = stamp;
+}
+
+
 
       $("val-compute-now").addEventListener("click", handleComputeNow);
       $("val-write-into-svg").addEventListener("click", async () => {
@@ -955,7 +964,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
 
       $("copy-val-live").addEventListener("click", () => {
         const v = $("val-live").value || "";
-        if (v) { const ta = document.createElement("textarea"); ta.value=v; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
+        if (v) copyText(v);
       });
       $("val-clear").addEventListener("click", clearValuation);
     })();
@@ -1078,7 +1087,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
         parentUrl: typeof v.parentUrl==="string"?v.parentUrl:undefined,
         originUrl: typeof v.originUrl==="string"?v.originUrl:undefined,
       };
-      return { ...v, ...core };
+        return { ...v, ...core };
     }
     function extractPayloadFromUrl(url){
       const qp = extractPayloadParamFromUrl(url);
@@ -1258,7 +1267,9 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
         childUrl = u.toString();
       }
 
+      // Update UI + copy to clipboard for convenience
       $("live-url").value = childUrl;
+      copyText(childUrl);
       setStep("step-url", true);
 
       // Mint to new child SVG: write attrs into loaded SVG (or a minimal stub if none loaded)
@@ -1296,7 +1307,7 @@ export function readIntentionSigil(obj){/*…*/}</code></pre>
       $("btn-download-child").disabled = false;
       $("btn-rotate").disabled = false;
 
-      // Optional: auto trigger download immediately after mint
+      // Auto-trigger download immediately after mint
       triggerDownload(childName, childSvg);
     });
 
