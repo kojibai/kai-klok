@@ -1,11 +1,11 @@
 // src/components/valuation/DonorsEditor.tsx
 /* ────────────────────────────────────────────────────────────────
-   DonorsEditor.tsx — “Streams → PhiGlyph” pre-mint step (ultra-simple)
+   DonorsEditor.tsx — “Streams → Temple-Glyph” pre-mint step (ultra-simple)
    v1.0 · Front-facing UI says “Stream(s)” everywhere (not “Donor”)
-   • Minimal, buttery UX focused on getting to the PhiGlyph mint step
+   • Minimal, buttery UX focused on getting to the Temple-Glyph Exhale step
    • Clean validation (URL → 64-hex canonical hash, Φ > 0, no dupes)
    • Pool allocation kept, with quick 61.8% and Max shortcuts
-   • Big, clear totals + single primary CTA: Continue to Mint PhiGlyph
+   • Big, clear totals + single primary CTA: Continue to Exhale Temple-Glyph
    • Keeps the existing props/contract & CSS classnames for drop-in use
    ──────────────────────────────────────────────────────────────── */
 
@@ -139,11 +139,11 @@
      );
    
      return (
-       <section className="card donors-card streams-card" aria-label="Create PhiGlyph streams">
+       <section className="card donors-card streams-card" aria-label="Create Temple-Glyph streams">
          {/* ── Header: ultra-simple orientation + totals ───────────── */}
          <header className="card-hd">
            <div className="hd-left">
-             <Wind size={16} /> <strong>Resonante ΦGlyph — Streams</strong>
+             <Wind size={16} /> <strong>Temple-Glyph — Streams</strong>
            </div>
            <div
              className="badge dim small"
@@ -291,11 +291,11 @@
                title={
                  anyInvalid
                    ? "Fix invalid streams (URL/amount/duplicates)"
-                   : "Continue to seal your composite ΦGlyph"
+                   : "Continue to seal your composite Temple-Glyph"
                }
                onClick={onMintComposite}
              >
-               <Wind size={16} /> {minting ? "Exhaling..." : "➵ to Exhale ΦGlyph"}
+               <Wind size={16} /> {minting ? "Exhaling..." : "➵ to Exhale Temple-Glyph"}
              </button>
            </div>
    
@@ -317,7 +317,7 @@
                <span className="v">Φ {round6(balanceForMintPhi).toFixed(6)}</span>
              </div>
              <div className="kv total">
-               <span className="k">Total (PhiGlyph)</span>
+               <span className="k">Total (Temple-Glyph)</span>
                <span className="v strong">Φ {totalWithPool.toFixed(6)}</span>
              </div>
            </div>
@@ -326,7 +326,7 @@
            <p className="small subtle">
              You’re one breath away. This step gathers your streams (each with a canonical hash) and
              any pool allocation into a single memory. In the next step, your composite{" "}
-             <strong>PhiGlyph</strong> will embed a verifier-compatible <code>ΦGlyph</code> key
+             <strong>Temple Glyph</strong> will embed a verifier-compatible <code>Temple-Glyph</code> key
              listing each stream’s hash and Φ amount, plus your pool contribution. The export includes
              <code> Φkey*.svg</code> (with <code>&lt;metadata&gt;</code>), a PNG preview, and a{" "}
              <code>manifest.json</code> mirroring the values for auditing.

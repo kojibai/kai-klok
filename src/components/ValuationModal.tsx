@@ -692,13 +692,13 @@ const ValuationModal: React.FC<Props> = ({
               <button
                 className="btn secondary small"
                 onClick={onMintComposite}
-                title="Mint ΦGlyph (ZIP)"
+                title="Exhale Temple-Glyph (ZIP)"
                 disabled={
                   !donors.some((d) => d.url && d.amount > 0) &&
                   balanceForMintPhi <= 0
                 }
               >
-                <span className="small hide-xs">Mint ΦGlyph</span>
+                <span className="small hide-xs">Exhale</span>
               </button>
             </>
           )}
@@ -845,12 +845,12 @@ const ValuationModal: React.FC<Props> = ({
                                 <button
                                   className="btn secondary btn-full"
                                   onClick={onMintComposite}
-                                  title="Mint ΦGlyph (ZIP)"
+                                  title="Exhale Temple-Glyph (ZIP)"
                                   disabled={
                                     !donors.some((d) => d.url && d.amount > 0) && balanceForMintPhi <= 0
                                   }
                                 >
-                                  Mint ΦGlyph
+                                  Exhale
                                 </button>
                               </div>
                             </div>
@@ -996,7 +996,7 @@ const ValuationModal: React.FC<Props> = ({
                     )}
                     <div className="small subtle">
                       Pool grows with each uploaded glyph. Sending deducts from
-                      the pool; minting ΦGlyphs does not.
+                      the pool; Inhaling Temple-Glyphs does not.
                     </div>
                   </div>
                 </section>

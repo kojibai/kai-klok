@@ -1963,7 +1963,7 @@ const VerifierStamper: React.FC = () => {
                 {tab === "summary" && (
                   <div className="summary-grid">
                     <div className="kv">
-                      <span className="k">Now-Pulse</span>
+                      <span className="k">Now</span>
                       <span className="v">{pulseNow}</span>
                     </div>
 
@@ -2135,7 +2135,7 @@ const VerifierStamper: React.FC = () => {
               {/* Footer */}
               <footer className="modal-footer" style={{ position: "sticky", bottom: 0 }}>
                 <div className="footer-left">
-                  <p><strong>Now-Pulse:</strong> {pulseNow}</p>
+                  <p><strong>Now:</strong> {pulseNow}</p>
                   {error && <p className="status error" style={{ overflowWrap: "anywhere" }}>{error}</p>}
                 </div>
 
@@ -2149,24 +2149,24 @@ const VerifierStamper: React.FC = () => {
                   {(uiState === "readySend" || uiState === "verified") && (
                     <>
                       <button className="secondary" onClick={() => fileInput.current?.click()}>
-                        Attach payload
+                        Attach
                       </button>
                       <input ref={fileInput} type="file" hidden onChange={handleAttach} />
-                      <button className="primary" onClick={send} title={canShare ? "Seal & Share" : "Seal & Copy Link"}>
-                        Exhale (transfer)
+                      <button className="primary" onClick={send} title={canShare ? "Seal & Share" : "Seal & Kopy Link"}>
+                        Exhale
                       </button>
                     </>
                   )}
 
                   {uiState === "readyReceive" && (
                     <button className="primary" onClick={receive}>
-                      Accept transfer
+                      Inhale
                     </button>
                   )}
 
                   {(meta?.transfers?.length ?? 0) > 0 && (
                     <button className="secondary" onClick={sealSegmentNow} title="Roll current head-window into a segment">
-                      Seal segment now
+                      Seal segment
                     </button>
                   )}
                 </div>

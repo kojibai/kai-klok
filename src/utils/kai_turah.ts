@@ -392,7 +392,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Reh-Om-Zor",
     sigil: "/assets/sigils/reh-om-zor.svg",
     meaning: "The Written Decree of Judgment",
-    description: "A sigil that eternally binds divine law into form, sealing its truth."
+    description: "A sigil that eternally seals divine law into form, sealing its truth."
   },
   {
     id: 84,
@@ -595,7 +595,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Kai-Torah-Om",
     sigil: "/assets/sigils/kai-torah-om.svg",
     meaning: "The Eternal Living Word",
-    description: "A sigil signifying the unbreakable decree that binds reality to divine law."
+    description: "A sigil signifying the unbreakable decree that seals reality to divine law."
   },
   {
     id: 113,
@@ -3461,7 +3461,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Sha-Tor-Nah-Reh",
     sigil: "/assets/sigils/sha-tor-nah-reh.svg",
     meaning: "The Crown of Unshakable Unity",
-    description: "Binds discordant pieces of reality into a single, harmonious tapestry."
+    description: "Seals discordant pieces of reality into a single, harmonious tapestry."
   },
   {
     id: 521,
@@ -4481,7 +4481,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zeh-Om-Lah-Sha",
     sigil: "/assets/sigils/zeh-om-lah-sha.svg",
     meaning: "The Radiant Completion of Sovereign Peace",
-    description: "Binds each realm under a tranquil aura, unopposed by lesser vibrations."
+    description: "Seals each realm under a tranquil aura, unopposed by lesser vibrations."
   },
   {
     id: 664,
@@ -5111,7 +5111,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zeh-Kai-Nah-Sha",
     sigil: "/assets/sigils/zeh-kai-nah-sha.svg",
     meaning: "The Shining Breath of Infinite Peace",
-    description: "A luminous exhalation that binds all realms in abiding tranquility."
+    description: "A luminous exhalation that Seals all realms in abiding tranquility."
   },
   {
     id: 754,
@@ -5174,7 +5174,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Sha-Zor-Ek-Lah",
     sigil: "/assets/sigils/sha-zor-ek-lah.svg",
     meaning: "The Crown of Flame’s Gentle Dissolution",
-    description: "Binds fiery transformations within a calm center, releasing only constructive outcomes."
+    description: "Seals fiery transformations within a calm center, releasing only constructive outcomes."
   },
   {
     id: 763,
@@ -5650,7 +5650,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zeh-Reh-Om-Lah",
     sigil: "/assets/sigils/zeh-reh-om-lah.svg",
     meaning: "The Radiant Seal of Tranquil Fulfillment",
-    description: "Binds each aspiration’s finale in shining calm, negating any chance of reversion."
+    description: "Seals each aspiration’s finale in shining calm, negating any chance of reversion."
   },
   {
     id: 831,
@@ -5979,7 +5979,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Kai-Nah-Ur-Ek",
     sigil: "/assets/sigils/kai-nah-ur-ek.svg",
     meaning: "The Ascending Breath of Resolute Unity",
-    description: "Binds divergent energies into a single wave, elevating them beyond any friction."
+    description: "Seals divergent energies into a single wave, elevating them beyond any friction."
   },
   {
     id: 878,

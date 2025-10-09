@@ -259,10 +259,10 @@ export default function SigilHeader(props: SigilHeaderProps) {
 
   const authLabel =
     props.glyphAuth === "authentic"
-      ? "AUTHENTIC"
+      ? "AUTHENTIK"
       : props.glyphAuth === "forged"
       ? "HASH MISMATCH"
-      : "CHECKING…";
+      : "VERIFYING…";
 
   // Pointer-reactive highlight (sets CSS vars --x/--y on the badge)
   const onBadgePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
@@ -346,7 +346,7 @@ export default function SigilHeader(props: SigilHeaderProps) {
                 />
               </svg>
             )}
-            {props.isArchived ? "ARCHIVED" : "ACTIVE"}
+            {props.isArchived ? "ARKIVED" : "AKTIVE"}
           </span>
         )}
       </div>

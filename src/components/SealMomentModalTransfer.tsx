@@ -294,8 +294,8 @@ const SealMomentModal: FC<Props> = ({
                   className="icon-btn"
                   onClick={() => copy(url, "Link")}
                   disabled={!url}
-                  aria-label="Copy link"
-                  title="Copy link"
+                  aria-label="Kopy link"
+                  title="Kopy link"
                   type="button"
                 >
                   <CopyGlyph />
@@ -323,7 +323,7 @@ const SealMomentModal: FC<Props> = ({
               </button>
               <button className="secondary cta" onClick={share} type="button">
                 <ShareGlyph />
-                <span>{canShare ? "Share" : "Copy Link"}</span>
+                <span>{canShare ? "Share" : "Kopy Link"}</span>
               </button>
             </div>
 

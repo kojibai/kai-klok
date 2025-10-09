@@ -665,7 +665,7 @@ function OriginPanel({ root }: { root: SigilNode }) {
             onClick={() => navigator.clipboard.writeText(root.url)}
             title="Copy origin URL"
           >
-            Copy Origin
+            Kopy Origin
           </button>
         </div>
       </header>

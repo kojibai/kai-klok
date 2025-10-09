@@ -11,6 +11,7 @@
 //   • Track state in integer pulses, or integer μpulses (10^6 per pulse).
 //   • Chronos ↔ pulses bridges use fixed-point with ties-to-even rounding.
 //   • Past / future / present use the same bridge logic → v13-identical behavior.
+//   • NO NETWORK CALLS. All math is local and deterministic.
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS (exact / integer-safe)
@@ -31,10 +32,17 @@ export const BEATS_DAY   = 36 as const;              // beats per day
 export const PULSES_BEAT = PULSES_STEP * STEPS_BEAT; // 484
 
 // Closure in millionths (exact fixed-point; never float).
-export const N_DAY_MICRO            = 17_491_270_421n as const; // μpulses/day
+export const N_DAY_MICRO            = 17_491_270_421n as const; // μpulses/day (17,491.270421)
 export const PULSES_PER_STEP_MICRO  = 11_000_000n   as const;   // 11 * 1e6
 export const PULSES_PER_BEAT_MICRO  = 484_000_000n  as const;   // 484 * 1e6
 export const BASE_DAY_MICRO         = 17_424_000_000n as const; // 17,424 * 1e6
+
+// Public calendar sizes (eternal): 6 days/week, 7 weeks/month, 8 months/year → 336 days/year
+export const DAYS_PER_WEEK   = 6 as const;
+export const WEEKS_PER_MONTH = 7 as const;
+export const DAYS_PER_MONTH  = DAYS_PER_WEEK * WEEKS_PER_MONTH; // 42
+export const MONTHS_PER_YEAR = 8 as const;
+export const DAYS_PER_YEAR   = DAYS_PER_MONTH * MONTHS_PER_YEAR; // 336
 
 // φ-exact pulse duration (display-only ms) from T = 3 + √5 seconds.
 export const PULSE_MS: number = Math.round((3 + Math.sqrt(5)) * 1000);
@@ -53,9 +61,6 @@ const T_MS_DEN = 10n ** 60n;
 // 190.983005625052575897706582817180941139845410097118568932275689
 const INV_Tx1000_NUM = BigInt("190983005625052575897706582817180941139845410097118568932275689");
 const INV_Tx1000_DEN = 10n ** 60n;
-
-// Public API (optional server path when available).
-export const API_URL = "https://klock.kaiturah.com/kai" as const;
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -86,8 +91,6 @@ export type KaiMoment = {
   weekday: Weekday;
 };
 
-// ─────────────────────────────────────────────────────────────
-// MAPPINGS
 // ─────────────────────────────────────────────────────────────
 export const WEEKDAYS: readonly Weekday[] = [
   "Solhara",
@@ -164,7 +167,7 @@ const chakraForWeekdayIndex = (idx: number): { weekday: Weekday; chakraDay: Chak
 //   - No reliance on JS Date for strings
 //   - Unlimited range (BigInt ms since Unix epoch)
 // ─────────────────────────────────────────────────────────────
-const MS_PER_DAY_BI  = 91_584_000n;
+const MS_PER_DAY_BI  = 86_400_000n; // standard Gregorian 24h day (ms)
 const MS_PER_HOUR_BI = 3_600_000n;
 const MS_PER_MIN_BI  = 60_000n;
 const MS_PER_SEC_BI  = 1_000n;
@@ -252,7 +255,7 @@ export function microPulsesSinceGenesis(utc: string | Date | bigint): bigint {
 
 /** Convert an integer pulse index → Unix ms offset using φ-exact bridge. */
 export function epochMsFromPulse(pulse: number | bigint): bigint {
-  const p = BigInt(Math.trunc(typeof pulse === "bigint" ? Number(pulse) : pulse));
+  const p = typeof pulse === "bigint" ? pulse : BigInt(Math.trunc(pulse));
   const deltaMs = mulDivRoundHalfEven(p, T_MS_NUM, T_MS_DEN);
   return BigInt(GENESIS_TS) + deltaMs;
 }
@@ -321,11 +324,13 @@ export function utcFromBreathSlot(baseMinuteISO: string, breathIdx: number): str
 }
 
 // ─────────────────────────────────────────────────────────────
-// SERVER PARSE (online path → KaiMoment) — integer-safe
+// (DEPRECATED) SERVER PARSE SIGNATURE — retained for back-compat only.
+// Uses local mapping; does not fetch or depend on any API.
 // ─────────────────────────────────────────────────────────────
+/** @deprecated Use `momentFromUTC` or `momentFromPulse`. */
 export function parseKaiFromServer(json: {
-  kaiPulseEternal: number;                 // integer pulse index
-  chakraStepString: string;                // "B:SS"
+  kaiPulseEternal: number;
+  chakraStepString: string;                  // "B:SS"
   chakraStep?: { percentIntoStep?: number }; // 0..100 or 0..1
   harmonicDay: Weekday;
   eternalChakraArc?: string;
@@ -364,14 +369,14 @@ export function parseKaiFromServer(json: {
     return table[norm] ?? null;
   };
 
-  const weekday = json.harmonicDay;
-  const chakraDay = toChakra(json.eternalChakraArc) ?? DAY_TO_CHAKRA[weekday];
-
   // Derive weekday from pulse using integer day math (parity guard).
   const pμ = BigInt(Math.trunc(pulseNum)) * 1_000_000n;
   const dayIndexBI = floorDivE(pμ, N_DAY_MICRO);
   const weekdayIdx = toSafeNumber(modE(dayIndexBI, b(WEEKDAYS.length)));
   const derivedWeekday = WEEKDAYS[weekdayIdx];
+
+  const weekday = json.harmonicDay ?? derivedWeekday;
+  const chakraDay = toChakra(json.eternalChakraArc) ?? DAY_TO_CHAKRA[weekday];
 
   return {
     pulse: Math.trunc(pulseNum),
@@ -379,39 +384,43 @@ export function parseKaiFromServer(json: {
     stepIndex,
     stepPctAcrossBeat,
     chakraDay,
-    weekday: (weekday ?? derivedWeekday) as Weekday,
+    weekday,
   };
 }
 
 // ─────────────────────────────────────────────────────────────
-// FETCH HELPERS — server first, φ-exact local fallback
+// LOCAL HELPERS — no network, no API. These replace prior fetchers.
 // ─────────────────────────────────────────────────────────────
-export async function fetchKai(iso?: string): Promise<KaiMoment> {
-  const url = iso ? `${API_URL}?override_time=${encodeURIComponent(iso)}` : API_URL;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Kai API error: ${res.status}`);
-  const json = await res.json();
-  return parseKaiFromServer(json);
+
+/** Local-only: compute KaiMoment for now or a provided ISO/Date/bigint. */
+export async function fetchKai(iso?: string | Date | bigint): Promise<KaiMoment> {
+  const input = typeof iso === "undefined" ? new Date() : iso;
+  return Promise.resolve(momentFromUTC(input));
 }
 
-/** Try server; if it fails, compute locally with φ-exact bridges. */
-export async function fetchKaiOrLocal(iso?: string, now: Date = new Date()): Promise<KaiMoment> {
-  try {
-    return await fetchKai(iso);
-  } catch {
-    if (typeof iso === "string" && iso) return momentFromUTC(iso);
-    return momentFromUTC(now);
-  }
+/** Local-only: same as fetchKai. Kept for call-site compatibility. */
+export async function fetchKaiOrLocal(iso?: string | Date | bigint, now: Date = new Date()): Promise<KaiMoment> {
+  return Promise.resolve(momentFromUTC(typeof iso === "undefined" ? now : iso));
 }
 
 // ─────────────────────────────────────────────────────────────
 // DERIVED HELPERS (UI glue / legacy compat)
 // ─────────────────────────────────────────────────────────────
+/** Map a normalized beat-fraction to a 0-based step index (0..43). */
 export function stepIndexFromPct(stepPctAcrossBeat: number): number {
   const s = Math.floor(clamp01(stepPctAcrossBeat) * STEPS_BEAT);
   return Math.max(0, Math.min(STEPS_BEAT - 1, s));
 }
 
+/** 1-based display label & indices (what the UI should show). */
+export function toDisplayBeatStep(beatZero: number, stepZero: number) {
+  const beat1 = beatZero + 1;
+  const step1 = stepZero + 1;
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return { beat1, step1, label: `${pad2(beat1)}:${pad2(step1)}` };
+}
+
+/** Legacy helper: zero-based label (kept for back-compat only). */
 export function formatBeatStep(beat: number, stepIndex: number): string {
   const bNum = Math.max(0, Math.min(BEATS_DAY - 1, Math.floor(beat)));
   const sNum = Math.max(0, Math.min(STEPS_BEAT - 1, Math.floor(stepIndex)));
@@ -429,10 +438,9 @@ export function computeKaiLocally(date: Date): KaiMoment {
 }
 
 // ─────────────────────────────────────────────────────────────
-/** Greenwich sunrise (UTC) for a given UTC calendar date using NOAA equation.
- * Returns Unix ms at sunrise for date (Y-M-D) at lat 51.4769°N, lon 0°E.
- * Uses doubles internally but returns BigInt ms; memoized per date.
- */
+// GREENWICH SUNRISE UTILITIES (for solar-aligned indices)
+// Uses doubles internally but returns BigInt ms; memoized per date.
+// ─────────────────────────────────────────────────────────────
 const GREENWICH_LAT = 51.4769; // Royal Observatory Greenwich
 const GREENWICH_LON = 0.0;
 const DEG2RAD = Math.PI / 180;
@@ -565,11 +573,6 @@ const WEEK_SPIRALS = [
 
 const STEPS_PER_BEAT = STEPS_BEAT; // 44
 const BEATS_PER_DAY = BEATS_DAY;   // 36
-const DAYS_PER_WEEK = 6;
-const WEEKS_PER_MONTH = 7;
-const DAYS_PER_MONTH = DAYS_PER_WEEK * WEEKS_PER_MONTH; // 42
-const MONTHS_PER_YEAR = 8;
-const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR; // 336
 
 function arcFromBeat(beat: number) {
   const idx = Math.max(0, Math.min(5, Math.floor(beat / 6)));
@@ -657,24 +660,23 @@ function solarCivilDateForInstant(msUTC: bigint): { y: bigint; m: bigint; d: big
   return { y: BigInt(y), m: BigInt(m), d: BigInt(d), sunriseMs: todaySunrise };
 }
 
-/** Solar (UTC-aligned) indices with sunrise boundaries at Greenwich.
+/** Solar (UTC-aligned, sunrise-driven) indices with sunrise boundaries at Greenwich.
  * Day/week/month/year counting follows the harmonic 6/7/8 structure,
  * but rollovers happen at actual sunrise time each UTC day.
  */
 function solarIndices(msUTC: bigint) {
   const base = solarCivilDateForInstant(msUTC);
 
-  // Count solar days since solar genesis by pure civil-day difference
-  // (one sunrise per civil day at Greenwich; we anchor at 2024-05-11).
+  // Count solar days since solar genesis by civil-day difference (one sunrise each UTC day)
   const dayIdx = daysFromCivilBI(base.y, base.m, base.d) - SOLAR_GENESIS_DAYIDX;
 
   const weekIdx = floorDivE(dayIdx, BigInt(DAYS_PER_WEEK));
   const monthIdx = floorDivE(dayIdx, BigInt(DAYS_PER_MONTH));
 
-  const dayOfWeek   = toSafeNumber(modE(dayIdx, BigInt(DAYS_PER_WEEK)));    // 0..5
-  const dayOfMonth  = toSafeNumber(modE(dayIdx, BigInt(DAYS_PER_MONTH))) + 1; // 1..42
-  const monthIndex  = toSafeNumber(modE(monthIdx, BigInt(MONTHS_PER_YEAR))); // 0..7
-  const weekInMonth = toSafeNumber(modE(weekIdx,  BigInt(WEEKS_PER_MONTH))); // 0..6
+  const dayOfWeek   = toSafeNumber(modE(dayIdx, BigInt(DAYS_PER_WEEK)));         // 0..5
+  const dayOfMonth  = toSafeNumber(modE(dayIdx, BigInt(DAYS_PER_MONTH))) + 1;    // 1..42
+  const monthIndex  = toSafeNumber(modE(monthIdx, BigInt(MONTHS_PER_YEAR)));     // 0..7
+  const weekInMonth = toSafeNumber(modE(weekIdx,  BigInt(WEEKS_PER_MONTH)));     // 0..6
 
   return {
     solarDayIdx: dayIdx,
@@ -689,7 +691,7 @@ function solarIndices(msUTC: bigint) {
     weekDesc: WEEK_SPIRALS[weekInMonth].desc,
     monthName: MONTHS[monthIndex].name,
     monthDesc: MONTHS[monthIndex].desc,
-    sunriseMs: base.sunriseMs, // for optional UI display/debug
+    sunriseMs: base.sunriseMs,
   };
 }
 
@@ -789,16 +791,16 @@ export async function buildKaiKlockResponse(utc?: string | Date | bigint) {
 
   const pulse = toSafeNumber(floorDivE(pμ, 1_000_000n));
   const { beat, stepIndex } = latticeFromMicroPulses(pμ);
-  const { weekday: eternalWeekday } = ((): { weekday: Weekday } => {
-    const dayIndexBI = floorDivE(pμ, N_DAY_MICRO);
-    const weekdayIdx = toSafeNumber(modE(dayIndexBI, b(WEEKDAYS.length)));
-    return { weekday: WEEKDAYS[weekdayIdx] };
-  })();
+
+  // Eternal weekday (from μpulse day math)
+  const dayIndexBI = floorDivE(pμ, N_DAY_MICRO);
+  const weekdayIdx = toSafeNumber(modE(dayIndexBI, b(WEEKDAYS.length)));
+  const eternalWeekday = WEEKDAYS[weekdayIdx];
 
   // 2) Eternal (harmonic) indices
   const eternal = eternalIndices(pμ);
 
-  // 3) Solar (UTC-aligned, **sunrise-driven**) indices from the real UTC instant
+  // 3) Solar (UTC-aligned, sunrise-driven) indices from the real UTC instant
   const solar = solarIndices(msUTC);
 
   // 4) Arc

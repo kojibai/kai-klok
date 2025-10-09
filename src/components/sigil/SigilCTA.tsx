@@ -1,21 +1,30 @@
 // src/components/sigil/SigilCTA.tsx
 import React from "react";
 
-type Press = {
-  onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
+
+type FastPress = {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (e: React.PointerEvent<HTMLButtonElement>) => void;
 };
 
-type Props = {
+export type Props = {
   hasPayload: boolean;
   showError: boolean;
   expired: boolean;
   exporting: boolean;
   isFutureSealed: boolean;
   isArchived: boolean;
-  claimPress: Press;
-  stargatePress: Press;
-  posterPress: Press;
+
+  claimPress: FastPress;
+  stargatePress: FastPress;
+  posterPress: FastPress;
+
+  /* NEW: mobile-safe send wiring */
+  sendAmount: number;
+  setSendAmount: (n: number) => void;
+  onSend: () => void;
+  sendBusy: boolean;
+  ownerVerified: boolean;
 };
 
 export default function SigilCTA({
@@ -37,23 +46,23 @@ export default function SigilCTA({
         disabled={!hasPayload || showError || expired || exporting || isFutureSealed || isArchived}
         title={
           isArchived
-            ? "Archived link — cannot claim from here"
+            ? "Arkived link — kannot klaim from here"
             : expired
-            ? "Window closed"
+            ? "Breath Sealed"
             : isFutureSealed
-            ? "Opens after the moment—claim unlocks then"
-            : "Claim ZIP (SVG+PNG w/ QR, no pulse bar)"
+            ? "Opens after the moment—klaim unloks then"
+            : "Klaim ZIP (SVG+PNG w/ QR, no pulse bar)"
         }
       >
         {isArchived
-          ? "Archived (Burned)"
+          ? "Arkived (Burned)"
           : expired
           ? "Eternally Sealed"
           : isFutureSealed
           ? "Eternally Sealed (Pre-Moment)"
           : exporting
-          ? "Preparing…"
-          : "Inhale Claimed Ownership"}
+          ? "Sealing…"
+          : "Inhale Ownership"}
       </button>
 
       {hasPayload && (
@@ -61,7 +70,7 @@ export default function SigilCTA({
           <button className="btn-ghost" {...stargatePress}>
             View in Stargate
           </button>
-          <button className="btn-ghost" {...posterPress} title="Save a shareable PNG poster (QR + sleek Pulse Bar)">
+          <button className="btn-ghost" {...posterPress} title="Save a shareable poster (QR + sleek Pulse Bar)">
             Save Sigil-Glyph
           </button>
         </>

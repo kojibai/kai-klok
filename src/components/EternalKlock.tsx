@@ -1097,7 +1097,9 @@ export const EternalKlock: React.FC = () => {
       ? spiralData.pulsesRemaining / HARMONIC_DAY_PULSES
       : NaN;
 
-  const monthPercent = klock.eternalMonthProgress.percent;
+// Inclusive month %: use the displayed day-of-month (D40 → 40/42)
+
+
   const yearPercent  = ((klock.harmonicYearCompletions ?? 0) % 1) * 100;
 
   const beatPulseCount   = HARMONIC_DAY_PULSES / 36;
@@ -1366,7 +1368,7 @@ export const EternalKlock: React.FC = () => {
               <div className="eternal-klock-section-title"></div>
               <div className="eternal-klock-section-title">Month Progress</div>
 
-              <div><strong>Days Elapsed:</strong> {klock.eternalMonthProgress.daysElapsed}</div>
+              <div><strong>Days Elapsed:</strong> {klock.eternalMonthProgress.daysElapsed + 1}</div>
               <div><strong>Days Remaining:</strong> {klock.eternalMonthProgress.daysRemaining}</div>
 
               <div>
@@ -1379,17 +1381,24 @@ export const EternalKlock: React.FC = () => {
                 {(HARMONIC_MONTH_PULSES - (klock.kaiPulseEternal % HARMONIC_MONTH_PULSES)).toFixed(2)}
               </div>
               <div>
-                <strong>% Komplete:</strong>{" "}
-                {klock.eternalMonthProgress.percent.toFixed(2)}%
-              </div>
+  <strong>% Komplete:</strong>{" "}
+  {((klock.kaiPulseEternal % HARMONIC_MONTH_PULSES) / HARMONIC_MONTH_PULSES * 100).toFixed(2)}%
+</div>
 
-              <div className="month-progress-bar">
-                <div
-                  className={`month-progress-fill ${glowPulse ? "sync-pulse" : ""}`}
-                  style={{ width: `${monthPercent}%` }}
-                  title={`${monthPercent.toFixed(2)}% of month`}
-                />
-              </div>
+<div className="month-progress-bar">
+  <div
+    className={`month-progress-fill ${glowPulse ? "sync-pulse" : ""}`}
+    style={{
+      width: `${((klock.kaiPulseEternal % HARMONIC_MONTH_PULSES) / HARMONIC_MONTH_PULSES * 100)}%`
+    }}
+    title={`${(
+      (klock.kaiPulseEternal % HARMONIC_MONTH_PULSES) /
+      HARMONIC_MONTH_PULSES *
+      100
+    ).toFixed(2)}% of month`}
+  />
+</div>
+
 
               <div>
                 <strong>Total Breathes in Month:</strong> {HARMONIC_MONTH_PULSES.toFixed(2)}
@@ -1412,7 +1421,7 @@ export const EternalKlock: React.FC = () => {
                         sealToastTimer.current = window.setTimeout(() => setSealCopied(false), 1600);
                       });
                     }}
-                    title="Click to copy Eternal Seal"
+                    title="Click to Kopy Eternal Seal"
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.currentTarget as HTMLElement).click()}

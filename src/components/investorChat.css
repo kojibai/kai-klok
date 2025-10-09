@@ -1,0 +1,373 @@
+/* =========================================================
+   investorChat.css — Ultimate Kai Chat Shell (mobile-hardened)
+   - Composer pinned; never pushed or overlapped
+   - Global font scaled down ~40–50% via responsive base
+   - No right-edge clipping (safe-areas honored)
+   - Grid anti-collapse fixes (min-height:0 on scroller)
+   - Extra iOS niceties (tap highlight, font smoothing)
+   ========================================================= */
+
+/* ---------- CSS Variables / Theme ---------- */
+:root{
+    --kai-bg-1: rgba(8,14,16,.88);
+    --kai-bg-2: rgba(8,14,16,.65);
+    --kai-surface: rgba(255,255,255,.03);
+    --kai-surface-2: rgba(255,255,255,.05);
+    --kai-border: rgba(255,255,255,.12);
+    --kai-border-strong: rgba(232,251,248,.18);
+    --kai-primary: #37FFE4;
+    --kai-primary-weak: rgba(55,255,228,.18);
+    --kai-primary-mid: rgba(55,255,228,.35);
+    --kai-primary-strong: rgba(55,255,228,.6);
+    --kai-accent: #A78BFA;
+    --kai-text: #E8FBF8;
+    --kai-subtext: #AEE8DF;
+    --kai-danger: #ff5d6c;
+  
+    --kai-radius-lg: 16px;
+    --kai-radius-md: 12px;
+    --kai-radius-sm: 10px;
+  
+    --kai-gap-lg: 14px;
+    --kai-gap-md: 10px;
+    --kai-gap-sm: 8px;
+  
+    --kai-shadow-outer: 0 10px 40px rgba(55,255,228,.10);
+    --kai-shadow-inner: inset 0 0 0 1px rgba(255,255,255,.03);
+    --kai-shadow-glow: 0 0 22px rgba(55,255,228,.30);
+  
+    --kai-focus: 0 0 0 3px rgba(55,255,228,.35), 0 0 0 6px rgba(167,139,250,.28);
+  
+    /* ↓ smaller, responsive base font (about 40–50% smaller than before) */
+    --kai-font-base: clamp(12px, 2.9vw, 14px);
+    --kai-font-small: 0.78rem;
+    --kai-font-title: 1rem;
+  
+    /* Composer height hint (used to pad the scroller bottom) */
+    --composer-h: 56px;
+  }
+  
+  /* ---------- Global polish ---------- */
+  .kai-chat, .kai-chat * { -webkit-tap-highlight-color: transparent; }
+  .kai-chat{
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    font-size: var(--kai-font-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* ---------- Container ---------- */
+  .kai-chat{
+    display: grid;
+    grid-template-rows: auto auto 1fr auto auto; /* head, ribbon, body (1fr), quick/suggest, composer */
+    gap: var(--kai-gap-md);
+  
+    position: sticky;
+    top: 12px;
+  
+    background: linear-gradient(180deg,var(--kai-bg-1),var(--kai-bg-2));
+    border: 1px solid var(--kai-primary-mid);
+    border-radius: var(--kai-radius-lg);
+  
+    /* Safe-area padding */
+    padding:
+      12px
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, calc(env(safe-area-inset-bottom, 0px) + 6px))
+      max(12px, env(safe-area-inset-left, 0px));
+  
+    box-shadow: var(--kai-shadow-outer), var(--kai-shadow-inner);
+    backdrop-filter: blur(8px);
+  
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    max-height: 86vh;
+    min-height: 320px;
+  
+    overflow: hidden;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    color: var(--kai-text);
+    contain: layout style paint;
+    isolation: isolate;
+  }
+  
+  @supports (height: 100svh){
+    .kai-chat{ max-height: min(86svh, 900px); }
+  }
+  
+  /* Fullscreen mode */
+  .kai-chat.fullscreen{
+    position: fixed; inset: 0; z-index: 1000;
+    border-radius: 0; border-left: 0; border-right: 0;
+    max-height: none;
+    padding: max(10px, env(safe-area-inset-top,0px))
+             max(10px, env(safe-area-inset-right,0px))
+             max(10px, env(safe-area-inset-bottom,0px))
+             max(10px, env(safe-area-inset-left,0px));
+    background: linear-gradient(180deg, rgba(6,12,14,.92), rgba(6,12,14,.96));
+    backdrop-filter: blur(6px) saturate(115%);
+  }
+  
+  /* Compact mode spacing */
+  .kai-chat.compact{
+    padding: 10px max(10px, env(safe-area-inset-right,0px))
+             max(10px, calc(env(safe-area-inset-bottom,0px) + 4px))
+             max(10px, env(safe-area-inset-left,0px));
+    gap: var(--kai-gap-sm);
+  }
+  
+  /* ---------- Head / Toolbar ---------- */
+  .kai-head{
+    display: flex; align-items: center; justify-content: flex-start;
+    gap: 6px; border-bottom: 1px solid rgba(55,255,228,.18);
+    padding: 10px 12px 8px;
+    flex-wrap: wrap;
+    max-width: 100%; overflow: hidden; min-width: 0;
+  }
+  .kai-chat.fullscreen .kai-head{ padding: 12px 16px 10px; border-bottom-color: rgba(55,255,228,.20); }
+  
+  .kai-title{
+    color: var(--kai-text); font-weight: 800; letter-spacing: .2px;
+    font-size: var(--kai-font-title); margin-right: 6px;
+    min-width: 0; flex: 1 1 auto;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  
+  .kai-tools{
+    display: inline-flex; gap: 6px; margin-left: auto;
+    flex-wrap: wrap; max-width: 100%; min-width: 0;
+  }
+  .kai-tool{
+    border: 1px solid var(--kai-border);
+    background: var(--kai-surface-2);
+    color: var(--kai-text);
+    padding: 6px 8px;
+    border-radius: var(--kai-radius-sm);
+    cursor: pointer;
+    transition: transform .12s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    flex: 0 0 auto;
+    line-height: 1;
+  }
+  .kai-tool:hover{ border-color: var(--kai-primary-strong); transform: translateY(-1px); }
+  .kai-tool:active{ transform: translateY(0); }
+  .kai-tool.active{
+    border-color: var(--kai-primary-strong);
+    background: linear-gradient(180deg, rgba(55,255,228,.16), rgba(55,255,228,.09));
+    box-shadow: 0 0 0 1px rgba(55,255,228,.18) inset;
+  }
+  .kai-tool:focus-visible{ outline: none; box-shadow: var(--kai-focus); }
+  
+  /* Icon-only amount toggle micro-badge */
+  .amt-toggle{ position: relative; padding: 6px 8px; }
+  .amt-toggle .amt-badge{
+    position: absolute; right: -6px; top: -6px;
+    font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 999px;
+    background: linear-gradient(135deg,#0E1A1D 0%, #142528 100%);
+    border: 1px solid rgba(55,255,228,.45); color: var(--kai-text); letter-spacing: .2px;
+    box-shadow: 0 2px 8px rgba(55,255,228,.25);
+  }
+  
+  /* ---------- Ribbon ---------- */
+  .kai-ribbon{
+    display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 8px; padding: 8px 12px; max-width: 100%; min-width: 0;
+  }
+  .kai-chat.fullscreen .kai-ribbon{ padding: 8px 16px; gap: 10px; }
+  
+  .ribbon-pill{
+    display: grid; gap: 3px; background: var(--kai-surface);
+    border: 1px solid rgba(255,255,255,.10); border-radius: 12px;
+    padding: 8px 10px; min-height: 38px; min-width: 0;
+  }
+  .ribbon-cap{ font-size: var(--kai-font-small); color: var(--kai-subtext); line-height: 1.2; }
+  .ribbon-val{ font-weight: 900; letter-spacing: .2px; line-height: 1.2; }
+  .ribbon-val.glow{ text-shadow: 0 0 10px rgba(55,255,228,.25); }
+  .ribbon-pill.pulse .ribbon-val{ animation: kaiPulse 2.2s ease-out infinite; }
+  @keyframes kaiPulse{ 0%{text-shadow:none} 42%{text-shadow:0 0 14px rgba(55,255,228,.55)} 100%{text-shadow:none} }
+  
+  /* ---------- Body (scroll area) ---------- */
+  .kai-body{
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
+    display: grid; gap: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+  
+    max-width: 100%;
+    overflow-x: hidden;
+  
+    /* CRITICAL: allow 1fr to shrink so the composer never gets pushed out */
+    min-height: 0;
+  
+    /* prevent content hiding under sticky composer */
+    padding-bottom: calc(var(--composer-h) + 8px);
+  
+    contain: content;
+    overflow-anchor: none;
+  }
+  .kai-chat.fullscreen .kai-body{ padding: 12px 16px calc(var(--composer-h) + 10px); gap: 12px; background: transparent; }
+  
+  /* Scrollbars (desktop) */
+  .kai-body::-webkit-scrollbar{ width: 10px; }
+  .kai-body::-webkit-scrollbar-thumb{
+    background: linear-gradient(180deg, rgba(55,255,228,.25), rgba(167,139,250,.25));
+    border-radius: 999px;
+  }
+  .kai-body::-webkit-scrollbar-track{ background: rgba(255,255,255,.04); border-radius: 999px; }
+  
+  /* ---------- Bubbles ---------- */
+  .kai-bubble{
+    display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start;
+    line-height: 1.42; color: var(--kai-text); min-width: 0;
+  }
+  .kai-mark{ opacity: .6; margin-top: 1px; }
+  .kai-bubble .kai-text{
+    padding: 8px 10px; border-radius: 12px;
+    background: var(--kai-surface-2); border: 1px solid var(--kai-border);
+    max-width: 100%; min-width: 0;
+    word-break: break-word; overflow-wrap: anywhere;
+    font-size: 0.95rem;
+  }
+  .kai-bubble.user .kai-text{ background: rgba(167,139,250,.14); border-color: rgba(167,139,250,.38); box-shadow: 0 2px 12px rgba(167,139,250,.12); }
+  .kai-bubble.assistant .kai-text{ background: rgba(55,255,228,.09); border-color: var(--kai-primary-mid); box-shadow: 0 2px 12px rgba(55,255,228,.12); }
+  
+  /* Links & code */
+  .kai-text a{ color: var(--kai-primary); text-decoration: none; border-bottom: 1px dashed var(--kai-primary-strong); }
+  .kai-text a:hover{ text-shadow: var(--kai-shadow-glow); }
+  .kai-text code{
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px; padding: 1px 5px;
+    font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    font-size: 0.85rem;
+  }
+  
+  /* ---------- Typing indicator ---------- */
+  .typing .dot{ animation: bounce 1.2s infinite; display: inline-block; margin-right: 2px; }
+  .typing .dot:nth-child(2){ animation-delay: .15s; }
+  .typing .dot:nth-child(3){ animation-delay: .3s; }
+  @keyframes bounce{ 0%,80%,100%{ transform: translateY(0); opacity:.6 } 40%{ transform: translateY(-2px); opacity:1 } }
+  
+  .kai-cancel{
+    margin-left: 6px; padding: 3px 8px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.06); color: var(--kai-text); cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .kai-cancel:hover{ border-color: var(--kai-primary-strong); }
+  
+  /* ---------- Suggestions ---------- */
+  .kai-suggest{ display:flex; flex-wrap:wrap; gap:8px; padding:4px 10px 8px; max-width:100%; }
+  .kai-chat.fullscreen .kai-suggest{ padding:6px 16px 10px; }
+  .kai-suggest-chip{
+    border:1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.04);
+    padding:6px 10px; border-radius:999px; font-size:.9rem; color:var(--kai-text);
+    cursor:pointer; transition: border-color .15s ease, transform .12s ease, background .15s ease;
+  }
+  .kai-suggest-chip:hover{ border-color:var(--kai-primary-strong); background:rgba(55,255,228,.10); transform: translateY(-1px); }
+  
+  /* ---------- Quick row (Amount & Method) ---------- */
+  .kai-quick{
+    display:grid; gap:8px; padding:6px 10px 8px;
+    border-top:1px solid rgba(255,255,255,.07);
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+    max-width:100%;
+  }
+  .kai-chat.fullscreen .kai-quick{ padding:8px 16px 8px; }
+  .quick-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .quick-cap{ color:var(--kai-subtext); font-size:var(--kai-font-small); }
+  
+  .quick-chip{
+    border:1px solid var(--kai-primary-mid); background: rgba(55,255,228,.10);
+    color:var(--kai-text); padding:6px 10px; border-radius:12px; cursor:pointer;
+    transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+    will-change: transform; flex: 0 0 auto; font-size: .95rem;
+  }
+  .quick-chip:hover{ border-color:var(--kai-primary-strong); background:rgba(55,255,228,.16); box-shadow:0 6px 24px rgba(55,255,228,.14); transform: translateY(-1px); }
+  .quick-chip:active{ transform: translateY(0); }
+  .quick-chip.active{
+    border-color:var(--kai-primary-strong);
+    background: linear-gradient(180deg, rgba(55,255,228,.18), rgba(55,255,228,.12));
+    box-shadow: 0 0 0 1px rgba(55,255,228,.18) inset, 0 6px 24px rgba(55,255,228,.16);
+  }
+  .quick-chip:focus-visible{ outline:none; box-shadow: var(--kai-focus); }
+  
+  /* ---------- Composer (sticky/pinned) ---------- */
+  .kai-compose{
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  
+    display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center;
+    padding: 10px;
+  
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.06));
+    border-top: 1px solid rgba(232,251,248,.08);
+  
+    max-width:100%; overflow-x:hidden; min-width: 0;
+  
+    /* height hint for scroller padding-bottom calc */
+    min-height: var(--composer-h);
+  }
+  .kai-chat.fullscreen .kai-compose{ padding: 12px 16px 16px; }
+  
+  .kai-input{
+    border-radius:12px; padding:10px 12px; background: rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.15); color:var(--kai-text);
+    min-height:36px; min-width:0; font-size: 0.95rem;
+  }
+  .kai-input::placeholder{ color: rgba(232,251,248,.55); }
+  .kai-input:focus-visible{ outline:none; box-shadow: var(--kai-focus); }
+  
+  .kai-send{
+    padding:10px 14px; border-radius:12px; border:1px solid var(--kai-primary-strong);
+    background: linear-gradient(180deg, rgba(55,255,228,.18), rgba(55,255,228,.12));
+    color:#0b1315; font-weight:800; min-height:36px; cursor:pointer;
+    transition: transform .12s ease, box-shadow .15s ease; flex: 0 0 auto; font-size: 0.95rem;
+  }
+  .kai-send:hover{ box-shadow: 0 10px 30px rgba(55,255,228,.25); transform: translateY(-1px); }
+  .kai-send:active{ transform: translateY(0); }
+  .kai-send:disabled{ opacity:.6; cursor:not-allowed; }
+  
+  /* ---------- CTA (kept if used elsewhere) ---------- */
+  .kai-cta{ display:none; }
+  
+  /* ---------- States / Utility ---------- */
+  .kai-error{
+    color:var(--kai-danger); border:1px solid rgba(255,93,108,.45);
+    background: rgba(255,93,108,.08); padding:6px 8px; border-radius:10px; font-size: .9rem;
+  }
+  .kai-hidden{ display:none !important; }
+  .kai-chat ::selection{ background: rgba(55,255,228,.35); color:#062325; }
+  
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px){ .kai-ribbon{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 640px){
+    .kai-head{ padding: 10px 10px 6px; }
+    .kai-chat.fullscreen .kai-head{ padding: 12px 12px 8px; }
+    .kai-ribbon{ padding: 8px 10px; gap: 8px; }
+    .kai-body{ padding: 8px 10px calc(var(--composer-h) + 8px); }
+    .kai-chat.fullscreen .kai-body{ padding: 10px 12px calc(var(--composer-h) + 10px); }
+    .kai-suggest{ padding: 4px 10px 8px; }
+    .kai-chat.fullscreen .kai-suggest{ padding: 6px 12px 10px; }
+    .kai-compose{ padding: 10px 10px; }
+  }
+  
+  /* ---------- Reduced Motion Care ---------- */
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+  
+  /* ---------- High-contrast Focus for A11y ---------- */
+  .kai-tool:focus-visible,
+  .quick-chip:focus-visible,
+  .kai-input:focus-visible,
+  .kai-send:focus-visible,
+  .kai-cancel:focus-visible{
+    outline: none;
+    box-shadow: var(--kai-focus);
+  }
+  

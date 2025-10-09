@@ -28,7 +28,7 @@ async function pickFileStrict(accept?: string): Promise<File | null> {
       const handles = await w.showOpenFilePicker({
         multiple: false,
         excludeAcceptAllOption: true,
-        types: [{ description: "Φkey SVG", accept: { "image/svg+xml": [".svg"] } }],
+        types: [{ description: "Φkey", accept: { "image/svg+xml": [".svg"] } }],
       });
       const file = await handles[0]?.getFile();
       return file ?? null;

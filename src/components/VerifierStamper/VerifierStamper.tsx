@@ -11,7 +11,7 @@ import "./VerifierStamper.css";
 import SealMomentModal from "../SealMomentModal";
 import SigilExplorer from "../SigilExplorer";
 import ValuationModal from "../ValuationModal";
-import { buildValueSeal, type SigilMetadataLite, type ValueSeal } from "../../utils/valuation";
+import { buildValueSeal, attachValuation, type SigilMetadataLite, type ValueSeal } from "../../utils/valuation";
 
 /* Project utils (types + URL helper) */
 import { makeSigilUrl, type SigilSharePayloadLoose, encodeSigilHistory, type SigilTransferLite } from "../../utils/sigilUrl";
@@ -25,11 +25,11 @@ import type {
   ChakraDay,
   SigilTransfer,
   HardenedTransferV14,
-  SigilPayload, // ← add explicit type import
+  SigilPayload,
 } from "./types";
 import { normalizeChakraDay } from "./types";
 import { sha256Hex, phiFromPublicKey } from "./crypto";
-import { loadOrCreateKeypair, signB64u, type Keypair } from "./keys"; // ← remove unused verifySig
+import { loadOrCreateKeypair, signB64u, type Keypair } from "./keys";
 import { parseSvgFile, centrePixelSignature, embedMetadata, pngBlobFromSvgDataUrl } from "./svg";
 import { pulseFilename, safeFilename, download, fileToPayload } from "./files";
 import {
@@ -42,7 +42,6 @@ import {
   hashTransferSenderSide,
   base64urlJson,
   genNonce,
-  // ← remove unused headCanonicalHashV14
 } from "./sigilUtils";
 import { buildMerkleRoot, merkleProof, verifyProof } from "./merkle";
 import { sealCurrentWindowIntoSegment } from "./segments";
@@ -224,9 +223,8 @@ const VerifierStamper: React.FC = () => {
 
   const onAttachValuation = async (seal: ValueSeal) => {
     if (!meta) return;
-    // Embed the valuation into metadata and optionally re-download the file
-    const updated: SigilMetadata = { ...meta, valuation: seal };
-
+    // Embed the valuation using the vφ-5 helper and optionally re-download the file
+    const updated: SigilMetadata = attachValuation(meta, seal);
     setMeta(updated);
     setRawMeta(JSON.stringify(updated, null, 2));
 
@@ -831,10 +829,56 @@ const VerifierStamper: React.FC = () => {
     download(zipBlob, `${base}.zip`);
   }, [meta, svgURL]);
 
-  /* small chips */
+  /* small chips used INSIDE the modal body (kept) */
   const Chip: React.FC<{ kind?: "ok" | "warn" | "err" | "info"; children: React.ReactNode }> = ({ kind = "info", children }) => (
     <span className={`chip ${kind}`}>{children}</span>
   );
+
+  /* ---------- Icon primitives for the TOP STATUS STRIP (no text) ---------- */
+  type IconKind = "ok" | "warn" | "err" | "info";
+
+  const IconCircle: React.FC<{
+    title: string;           // tooltip + a11y label
+    kind?: IconKind;
+    children: React.ReactNode;
+    badge?: number | null;   // optional numeric badge
+  }> = ({ title, kind = "info", children, badge = null }) => (
+    <span
+      className={`chip icon ${kind}`}
+      role="img"
+      aria-label={title}
+      title={title}
+      {...(badge != null ? { "data-badge": String(badge) } : {})}
+    >
+      {children}
+    </span>
+  );
+
+  const Svg: React.FC<{
+    path:
+      | "check" | "x" | "warn" | "shield" | "sigma" | "phi"
+      | "send" | "recv" | "done" | "stack" | "hash" | "zk";
+  }> = ({ path }) => {
+    const p: Record<string, string> = {
+      check: "M5 13l4 4L19 7",
+      x: "M6 6l12 12M6 18L18 6",
+      warn: "M12 9v4m0 4h.01M12 3l9 16H3z",
+      shield: "M12 3l7 4v6l-7 4-7-4V7l7-4z",
+      sigma: "M18 6H9l5 6-5 6h9M6 6h2M6 18h2",
+      phi: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 0v16",
+      send: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
+      recv: "M2 22l11-11M2 22l20-7-9-4-4-9-7 20z",
+      done: "M12 21c4.97 0 9-4.03 9-9S16.97 3 12 3 3 7.03 3 12s4.03 9 9 9zm-1-6l6-6M8 12l3 3",
+      stack: "M12 3l9 4-9 4-9-4 9-4zm-9 8l9 4 9-4M3 19l9 4 9-4",
+      hash: "M10 3L8 21M16 3l-2 18M3 8h18M3 16h18",
+      zk: "M12 3l7 4v6l-7 4-7-4V7l7-4zM9 12h6",
+    };
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="ico">
+        <path d={p[path]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+    );
+  };
 
   /* JSON tree (compact, collapsible) */
   const JsonTree: React.FC<{ data: unknown }> = ({ data }) => {
@@ -855,33 +899,41 @@ const VerifierStamper: React.FC = () => {
     );
   };
 
-  /* Derived values for header chips */
+  /* Derived values for header chips — ICONS ONLY */
   const statusChips = () => {
     const chips: React.ReactNode[] = [];
-    if (uiState === "invalid") chips.push(<Chip key="inv" kind="err">Invalid</Chip>);
-    if (uiState === "structMismatch") chips.push(<Chip key="struct" kind="err">Structure</Chip>);
-    if (uiState === "sigMismatch") chips.push(<Chip key="sig" kind="err">Sig Mismatch</Chip>);
-    if (uiState === "notOwner") chips.push(<Chip key="owner" kind="warn">Not Owner</Chip>);
-    if (uiState === "unsigned") chips.push(<Chip key="unsigned" kind="warn">Unsigned</Chip>);
-    if (uiState === "readySend") chips.push(<Chip key="send" kind="info">Ready • Send</Chip>);
-    if (uiState === "readyReceive") chips.push(<Chip key="recv" kind="info">Ready • Receive</Chip>);
-    if (uiState === "complete") chips.push(<Chip key="done" kind="ok">Lineage Sealed</Chip>);
-    if (uiState === "verified") chips.push(<Chip key="ver" kind="ok">Verified</Chip>);
 
-    if (contentSigMatches === true) chips.push(<Chip key="cok" kind="ok">Σ match</Chip>);
-    if (contentSigMatches === false) chips.push(<Chip key="cerr" kind="err">Σ mismatch</Chip>);
-    if (phiKeyMatches === true) chips.push(<Chip key="pok" kind="ok">Φ match</Chip>);
-    if (phiKeyMatches === false) chips.push(<Chip key="perr" kind="err">Φ mismatch</Chip>);
+    // Overall state
+    if (uiState === "invalid")        chips.push(<IconCircle key="inv"    kind="err"  title="Invalid"><Svg path="x" /></IconCircle>);
+    if (uiState === "structMismatch") chips.push(<IconCircle key="struct" kind="err"  title="Structure mismatch"><Svg path="warn" /></IconCircle>);
+    if (uiState === "sigMismatch")    chips.push(<IconCircle key="sigm"   kind="err"  title="Signature mismatch"><Svg path="x" /></IconCircle>);
+    if (uiState === "notOwner")       chips.push(<IconCircle key="owner"  kind="warn" title="Not owner"><Svg path="shield" /></IconCircle>);
+    if (uiState === "unsigned")       chips.push(<IconCircle key="unsigned" kind="warn" title="Unsigned"><Svg path="hash" /></IconCircle>);
+    if (uiState === "readySend")      chips.push(<IconCircle key="send"   kind="info" title="Ready to send"><Svg path="send" /></IconCircle>);
+    if (uiState === "readyReceive")   chips.push(<IconCircle key="recv"   kind="info" title="Ready to receive"><Svg path="recv" /></IconCircle>);
+    if (uiState === "complete")       chips.push(<IconCircle key="done"   kind="ok"   title="Lineage sealed"><Svg path="done" /></IconCircle>);
+    if (uiState === "verified")       chips.push(<IconCircle key="ver"    kind="ok"   title="Verified"><Svg path="check" /></IconCircle>);
 
-    if (meta?.cumulativeTransfers != null) chips.push(<Chip key="cum" kind="info">Σx {meta.cumulativeTransfers}</Chip>);
-    if ((meta?.segments?.length ?? 0) > 0) chips.push(<Chip key="segs" kind="info">Segs {meta?.segments?.length}</Chip>);
-    if (headProof) chips.push(<Chip key="headproof" kind={headProof.ok ? "ok" : "err"}>{headProof.ok ? "Head proof ✓" : "Head proof ×"}</Chip>);
+    // Σ / Φ matches
+    if (contentSigMatches === true)   chips.push(<IconCircle key="sigok"  kind="ok"   title="Content Σ match"><Svg path="sigma" /></IconCircle>);
+    if (contentSigMatches === false)  chips.push(<IconCircle key="sigerr" kind="err"  title="Content Σ mismatch"><Svg path="sigma" /></IconCircle>);
+    if (phiKeyMatches === true)       chips.push(<IconCircle key="phiok"  kind="ok"   title="Φ-Key match"><Svg path="phi" /></IconCircle>);
+    if (phiKeyMatches === false)      chips.push(<IconCircle key="phierr" kind="err"  title="Φ-Key mismatch"><Svg path="phi" /></IconCircle>);
 
-    if (meta?.transfersWindowRootV14) chips.push(<Chip key="v14root" kind="info">v14 root</Chip>);
+    // Counters (badge only, still label-free)
+    if (meta?.cumulativeTransfers != null)
+      chips.push(<IconCircle key="cum" kind="info" title="Cumulative transfers" badge={meta.cumulativeTransfers}><Svg path="hash" /></IconCircle>);
+    if ((meta?.segments?.length ?? 0) > 0)
+      chips.push(<IconCircle key="segs" kind="info" title="Segments" badge={meta?.segments?.length ?? 0}><Svg path="stack" /></IconCircle>);
 
-    // If any ZK verified, show a ✅ badge
+    // Head proof + v14 root + ZK
+    if (headProof)
+      chips.push(<IconCircle key="headproof" kind={headProof.ok ? "ok" : "err"} title={headProof.ok ? "Head proof verified" : "Head proof failed"}><Svg path="shield" /></IconCircle>);
+    if (meta?.transfersWindowRootV14)
+      chips.push(<IconCircle key="v14root" kind="info" title="v14 head root present"><Svg path="hash" /></IconCircle>);
     const anyZkVerified = (meta?.hardenedTransfers ?? []).some((ht) => ht.zkSend?.verified || ht.zkReceive?.verified);
-    if (anyZkVerified) chips.push(<Chip key="zk" kind="ok">ZK✓</Chip>);
+    if (anyZkVerified)
+      chips.push(<IconCircle key="zk" kind="ok" title="Zero-knowledge proof verified"><Svg path="zk" /></IconCircle>);
 
     return chips;
   };
@@ -933,7 +985,10 @@ const VerifierStamper: React.FC = () => {
         (await sha256Hex(`${metaLite.pulse}|${metaLite.beat}|${metaLite.stepIndex}|${metaLite.chakraDay}`)).toLowerCase();
 
       try {
-        const { seal } = await buildValueSeal(metaLite, pulseNow, sha256Hex);
+        const headHash =
+          meta?.transfersWindowRoot ??
+          meta?.transfersWindowRootV14;
+        const { seal } = await buildValueSeal(metaLite, pulseNow, sha256Hex, headHash);
         if (!cancelled) {
           setInitialGlyph({
             hash: canonical,
@@ -1086,7 +1141,7 @@ const VerifierStamper: React.FC = () => {
                 {tab === "summary" && (
                   <div className="summary-grid">
                     <div className="kv">
-                      <span className="k">Now-Pulse</span>
+                      <span className="k">Now</span>
                       <span className="v">{pulseNow}</span>
                     </div>
 
@@ -1119,7 +1174,7 @@ const VerifierStamper: React.FC = () => {
 
                     {meta.transfersWindowRoot && (
                       <div className="kv wide">
-                        <span className="k">Head Window Root</span>
+                        <span className="k">Head Breath Root</span>
                         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.transfersWindowRoot}</span>
                       </div>
                     )}
@@ -1232,7 +1287,7 @@ const VerifierStamper: React.FC = () => {
                         })}
                       </ol>
                     ) : (
-                      <p className="empty">No transfers yet — ready to mint a send stamp.</p>
+                      <p className="empty">No transfers yet — ready to inhale a send stamp.</p>
                     )}
                   </div>
                 )}
@@ -1257,10 +1312,7 @@ const VerifierStamper: React.FC = () => {
 
               {/* Footer */}
               <footer className="modal-footer" style={{ position: "sticky", bottom: 0 }}>
-                <div className="footer-left">
-                  <p><strong>Now-Pulse:</strong> {pulseNow}</p>
-                  {error && <p className="status error" style={{ overflowWrap: "anywhere" }}>{error}</p>}
-                </div>
+                {error && <p className="status error" style={{ overflowWrap: "anywhere" }}>{error}</p>}
 
                 <div className="footer-actions">
                   {uiState === "unsigned" && (
@@ -1272,24 +1324,24 @@ const VerifierStamper: React.FC = () => {
                   {(uiState === "readySend" || uiState === "verified") && (
                     <>
                       <button className="secondary" onClick={() => fileInput.current?.click()}>
-                        Attach payload
+                        Attach
                       </button>
                       <input ref={fileInput} type="file" hidden onChange={handleAttach} />
-                      <button className="primary" onClick={send} title={canShare ? "Seal & Share" : "Seal & Copy Link"}>
-                        Exhale (transfer)
+                      <button className="primary" onClick={send} title={canShare ? "Seal & Share" : "Seal & Kopy Link"}>
+                        Exhale
                       </button>
                     </>
                   )}
 
                   {uiState === "readyReceive" && (
                     <button className="primary" onClick={receive}>
-                      Accept transfer
+                      Inhale
                     </button>
                   )}
 
                   {(meta?.transfers?.length ?? 0) > 0 && (
                     <button className="secondary" onClick={sealSegmentNow} title="Roll current head-window into a segment">
-                      Seal segment now
+                      Segment
                     </button>
                   )}
                 </div>

@@ -19,6 +19,11 @@
      combinedOsc = breathOsc × dayOsc × strobeOsc × momentAffinityOsc
      premium(now) = rarityFloor + band × combinedOsc
      valuePhi(now) = 1 Φ × premium(now) + PV(IP at now)
+
+   STEP CONSISTENCY (fix):
+     • Single-source step: if the caller supplies meta.stepIndex, we always trust it.
+     • Only if absent do we derive stepIndex from the claim pulse.
+     • We also normalize `beat` for geometry if missing (fall back to claimPulse // pulsesPerBeat).
 */
 
 export type HashHex = string;
@@ -35,9 +40,9 @@ export interface SigilTransfer {
 export interface ZkProof {
   scheme: "groth16";
   curve: "bn128" | "bls12-381";
-  proof: string;          // base64 or hex
+  proof: string;            // base64 or hex
   publicInputsHash: string; // Poseidon(algorithm|policyChecksum|inputs|minHead) — hex
-  verifierId?: string;    // off-chain or on-chain verifier reference
+  verifierId?: string;      // off-chain or on-chain verifier reference
 }
 
 export interface SigilMetadataLite {
@@ -624,21 +629,46 @@ function strobeWave(claimPulse: number, nowPulse: number): { phase01: number; wa
   return { phase01: q(u), wave };
 }
 
+/* --------------------- normalization (single-source step) ------------------- */
+
+function coerceStepsPerBeat(metaSteps?: number): number {
+  return Number.isFinite(metaSteps) && (metaSteps as number) > 0
+    ? Math.trunc(metaSteps as number)
+    : DEFAULT_STEPS_PER_BEAT;
+}
+
+function resolveClaimPulse(meta: SigilMetadataLite, nowPulse: number): number {
+  return typeof meta.kaiPulse === "number"
+    ? meta.kaiPulse
+    : typeof meta.pulse === "number"
+      ? meta.pulse
+      : nowPulse;
+}
+
+function resolveStepIndex(meta: SigilMetadataLite, stepsPerBeat: number, claimPulse: number): number {
+  if (typeof meta.stepIndex === "number" && Number.isFinite(meta.stepIndex)) {
+    return clamp(Math.trunc(meta.stepIndex), 0, stepsPerBeat - 1);
+  }
+  return stepIndexFromPulse(claimPulse, stepsPerBeat);
+}
+
+function resolveBeat(meta: SigilMetadataLite, pulsesPerBeat: number, claimPulse: number): number {
+  if (typeof meta.beat === "number" && Number.isFinite(meta.beat)) {
+    return Math.trunc(meta.beat);
+  }
+  return Math.floor(claimPulse / pulsesPerBeat);
+}
+
 /* -------------------------- intrinsic computation -------------------------- */
 export function computeIntrinsicUnsigned(
   meta: SigilMetadataLite,
   nowPulse: number
 ): { unsigned: Omit<ValueSeal, "stamp" | "policyChecksum" | "algorithm"> & { algorithm: "phi/kosmos-vφ-5"; policyChecksum: string }; stampPayload: string } {
   // Rhythm derivation (allows alternative stepsPerBeat if provided)
-  const STEPS_PER_BEAT =
-    Number.isFinite(meta.stepsPerBeat) && (meta.stepsPerBeat as number) > 0
-      ? (meta.stepsPerBeat as number)
-      : DEFAULT_STEPS_PER_BEAT;
-
+  const STEPS_PER_BEAT = coerceStepsPerBeat(meta.stepsPerBeat);
   const pulsesPerBeat = STEPS_PER_BEAT * PULSES_PER_STEP; // default 484
 
-  const claimPulse =
-    typeof meta.kaiPulse === "number" ? meta.kaiPulse : typeof meta.pulse === "number" ? meta.pulse : nowPulse;
+  const claimPulse = resolveClaimPulse(meta, nowPulse);
 
   const transfers = meta.transfers ?? [];
   const closed = closedTransfers(transfers);
@@ -664,8 +694,17 @@ export function computeIntrinsicUnsigned(
   // φ-resonance from frequency if present
   const resonancePhi = phiResonance01(meta.frequencyHz);
 
-  // (optional) geometry lift
-  const geomLift = geometryLift(meta, STEPS_PER_BEAT, resonancePhi);
+  // ---- STEP CONSISTENCY: resolve step & beat once, and use everywhere ----
+  const claimStepResolved = resolveStepIndex(meta, STEPS_PER_BEAT, claimPulse);
+  const claimBeatResolved = resolveBeat(meta, pulsesPerBeat, claimPulse);
+  const metaForGeometry: SigilMetadataLite = {
+    ...meta,
+    stepIndex: claimStepResolved,
+    beat: claimBeatResolved,
+  };
+
+  // (optional) geometry lift (uses normalized meta)
+  const geomLift = geometryLift(metaForGeometry, STEPS_PER_BEAT, resonancePhi);
 
   // age pulses
   const agePulses = Math.max(0, nowPulse - claimPulse);
@@ -758,10 +797,8 @@ export function computeIntrinsicUnsigned(
   // φ-Beatty strobe (no RNG)
   const { phase01: strobePhase01, wave: strobeWaveVal } = strobeWave(claimPulse, nowPulse);
 
-  // Moment Affinity
-  const claimStep = typeof meta.stepIndex === "number"
-    ? clamp(meta.stepIndex, 0, STEPS_PER_BEAT - 1)
-    : stepIndexFromPulse(claimPulse, STEPS_PER_BEAT);
+  // Moment Affinity (use resolved claim step)
+  const claimStep = claimStepResolved;
   const nowStep = stepIndexFromPulse(nowPulse, STEPS_PER_BEAT);
   const stepSim = circularSim01(nowStep, claimStep, STEPS_PER_BEAT);
 
@@ -995,7 +1032,7 @@ export function explainOscillation(
   breathWave: number; dayWave: number; strobeWave: number; momentAffinity: number; combinedOsc: number;
   breathPhase01: number; dayPhase01: number; strobePhase01: number; momentAffinitySim01: number; momentAffinityAmp: number;
 } {
-  const STEPS = opts?.stepsPerBeat && opts.stepsPerBeat > 0 ? opts.stepsPerBeat : DEFAULT_STEPS_PER_BEAT;
+  const STEPS = coerceStepsPerBeat(opts?.stepsPerBeat);
   const pulsesPerBeat = STEPS * PULSES_PER_STEP;
   const cadence = typeof opts?.cadenceRegularity === "number" ? clamp(opts.cadenceRegularity, 0, 1) : 1;
   const resonance = typeof opts?.resonancePhi === "number" ? clamp(opts.resonancePhi, 0, 1) : 0.5;
@@ -1014,7 +1051,7 @@ export function explainOscillation(
 
   // affinity
   const claimStep = typeof opts?.stepIndexClaimOverride === "number"
-    ? clamp(opts.stepIndexClaimOverride, 0, STEPS - 1)
+    ? clamp(Math.trunc(opts.stepIndexClaimOverride), 0, STEPS - 1)
     : stepIndexFromPulse(claimPulse, STEPS);
   const nowStep = stepIndexFromPulse(nowPulse, STEPS);
   const stepSim = circularSim01(nowStep, claimStep, STEPS);
@@ -1065,7 +1102,7 @@ export function explainLineage(
   transfers: SigilTransfer[],
   opts?: { stepsPerBeat?: number }
 ): string[] {
-  const STEPS = opts?.stepsPerBeat && opts.stepsPerBeat > 0 ? opts.stepsPerBeat : DEFAULT_STEPS_PER_BEAT;
+  const STEPS = coerceStepsPerBeat(opts?.stepsPerBeat);
   const pulsesPerBeat = STEPS * PULSES_PER_STEP;
   const closed = closedTransfers(transfers);
 
@@ -1233,7 +1270,7 @@ export function scanKairosWindow(
 ): Array<{
   pulse: number; rarity01: number; tags: string[]; breathPhase01: number; strobeWave: number; dayPhase01: number;
 }> {
-  const STEPS = opts?.stepsPerBeat && opts.stepsPerBeat > 0 ? opts.stepsPerBeat : DEFAULT_STEPS_PER_BEAT;
+  const STEPS = coerceStepsPerBeat(opts?.stepsPerBeat);
   const pulsesPerBeat = STEPS * PULSES_PER_STEP;
   const arr: Array<{ pulse: number; rarity01: number; tags: string[]; breathPhase01: number; strobeWave: number; dayPhase01: number; }> = [];
   for (let i = 0, p = startPulse; i < count; i++, p += step) {
@@ -1274,7 +1311,7 @@ export function renderSigilWav(
   const baseHz = opts?.baseHz ?? 220; // A3-like base
 
   // Map φ-fraction + stepIndex to a musical frequency
-  const STEPS = opts?.stepsPerBeat && opts.stepsPerBeat > 0 ? opts.stepsPerBeat : DEFAULT_STEPS_PER_BEAT;
+  const STEPS = coerceStepsPerBeat(opts?.stepsPerBeat);
   const stepIdx = stepIndexFromPulse(pulse, STEPS);
   const phiFrac = logPhiFrac01(pulse + 1); // [0..1)
   const semitoneSpan = 24; // 2 octaves

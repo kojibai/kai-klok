@@ -28,7 +28,7 @@ export default function OwnershipPanel({
       const file = await openOwnershipVerifyModal({
         accept: "image/svg+xml,.svg",
         title: "Verify Ownership",
-        subtitle: "Pick the Φkey SVG for this Sigil-Glyph.",
+        subtitle: "Pick the Φkey for this Sigil-Glyph.",
       });
       if (file) onVerifyOwnershipFile(file);
     } finally {

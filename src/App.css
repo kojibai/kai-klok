@@ -672,3 +672,456 @@ input[type="file"] {
 @media (max-width: 420px){
   .sigil-caption{ font-size: 12px; }
 }
+/* =======================================================
+   INSTALL CTA — Atlantean Glass + Neon
+   Sits exactly above the existing Source button
+   ======================================================= */
+
+/* Button metrics (kept same height as Source for symmetry) */
+:root {
+  --install-h : 56px;   /* install pill height */
+  --install-gap: 12px;  /* gap between Install and Source */
+}
+
+/* The wrapper you render in markup can stay as-is;
+   make it invisible to layout so fixed CTAs rule. */
+/* The wrapper you render in markup can stay as-is; make it layout-invisible
+   so our fixed-position FAB controls placement cleanly. */
+   .cta-stack { display: contents; }
+
+   /* ---------- Floating CTA: tiny, circular, icon-only ---------- */
+   .floating-cta{
+     position: fixed;
+     /* safe-area aware bottom-right anchor */
+     right: calc(14px + env(safe-area-inset-right));
+     bottom: calc(14px + env(safe-area-inset-bottom));
+     z-index: 60;
+     pointer-events: none; /* container never steals clicks */
+   }
+   
+   /* Primary tiny circle button */
+   .icon-circle-btn{
+     pointer-events: auto;
+     width: 40px; height: 40px;               /* small but tappable */
+     border-radius: 9999px;
+     display: inline-flex; align-items: center; justify-content: center;
+     border: 1px solid rgba(255,255,255,.18);
+     background:
+       radial-gradient(140% 120% at 50% -20%, rgba(55,255,228,.22), rgba(12,18,20,.84)),
+       linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.00));
+     box-shadow:
+       0 8px 28px rgba(0,0,0,.38),
+       inset 0 0 0 1px rgba(255,255,255,.06);
+     backdrop-filter: blur(6px) saturate(1.02);
+     -webkit-backdrop-filter: blur(6px) saturate(1.02);
+     cursor: pointer;
+     transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+   }
+   
+   /* Hover / focus / active — subtle, no overlap jitter */
+   .icon-circle-btn:hover{
+     transform: translateY(-1px);
+     border-color: rgba(55,255,228,.42);
+     box-shadow: 0 10px 34px rgba(55,255,228,.16), 0 8px 28px rgba(0,0,0,.38);
+   }
+   .icon-circle-btn:active{
+     transform: translateY(0);
+     box-shadow: 0 4px 16px rgba(0,0,0,.38);
+   }
+   .icon-circle-btn:focus-visible{
+     outline: none;
+     box-shadow:
+       0 0 0 2px rgba(10,18,20,1),
+       0 0 0 4px rgba(55,255,228,.45),
+       0 8px 28px rgba(0,0,0,.38);
+   }
+   
+   /* Icon sizing */
+   .floating-cta .icon{ width: 18px; height: 18px; object-fit: contain; opacity:.96; pointer-events:none; }
+   
+   /* ---------- Mini icon menu (appears above FAB, never overlaps content) ---------- */
+   .fab-menu{
+     pointer-events: auto;
+     position: absolute;
+     right: 0;
+     bottom: 48px;                               /* 40px btn + 8px gap */
+     display: flex; flex-direction: column; gap: 6px;
+     padding: 6px;
+     border-radius: 12px;
+     border: 1px solid rgba(255,255,255,.12);
+     background: linear-gradient(180deg, rgba(12,18,20,.92), rgba(12,18,20,.86));
+     box-shadow: 0 18px 52px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.05);
+   }
+   
+   .fab-item{
+     width: 36px; height: 36px;
+     border-radius: 9999px;
+     border: 1px solid rgba(255,255,255,.16);
+     background: rgba(255,255,255,.05);
+     display:flex; align-items:center; justify-content:center;
+     cursor: pointer;
+     transition: transform .12s ease, border-color .12s ease, background .12s ease;
+   }
+   .fab-item:hover{
+     transform: translateY(-1px);
+     border-color: rgba(55,255,228,.38);
+     background: rgba(55,255,228,.10);
+   }
+   .fab-item:active{ transform: translateY(0); }
+   .fab-item .icon{ width: 16px; height: 16px; }
+   
+   /* Tight corners on very small screens; respects notches */
+   @media (max-width: 420px){
+     .floating-cta{
+       right: calc(10px + env(safe-area-inset-right));
+       bottom: calc(10px + env(safe-area-inset-bottom));
+     }
+     .icon-circle-btn{ width: 38px; height: 38px; }
+     .fab-item{ width: 34px; height: 34px; }
+   }
+   
+   /* If you ever need a left-docked variant, just add .dock-left to .floating-cta */
+   .floating-cta.dock-left{ left: calc(14px + env(safe-area-inset-left)); right: auto; }
+   
+/* Main Install CTA (iOS = App Store link, others = Install button) */
+.install-cta-button {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(
+    env(safe-area-inset-bottom, 0px)
+    + 12px                    /* Source bottom offset (from your CSS) */
+    + var(--cta-h)            /* Source height */
+    + var(--install-gap)      /* spacing between the two pills */
+  );
+  z-index: 1001;              /* just above Source (which is 1000) */
+
+  /* Pill sizing + layout */
+  height: var(--install-h);
+  min-width: 280px;
+  max-width: 92vw;
+  padding: 0 clamp(16px, 2.2vmin, 26px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: clamp(10px, 1.3vmin, 14px);
+  align-items: center;
+  border-radius: 999px;
+
+  /* Atlantean glass */
+  color: #fff;
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.16);
+  background:
+    radial-gradient(120% 120% at 30% 40%,
+      rgba(0, 242, 255, 0.22), rgba(46, 0, 255, 0.14)),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+
+  /* Depth + aura */
+  box-shadow:
+    0 0 2px rgba(255,255,255,0.05),
+    0 0 10px rgba(0,255,255,0.18),
+    0 0 26px rgba(0,144,255,0.18),
+    0 0 64px rgba(46,0,255,0.22),
+    inset 0 0 14px rgba(255,255,255,0.06);
+  text-shadow: 0 0 6px #00ffffaa, 0 0 12px #ffffffaa;
+
+  /* Motion */
+  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+  animation: install-breathe var(--breath) ease-in-out infinite reverse;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Subtle aurora sweep */
+.install-cta-button::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(60% 40% at 12% 16%, rgba(22,255,196,.35), transparent 60%),
+    radial-gradient(50% 70% at 88% 24%, rgba(36,105,255,.35), transparent 60%);
+  filter: blur(22px);
+  opacity: .45;
+  animation: install-aurora calc(var(--breath) * 1.236) ease-in-out infinite;
+  border-radius: inherit;
+}
+
+.install-cta-button:hover {
+  transform: translateX(-50%) translateY(-1px) scale(1.03);
+  box-shadow:
+    0 0 6px rgba(0,255,255,0.35),
+    0 0 18px rgba(0,168,255,0.45),
+    0 0 84px 10px rgba(47,134,255,0.25),
+    inset 0 0 22px rgba(255,255,255,0.10);
+}
+.install-cta-button:active {
+  transform: translateX(-50%) translateY(0) scale(.995);
+}
+
+/* Focus ring for keyboard / a11y */
+.install-cta-button:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(0,255,255,0.35),
+    0 0 0 6px rgba(0,102,255,0.28),
+    0 0 28px rgba(0,168,255,0.35),
+    inset 0 0 14px rgba(255,255,255,0.10);
+}
+
+/* Icon + text inside the pill */
+.install-cta-icon {
+  width: clamp(22px, 2.1vmin + 8px, 28px);
+  height: clamp(22px, 2.1vmin + 8px, 28px);
+  border-radius: 6px;
+  display: block;
+  filter: drop-shadow(0 0 6px #00e6ff88);
+}
+
+.install-cta-label {
+  font-weight: 800;
+  letter-spacing: .02em;
+  font-size: clamp(0.95rem, 1rem + 0.3vmin, 1.22rem);
+  line-height: 1.1;
+}
+.install-cta-kicker {
+  grid-column: 2 / -1;
+  margin-top: 2px;
+  font-size: clamp(11px, .75rem, 12px);
+  opacity: .86;
+  font-weight: 600;
+}
+
+/* The small optional iOS helper link (fixed a bit above the Install pill) */
+.install-cta-inline {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(
+    env(safe-area-inset-bottom, 0px)
+    + 12px
+    + var(--cta-h)
+    + var(--install-gap)
+    + var(--install-h)
+    + 10px
+  );
+  z-index: 1001;
+  background: transparent;
+  border: none;
+  color: rgba(200,255,245,.95);
+  text-decoration: underline;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS/Android/desktop Help Modal (reuses your panel motifs) */
+.install-cta-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,10,14,0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1200;
+  display: grid;
+  place-items: end center;
+  padding: 16px;
+}
+.install-cta-sheet {
+  width: min(520px, 96vw);
+  background: linear-gradient(180deg, rgba(8,22,32,.92), rgba(6,12,18,.88));
+  border: 1px solid var(--glass-bright);
+  border-radius: 20px;
+  padding: 18px 16px 14px;
+  box-shadow: var(--glow-1), var(--glow-2), var(--glow-3), var(--atl-shadow);
+  animation: panelPop .6s cubic-bezier(.2,.8,.2,1);
+  margin-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  color: #e8feff;
+}
+.install-cta-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.install-cta-sheet-icon {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px #00f2ff88);
+}
+.install-cta-steps {
+  margin: 8px 0 14px 22px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.install-cta-steps li { margin: 6px 0; }
+.share-glyph { width: 16px; height: 16px; vertical-align: text-bottom; margin-left: 4px; }
+
+.install-cta-close {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .16s ease, box-shadow .2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.install-cta-close:hover {
+  border-color: rgba(127,255,212,.35);
+  box-shadow: 0 8px 28px rgba(0,0,0,.35), inset 0 0 10px rgba(255,255,255,.06);
+}
+.install-cta-close:active { transform: translateY(.5px); }
+
+/* Animations keyed to your system */
+@keyframes install-breathe {
+  0%,100% { transform: translateX(-50%) scale(1); }
+  50%     { transform: translateX(-50%) scale(1.03); }
+}
+@keyframes install-aurora {
+  0%,100% { transform: translate3d(-2%, -4%, 0) scale(1.02); opacity: .38; }
+  50%     { transform: translate3d( 2%,  3%, 0) scale(1.06); opacity: .52; }
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .install-cta-button,
+  .install-cta-button::after { animation: none !important; }
+}
+
+/* Small screens: keep readable, avoid overlap */
+@media (max-width: 420px) {
+  .install-cta-button { min-width: 250px; }
+  .install-cta-inline { font-size: 11px; }
+}
+/* ====== Dual CTA Menu for the Source pill ====== */
+
+
+/* Rotate the arrow when open */
+.kairos-api-button.dual-cta-trigger .kairos-arrow.rot {
+  transform: rotate(180deg);
+  transition: transform .18s ease;
+}
+
+/* Floating menu, centered above the pill */
+.dual-cta-menu {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px + var(--cta-h) + 10px);
+  z-index: 710000000;
+  pointer-events: auto;
+
+  width: min(92vw, 420px);
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+
+  background: linear-gradient(180deg, rgba(8,22,32,.92), rgba(6,12,18,.88));
+  border: 1px solid var(--glass-bright, rgba(255,255,255,.18));
+  border-radius: 16px;
+  box-shadow:
+    0 0 2px rgba(255,255,255,0.05),
+    0 0 10px rgba(0,255,255,0.18),
+    0 0 26px rgba(0,144,255,0.18),
+    0 24px 80px rgba(0,0,0,.45);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+
+  animation: panelPop .28s cubic-bezier(.2,.8,.2,1);
+}
+
+/* Menu items (button-like, full-bleed) */
+.dual-cta-item {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 120% at 30% 40%,
+      rgba(0,242,255,.10), rgba(46,0,255,.06)),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  color: #fff;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.dual-cta-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(127,255,212,.28);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 12px rgba(255,255,255,.06);
+}
+.dual-cta-item:active { transform: translateY(0); }
+
+.dual-cta-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  filter: drop-shadow(0 0 6px #00f2ff88);
+}
+
+.dual-cta-text { display: grid; gap: 2px; }
+.dual-cta-title {
+  font-weight: 300;
+  letter-spacing: .02em;
+  font-size: 0.55rem;
+  line-height: 1.1;
+}
+.dual-cta-sub {
+  font-size: 12px;
+  opacity: .86;
+}
+
+
+/* Reduce motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .kairos-api-button.dual-cta-trigger .kairos-arrow { transition: none; }
+  .dual-cta-menu { animation: none; }
+}
+
+/* Small screens */
+@media (max-width: 420px) {
+  .dual-cta-menu { width: min(94vw, 420px); }
+}
+/* Ensure the portal container, if styled, lives above site chrome */
+#investor-portal-root {
+  position: relative;
+  z-index: 2147483647; /* max-ish */
+}
+
+/* Toolbar button consistency for the new invest icon */
+.toolbar-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.toolbar-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.28);
+}
+.toolbar-icon {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}

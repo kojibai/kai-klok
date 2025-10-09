@@ -13,7 +13,7 @@ export type ShareableSigilMeta = {
   chakraDay?: string | null;
 
   stepsPerBeat?: number;
-  stepIndex?: number | null;
+  stepIndex?: number | null; // ✅ if present, this is the UI's exact step and will be preserved
 
   userPhiKey?: string | null;
   kaiSignature?: string | null;
@@ -87,7 +87,7 @@ function buildSharePayload(args: {
   return {
     pulse: meta.pulse,
     beat: meta.beat,
-    stepIndex,
+    stepIndex, // ✅ single source of truth fed in here
     chakraDay: toChakraDay(meta.chakraDay),
     stepsPerBeat,
     userPhiKey: meta.userPhiKey ?? undefined,
@@ -95,7 +95,30 @@ function buildSharePayload(args: {
   };
 }
 
-/** Build a canonical link and attach the token only to the URL, not to the payload. Also merge claim window/timing into ?p= for deep links. */
+/** Resolve the step index, preferring the exact UI-provided value. */
+function resolveStepIndex(
+  meta: ShareableSigilMeta,
+  stepsPerBeat: number,
+  deps: ShareDeps
+): number {
+  // Use UI's explicit stepIndex when it's a finite integer in range; else derive from pulse.
+  const s = meta.stepIndex;
+  if (
+    typeof s === "number" &&
+    Number.isFinite(s) &&
+    s >= 0 &&
+    s < stepsPerBeat &&
+    Math.floor(s) === s
+  ) {
+    return s;
+  }
+  return deps.stepIndexFromPulse(meta.pulse, stepsPerBeat);
+}
+
+/**
+ * Build a canonical link and attach the token only to the URL, not to the payload.
+ * Also merge claim window/timing into ?p= for deep links.
+ */
 export function shareTransferLink(
   meta: ShareableSigilMeta,
   forcedToken: string | undefined,
@@ -107,7 +130,9 @@ export function shareTransferLink(
 
   const token = forcedToken ?? randomToken();
   const stepsNum = meta.stepsPerBeat ?? deps.stepsPerBeat;
-  const stepIndex = deps.stepIndexFromPulse(meta.pulse, stepsNum);
+
+  // ✅ Prefer the UI's exact step if provided, else fall back to deterministic derivation
+  const stepIndex = resolveStepIndex(meta, stepsNum, deps);
 
   const sharePayload = buildSharePayload({
     meta,
@@ -120,10 +145,12 @@ export function shareTransferLink(
   const withToken = rewriteUrlPayload(base, sharePayload, token);
 
   // Deep-linking update: ensure claim window & timing are embedded/merged in ?p=
+  // (We also include the resolved stepIndex for future-proof verifiers that read long-form fields.)
   const metaForP: Partial<SigilPayload> = {
     pulse: meta.pulse,
     beat: meta.beat,
     stepsPerBeat: stepsNum,
+    stepIndex, // ✅ mirror the same stepIndex into the long-form merge
     chakraDay: toChakraDay(meta.chakraDay) as SigilPayload["chakraDay"],
     canonicalHash: canonical,
     kaiSignature: meta.kaiSignature ?? undefined,
@@ -176,19 +203,19 @@ export function beginUpgradeClaim(
 
   if (canonical && token) deps.publishRotation([canonical], token);
 
-// SPA-style navigation first; fall back to hard redirect
-try {
-  deps.navigate(out.url);
-} catch (err) {
-  // Non-fatal: router may be unavailable; fall back to hard navigation.
-  void err;
+  // SPA-style navigation first; fall back to hard redirect
   try {
-    window.location.href = out.url;
-  } catch (err2) {
-    // Ignore final failure (e.g., sandboxed/blocked navigation).
-    void err2;
+    deps.navigate(out.url);
+  } catch (err) {
+    // Non-fatal: router may be unavailable; fall back to hard navigation.
+    void err;
+    try {
+      window.location.href = out.url;
+    } catch (err2) {
+      // Ignore final failure (e.g., sandboxed/blocked navigation).
+      void err2;
+    }
   }
-}
 
   return out.url;
 }

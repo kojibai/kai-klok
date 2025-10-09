@@ -113,7 +113,6 @@ const asNumber = (v: unknown, def = 0): number => {
   }
   return def;
 };
-
 export function validateSigilMeta(meta: SigilMetaLoose): {
   ok: boolean;
   errors: string[];
@@ -124,27 +123,43 @@ export function validateSigilMeta(meta: SigilMetaLoose): {
   if (meta.pulse == null) errors.push("Missing metadata field: pulse");
   if (meta.beat == null) errors.push("Missing metadata field: beat");
   if (meta.chakraDay == null) errors.push("Missing metadata field: chakraDay");
-
   if (errors.length > 0) return { ok: false, errors };
 
-  const steps = Number.isFinite(meta.stepsPerBeat) ? Math.max(1, Number(meta.stepsPerBeat)) : STEPS_PER_BEAT;
+  const steps = Number.isFinite(meta.stepsPerBeat)
+    ? Math.max(1, Number(meta.stepsPerBeat))
+    : STEPS_PER_BEAT;
+
   const pulseNum = Number(meta.pulse);
-  const derivedStepIdx = stepIndexFromPulse(pulseNum, steps);
-  const stepPct = typeof meta.stepPct === "number" ? Math.max(0, Math.min(1, meta.stepPct)) : (derivedStepIdx + 1e-9) / steps;
+
+  // ✅ KKS rule: honor the embedded step if present & in-range. Only derive as a fallback.
+  const providedStep = Number(meta.stepIndex);
+  const stepIndex =
+    Number.isFinite(providedStep) && providedStep >= 0 && providedStep < steps
+      ? Math.trunc(providedStep)
+      : stepIndexFromPulse(pulseNum, steps);
+
+  const stepPct = typeof meta.stepPct === "number"
+    ? Math.max(0, Math.min(1, meta.stepPct))
+    : (stepIndex + 1e-9) / steps;
+
   const exp = asNumber(meta.expiresAtPulse, NaN);
   const expd = asNumber(meta.exportedAtPulse, NaN);
 
-  const rxUnit = typeof meta.claimExtendUnit === "string" ? String(meta.claimExtendUnit).toLowerCase() : "";
-  const claimExtendUnit: SigilPayload["claimExtendUnit"] = rxUnit === "steps" ? "steps" : rxUnit === "breaths" ? "breaths" : undefined;
+  const rxUnit = typeof meta.claimExtendUnit === "string"
+    ? String(meta.claimExtendUnit).toLowerCase()
+    : "";
+  const claimExtendUnit: SigilPayload["claimExtendUnit"] =
+    rxUnit === "steps" ? "steps" : rxUnit === "breaths" ? "breaths" : undefined;
 
-  const claimExtendAmount = meta.claimExtendAmount != null && Number.isFinite(Number(meta.claimExtendAmount))
-    ? Math.max(0, Math.floor(Number(meta.claimExtendAmount)))
-    : undefined;
+  const claimExtendAmount =
+    meta.claimExtendAmount != null && Number.isFinite(Number(meta.claimExtendAmount))
+      ? Math.max(0, Math.floor(Number(meta.claimExtendAmount)))
+      : undefined;
 
   const normalized: SigilPayload = {
     pulse: pulseNum,
     beat: Number(meta.beat),
-    stepIndex: derivedStepIdx,
+    stepIndex,                    // ← authoritative KKS step
     stepPct,
     chakraDay: meta.chakraDay as SigilPayload["chakraDay"],
     kaiSignature: typeof meta.kaiSignature === "string" ? meta.kaiSignature : undefined,
@@ -175,6 +190,7 @@ export function validateSigilMeta(meta: SigilMetaLoose): {
   return { ok: true, errors: [], normalized };
 }
 
+
 export function validateSvgForVerifier(svgText: string, expectedHash?: string) {
   try {
     const { svg, meta } = parseSvgAndMetadata(svgText);
@@ -198,3 +214,45 @@ export function validateSvgForVerifier(svgText: string, expectedHash?: string) {
 }
 
 export const NS = { SVG_NS, XLINK_NS };
+
+/**
+ * Export an SVG with embedded metadata as a downloadable .svg file.
+ * @param svgId - DOM ID of the SVG element to export
+ * @param metadata - metadata object to embed inside <metadata> tag
+ */
+export async function exportSigilAsSvg(svgId: string, metadata: Record<string, unknown>): Promise<void> {
+  const svg = document.getElementById(svgId) as SVGSVGElement | null;
+  if (!svg) throw new Error(`SVG element with ID "${svgId}" not found`);
+
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+
+  // Insert or update metadata
+  const metaTag = clone.querySelector("metadata") ?? document.createElementNS(SVG_NS, "metadata");
+  metaTag.textContent = JSON.stringify(metadata, null, 2);
+  if (!metaTag.parentNode) {
+    clone.insertBefore(metaTag, clone.firstChild);
+  }
+
+  // Ensure required xmlns
+  ensureXmlns(clone);
+
+  // Serialize
+  const serializer = new XMLSerializer();
+  const serialized = serializer.serializeToString(clone);
+  const fullSvg = serialized.startsWith("<?xml")
+    ? serialized
+    : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
+
+  // Download
+  const blob = new Blob([fullSvg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${metadata["investmentId"] || "sigil"}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}

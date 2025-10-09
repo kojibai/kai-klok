@@ -63,7 +63,7 @@ function pulsesIntoBeatFromPulse(pulse: number): number {
    Absolute day is 1-based for official display.
 */
 function kaiCalendarFromPulse(pulse: number) {
-  const pμ = BigInt(Math.trunc(pulse)) * 1_000_000n;      // μpulses since Genesis
+  const pμ = BigInt(Math.floor(pulse * UPULSES));         // μpulses since Genesis (use full precision)
   const N_DAY_μ = BigInt(MU_PER_DAY);                     // μpulses per Kai-Day (exact)
   const absDayIdxBI = pμ / N_DAY_μ;                       // floor division (0..∞)
   const absDayIdxDisp = Number(absDayIdxBI) + 1;          // 1..∞ for display
@@ -313,18 +313,22 @@ function CopyClaim({ seal }: { seal: string }) {
 }
 
 export default function ProvenanceList({ entries, steps }: Props) {
+  // Guards for safety when parent passes undefined/null
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  const safeSteps = Number.isFinite(steps) && steps > 0 ? steps : 44;
+
   // Precompute everything once per (entries, steps)
   const derived = useMemo(() => {
-    return entries.map((e) => {
+    return safeEntries.map((e) => {
       const beat0        = exactBeatIndexFromPulse(e.pulse);
-      const step0        = exactStepIndexFromPulse(e.pulse, steps);
+      const step0        = exactStepIndexFromPulse(e.pulse, safeSteps);
       const stepPct      = exactPercentIntoStepFromPulse(e.pulse);
       const pulsesInBeat = pulsesIntoBeatFromPulse(e.pulse);
       const k            = kaiCalendarFromPulse(e.pulse);
       const phiLevel     = Math.floor(Math.log(Math.max(e.pulse, 1)) / Math.log(PHI));
       const seal         = buildProvenanceSeal({
         e,
-        stepsPerBeat: steps,
+        stepsPerBeat: safeSteps,
         beat0,
         step0,
         stepPct,
@@ -333,13 +337,16 @@ export default function ProvenanceList({ entries, steps }: Props) {
 
       return { e, beat0, step0, stepPct, pulsesInBeat, k, phiLevel, seal };
     });
-  }, [entries, steps]);
+  }, [safeEntries, safeSteps]);
 
   return (
     <div className="sp-provenance" role="region" aria-label="Provenance">
       <CrystallineCopyStyles />
       <h3 className="sp-prov-title">Provenanse</h3>
       <ol className="sp-prov-list">
+        {derived.length === 0 && (
+          <li className="sp-prov-empty" aria-live="polite">No provenance yet.</li>
+        )}
         {derived.map((d, i) => {
           const { e, beat0, step0, stepPct, pulsesInBeat, k, phiLevel, seal } = d;
 

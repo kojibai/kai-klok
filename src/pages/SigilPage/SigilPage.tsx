@@ -30,7 +30,7 @@ import UpgradeSigilModal from "../../components/sigil/UpgradeSigilModal";
 import SigilConflictBanner from "../../components/SigilConflictBanner";
 import ValueHistoryModal from "../../components/ValueHistoryModal";
 import { useValueHistory } from "../../hooks/useValueHistory";
-
+import SigilPublisherPanel from "../../components/SigilPublisherPanel";
 /* ——— App-level Kai math ——— */
 import {
   ETERNAL_STEPS_PER_BEAT as STEPS_PER_BEAT,
@@ -78,7 +78,7 @@ import {
 } from "./verifierCanon";
 
 /** svgOps.ts */
-import { ensureCanonicalMetadataFirst, retagSvgIdsForStep } from "./svgOps";
+import { ensureCanonicalMetadataFirst,} from "./svgOps";
 
 /** styleInject.ts */
 import { injectSigilPageStyles } from "./styleInject";
@@ -613,15 +613,16 @@ export default function SigilPage() {
     };
   }, []);
 // Mobile popover dismiss helpers (iOS swipe/backdrop quirks)
+// current
 useEffect(() => {
   const api = enableMobileDismissals();
-
   return () => {
     api.destroy?.();
     api.teardown?.();
     api.disable?.();
   };
 }, []);
+
 
 
   const [suppressAuthUntil, setSuppressAuthUntil] = useState<number>(0);
@@ -922,7 +923,7 @@ if (expectedCanonCandidates.length === 0) return;
       setVerified(prev => (prev === "verified" ? "verified" : "checking"));
       setGlyphAuth(prev => (prev === "authentic" ? "authentic" : "checking"));
       setOwnershipVerified(false);
-      setOwnershipMsg("Awaiting Verification");
+      setOwnershipMsg("Awaiting Verifikation");
     }
   }, [loading, payload, routeHash]);
   
@@ -1870,10 +1871,6 @@ setVerified(prev => (prev === "verified" ? "verified" : "verified"));
       putMetadata(svg, nextMeta);
       putMetadata(svg, nextMeta);
 
-      try {
-        svg.setAttribute("data-step-index", String(sealedIdx));
-        retagSvgIdsForStep(svg, nextMeta.pulse, nextMeta.beat, sealedIdx);
-      } catch {}
 
       ensureCanonicalMetadataFirst(svg);
 
@@ -2771,7 +2768,7 @@ useEffect(() => {
         </div>
 
         <div className="authority-seal__chip">
-          {verified === "verified" ? "SEAL CONFIRMED" : "SEAL FAILED"}
+          {verified === "verified" ? "SEAL VALID" : "SEAL FAILED"}
         </div>
       </div>
     </button>
@@ -2938,7 +2935,7 @@ useEffect(() => {
                   <h3 id="bp-title" style={{ marginTop: -40, marginBottom: 10, wordBreak: "break-word" }}>
                     Proof•of•Breath™
                   </h3>
-                  One breath. One pulse. One truth. Sealed by breath. Stamped in Kairos. Identity, memory, and value — harmonically verified at the exact Kairos moment.
+                  One breath. One pulse. One truth. Sealed by breath. Stamped in Kairos. Identity, memory, and value — harmonikally verified at the exakt Kairos moment.
           
                   <div
   className="auth-badge"
@@ -3102,7 +3099,7 @@ useEffect(() => {
           
                   <div style={{ marginTop: 12, wordBreak: "break-word" }}>
                     The world’s first self-verifying harmonik Kurrensy.  
-                    Bound by breath. Anchored in Kairos. Forged by pulse.
+                    Bound by breath. Ankored in Kairos. Forged by pulse.
                   </div>
       {/* Offline Verifier CTA */}
 <div
@@ -3142,7 +3139,7 @@ useEffect(() => {
                     <dt>Pulse</dt><dd>{breathProof.pulse}</dd>
                     <dt>Beat</dt><dd>{breathProof.beat}</dd>
                     <dt>Step</dt><dd>{breathProof.stepIndex}/{breathProof.stepsPerBeat}</dd>
-                    <dt>Chakra</dt><dd>{breathProof.chakraDay}</dd>
+                    <dt>Spiral</dt><dd>{breathProof.chakraDay}</dd>
                     <dt>Intention</dt><dd><code>{breathProof.intention ?? "—"}</code></dd>
                     <dt>Σ string</dt><dd><code className="wrap">{breathProof.sigmaString}</code></dd>
                     <dt>sha256(Σ)</dt><dd><code className="wrap">{breathProof.sigmaHash}</code></dd>
@@ -3163,13 +3160,13 @@ useEffect(() => {
           
                   <div className="sp-breathproof__actions" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     <button className="btn-ghost" onClick={() => copy(breathProof.sigmaString, "Σ string copied")}>
-                      Copy Σ string
+                      Kopy Σ string
                     </button>
                     <button className="btn-ghost" onClick={() => copy(breathProof.sigmaHash, "sha256(Σ) copied")}>
-                      Copy sha256(Σ)
+                      Kopy sha256(Σ)
                     </button>
                     <button className="btn-ghost" onClick={() => copy(breathProof.derivedPhiKey, "Derived Φ copied")}>
-                      Copy Φ
+                      Kopy Φ
                     </button>
                     <button
                       className="btn-ghost"
@@ -3197,7 +3194,7 @@ useEffect(() => {
                         )
                       }
                     >
-                      Copy JSON
+                      Kopy JSON
                     </button>
                   </div>
                 </aside>
@@ -3287,17 +3284,25 @@ useEffect(() => {
             </div>
           )}
 
-          <SigilCTA
-            hasPayload={!!payload}
-            showError={showError}
-            expired={!!expired}
-            exporting={exporting}
-            isFutureSealed={isFutureSealed}
-            isArchived={isArchived}
-            claimPress={claimPress}
-            stargatePress={stargatePress}
-            posterPress={posterPress}
-          />
+<SigilCTA
+  hasPayload={!!payload}
+  showError={showError}
+  expired={!!expired}
+  exporting={exporting}
+  isFutureSealed={isFutureSealed}
+  isArchived={isArchived}
+  claimPress={claimPress}
+  stargatePress={stargatePress}
+  posterPress={posterPress}
+
+  /* NEW: mobile-safe Send wiring */
+  sendAmount={sendAmount}
+  setSendAmount={setSendAmount}
+  onSend={handleSendPhi}
+  sendBusy={sendInFlight}
+  ownerVerified={ownerVerified}
+/>
+
 
           {payload?.provenance && payload.provenance.length > 0 && (
             <ProvenanceList entries={payload.provenance} steps={steps} />
@@ -3306,7 +3311,7 @@ useEffect(() => {
           
 
           <p className="sp-fine">
-            Deterministic sigil-glyph; the hash reflekts the kanonikal payload. All provenanse and ownership are
+            Deterministik sigil-glyph; the hash reflekts the kanonikal payload. All provenanse and ownership are
             embedded in the Φkey metadata. Sovereign. End-to-end.
           </p>
 
@@ -3425,7 +3430,11 @@ useEffect(() => {
       </div>
     </div>
   )}
+<section className="sigil-tools">
 
+{/* 2) Publisher — mints derivative action glyphs */}
+<SigilPublisherPanel />
+</section>
   <SovereignControls
     isArchived={isArchived}
     ownerVerified={ownerVerified}

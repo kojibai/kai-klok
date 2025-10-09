@@ -27,7 +27,7 @@ import KaiSigil, {
   type KaiSigilProps,
   type KaiSigilHandle,
 } from "./KaiSigil";
-import { StargateViewer } from "./StargateViewer";
+
 import VerifierStamper from "./VerifierStamper/VerifierStamper";
 import SealMomentModal from "./SealMomentModal";
 import { makeSigilUrl, type SigilSharePayload } from "../utils/sigilUrl";
@@ -51,6 +51,16 @@ type HarmonicDay =
   | "Verdari"
   | "Sonari"
   | "Kaelith";
+
+/* Narrow chakra union used for share payloads and internal state */
+type ChakraName =
+  | "Root"
+  | "Sacral"
+  | "Solar Plexus"
+  | "Heart"
+  | "Throat"
+  | "Third Eye"
+  | "Crown";
 
 interface KaiApiResponseLike {
   kaiPulseEternal: number;
@@ -108,9 +118,7 @@ const WEEKDAY: readonly HarmonicDay[] = [
   "Kaelith",
 ] as const;
 
-
-
-const DAY_TO_CHAKRA: Record<HarmonicDay, KaiSigilProps["chakraDay"]> = {
+const DAY_TO_CHAKRA: Record<HarmonicDay, ChakraName> = {
   Solhara: "Root",
   Aquaris: "Sacral",
   Flamora: "Solar Plexus",
@@ -152,13 +160,6 @@ const BEAT_PULSES_ROUNDED = Number((MU_PER_BEAT_EXACT + (ONE_PULSE_MICRO / 2n)) 
 
 /* ═════════════ helpers ═════════════ */
 const pad2 = (n: number) => String(n).padStart(2, "0");
-
-const isIOS = (): boolean => {
-  if (typeof navigator === "undefined") return false;
-  const nav = navigator as Navigator & { vendor?: string };
-  const s = (nav.userAgent || nav.vendor || "").toLowerCase();
-  return /iphone|ipad|ipod/.test(s);
-};
 
 const fmtSeal = (raw: string) =>
   raw
@@ -227,50 +228,6 @@ const CloseIcon: FC = () => (
   </svg>
 );
 
-/* ═════════════ Stargate viewer (fullscreen) ═════════════ */
-const StargateModal: FC<{
-  sigilUrl: string;
-  pulse: number;
-  onClose: () => void;
-}> = ({ sigilUrl, pulse, onClose }) => {
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (el && !isIOS() && !document.fullscreenElement) {
-      el.requestFullscreen?.().catch(() => {});
-    }
-    return () => {
-      if (!isIOS() && document.fullscreenElement) {
-        document.exitFullscreen?.().catch(() => {});
-      }
-    };
-  }, []);
-
-  const swallow = (e: React.SyntheticEvent) => e.stopPropagation();
-
-  return createPortal(
-    <div
-      ref={wrapRef}
-      className="stargate-overlay"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={swallow}
-      onClick={swallow}
-      onTouchStart={swallow}
-      onKeyDown={swallow}
-    >
-      <button className="stargate-close" aria-label="Close" onClick={onClose}>
-        <CloseIcon />
-      </button>
-      <div onClick={swallow}>
-        <StargateViewer sigilUrl={sigilUrl} pulse={pulse} showPulse />
-      </div>
-    </div>,
-    document.body
-  );
-};
-
 /* ═════════════ sovereign Eternal-Klok compute ═════════════ */
 type LocalKai = {
   pulse: number;
@@ -280,7 +237,7 @@ type LocalKai = {
   pulsesIntoBeat: number;
   pulsesIntoDay: number;
   harmonicDay: HarmonicDay;
-  chakraDay: KaiSigilProps["chakraDay"];
+  chakraDay: ChakraName;
   chakraStepString: string; // "beat:SS" (zero-based)
   dayOfMonth: number;       // 1..42
   monthIndex0: number;      // 0..7
@@ -324,7 +281,7 @@ function computeLocalKai(date: Date): LocalKai {
   // Calendar mappings
   const harmonicDayIndex = Number(imod(dayIndex, BigInt(DAYS_PER_WEEK)));
   const harmonicDay = WEEKDAY[harmonicDayIndex];
-  const chakraDay = DAY_TO_CHAKRA[harmonicDay];
+  const chakraDay: ChakraName = DAY_TO_CHAKRA[harmonicDay];
 
   const dayIndexNum = Number(dayIndex);
   const dayOfMonth = ((dayIndexNum % DAYS_PER_MONTH) + DAYS_PER_MONTH) % DAYS_PER_MONTH + 1;
@@ -711,7 +668,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
   const [beat, setBeat] = useState(0);
   const [stepPct, setStepPct] = useState(0);
   const [stepIdx, setStepIdx] = useState(0);
-  const [chakraDay, setChakraDay] = useState<KaiSigilProps["chakraDay"]>("Root");
+  const [chakraDay, setChakraDay] = useState<ChakraName>("Root");
 
   const [kairos, setKairos] = useState<KaiApiResponseLike | null>(null);
 
@@ -719,17 +676,12 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
   const [dateISO, setDateISO] = useState("");
   const [breathIdx, setBreathIdx] = useState(1);
 
-  /* stargate */
-  const [stargateOpen, setStargateOpen] = useState(false);
-  const [stargateURL, setStargateURL] = useState("");
-
   /* verifier */
   const [showVerifier, setShowVerifier] = useState(false);
   const [verifySvgOk, setVerifySvgOk] = useState(true);
 
   /* seal/stargate asset fallbacks */
   const [sealSvgOk, setSealSvgOk] = useState(true);
-  const [gateSvgOk, setGateSvgOk] = useState(true);
 
   /* SealMomentModal */
   const [sealOpen, setSealOpen] = useState(false);
@@ -804,7 +756,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
     beat: number;
     stepPct: number;
     step: number;
-    chakraDay: KaiSigilProps["chakraDay"];
+    chakraDay: ChakraName;
   }) => {
     setPulse(d.pulse);
     setBeat(d.beat);
@@ -846,18 +798,13 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
 
   const scheduleAlignedTick = useCallback(() => {
     clearAlignedTimer();
-    // Establish the next boundary and sync CSS vars
     const now = epochNow();
     targetBoundaryRef.current = computeNextBoundary(now);
     syncGlobalPulseVars(now);
 
     const fire = () => {
-      // On fire, catch up any missed boundaries (sleep/wake) and apply state
       const nowMs = epochNow();
-
-      // Number of boundaries that passed since the last target (0+)
       const missed = Math.floor((nowMs - targetBoundaryRef.current) / PULSE_MS);
-      // Always run at least once
       const runs = Math.max(0, missed) + 1;
 
       for (let i = 0; i < runs; i++) {
@@ -865,12 +812,10 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
         targetBoundaryRef.current += PULSE_MS;
       }
 
-      // Reschedule precisely for the next boundary
       const delay = Math.max(0, targetBoundaryRef.current - epochNow());
       timeoutRef.current = window.setTimeout(fire, delay) as unknown as number;
     };
 
-    // First schedule to the upcoming boundary
     const initialDelay = Math.max(0, targetBoundaryRef.current - now);
     timeoutRef.current = window.setTimeout(fire, initialDelay) as unknown as number;
   }, [queryKai]);
@@ -878,8 +823,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
   /* ── public live control: startLive() uses aligned scheduler only ─────── */
   const startLive = useCallback(() => {
     setDateISO("");
-    if (intervalRef.current) clearInterval(intervalRef.current); // legacy guard
-    // Initial immediate compute (no phase change), then align to next boundary
+    if (intervalRef.current) clearInterval(intervalRef.current);
     queryKai();
     scheduleAlignedTick();
   }, [queryKai, scheduleAlignedTick]);
@@ -910,12 +854,10 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
     setDateISO(val);
 
     if (!val) {
-      // Resume live with aligned scheduler
       startLive();
       return;
     }
 
-    // Pause live updates while in static mode
     if (intervalRef.current) clearInterval(intervalRef.current);
     clearAlignedTimer();
     queryKai(buildBreathIso(val, breathIdx));
@@ -1009,13 +951,21 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
     expiresAtPulse: number;
   } => {
     const stepsPerBeat = STEPS_BEAT;
-    const stepIndex = Math.floor(stepPct * stepsPerBeat) % stepsPerBeat;
+
+    // ✅ KKS truth: use the solver’s integer step (0..43)
+    // Prefer the computed object’s step, fall back to local state.
+    const rawStep =
+      kairos?.chakraStep.stepIndex ?? stepIdx;
+
+    const stepIndex = Number.isFinite(rawStep)
+      ? Math.max(0, Math.min(Number(rawStep), stepsPerBeat - 1))
+      : 0;
 
     return {
       pulse,
       beat,
       stepIndex,
-      chakraDay,
+      chakraDay,          // narrow union, matches SigilSharePayload
       stepsPerBeat,
       canonicalHash,
       exportedAt: new Date().toISOString(),
@@ -1071,12 +1021,6 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
     requestAnimationFrame(() => URL.revokeObjectURL(url));
   };
 
-  const openStargate = () => {
-    if (!sigilRef.current) return;
-    setStargateURL(sigilRef.current.toDataURL());
-    setStargateOpen(true);
-  };
-
   const handleClose = () => {
     setShowVerifier(false);
     onClose();
@@ -1086,7 +1030,6 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
   const beatStepFromSeal = (raw: string): string | null => {
     const m = raw.trim().match(/^(\d+):(\d{1,2})/);
     return m ? `${+m[1]}:${m[2].padStart(2, "0")}` : null;
-    // zero-based display (beat:SS)
   };
 
   const sealBeatStep = kairos ? beatStepFromSeal(kairos.kairos_seal_day_month) : null;
@@ -1180,7 +1123,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
               pulse={pulse}
               beat={beat}
               stepPct={stepPct}
-              chakraDay={chakraDay}
+              chakraDay={chakraDay as KaiSigilProps["chakraDay"]}
               size={240}
               hashMode="deterministic"
               origin=""
@@ -1201,14 +1144,14 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
               <strong>Kairos:</strong>&nbsp;
               {beatStepDisp}
               <button className="copy-btn" onClick={() => copy(beatStepDisp)}>
-                Copy
+                Kopy
               </button>
             </p>
             <p>
               <strong>Kairos/Date:</strong>&nbsp;
               {kairosDisp}
               <button className="copy-btn" onClick={() => copy(kairosDisp)}>
-                Copy
+                Kopy
               </button>
             </p>
 
@@ -1218,7 +1161,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
                   <strong>Seal:</strong>&nbsp;
                   {kairos.eternalSeal}
                   <button className="copy-btn" onClick={() => copy(kairos.eternalSeal)}>
-                    Copy
+                    Kopy
                   </button>
                 </p>
                 <p>
@@ -1237,7 +1180,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
                   <strong>Kai-Turah:</strong>&nbsp;
                   {kairos.kaiTurahPhrase}
                   <button className="copy-btn" onClick={() => copy(kairos.kaiTurahPhrase)}>
-                    Copy
+                    Kopy
                   </button>
                 </p>
               </>
@@ -1332,7 +1275,7 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
               </div>
 
               <div className="rich-actions">
-                <button onClick={() => copyJSON(kairos)}>Copy JSON</button>
+                <button onClick={() => copyJSON(kairos)}>Kopy JSON</button>
               </div>
             </details>
           )}
@@ -1393,41 +1336,9 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
             </button>
 
             {/* Stargate */}
-            <button
-              className="fab fab--gate"
-              type="button"
-              aria-label="View in Stargate"
-              title="View in Stargate"
-              onClick={openStargate}
-            >
-              {gateSvgOk ? (
-                <img
-                  src="/assets/stargate.svg"
-                  alt=""
-                  loading="eager"
-                  decoding="async"
-                  onError={() => setGateSvgOk(false)}
-                />
-              ) : (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                  <circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.7" />
-                  <path d="M12 7.2a4.8 4.8 0 0 1 4.8 4.8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-              )}
-            </button>
           </div>
         </div>
       </div>
-
-      {/* ========= Stargate viewer ========= */}
-      {stargateOpen && (
-        <StargateModal
-          sigilUrl={stargateURL}
-          pulse={pulse}
-          onClose={() => setStargateOpen(false)}
-        />
-      )}
 
       {/* ========= Verifier overlay ========= */}
       {showVerifier && (
@@ -1436,19 +1347,16 @@ const SigilModal: FC<Props> = ({ initialPulse = 0, onClose }) => {
           role="dialog"
           aria-modal="true"
           aria-label="Kai-Sigil Verifier"
-          /* HARD-LOCK: clicks/keys here never bubble to background */
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
-              // do NOT close on Escape per spec
               e.stopPropagation();
               e.preventDefault();
             }
           }}
         >
-          {/* No click-to-close background anymore */}
           <div className="verifier-bg" aria-hidden="true" />
           <button
             className="verifier-exit"

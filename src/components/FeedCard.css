@@ -1,0 +1,14 @@
+/* src/components/FeedCard.css */
+.fc { display:flex; gap:14px; padding:14px; border:1px solid rgba(255,255,255,.12); border-radius:16px; background:rgba(255,255,255,.03); backdrop-filter: blur(8px);}
+.fc.err { border-color: rgba(255,80,80,.35); }
+.fc-left { width:140px; flex:0 0 140px; display:flex; align-items:center; justify-content:center; }
+.fc-sigil { width:120px; height:120px; }
+.fc-right { flex:1; min-width:0; }
+.fc-meta { font-size:.9rem; opacity:.85; display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.25rem; }
+.fc-title { margin:.25rem 0 .25rem; font-weight:700; }
+.fc-body { margin:.25rem 0 .5rem; line-height:1.4; }
+.fc-tags { display:flex; gap:.5rem; flex-wrap:wrap; margin:.5rem 0; }
+.fc-tags span { font-size:.8rem; padding:.15rem .45rem; border:1px solid rgba(255,255,255,.14); border-radius:999px; }
+.fc-media { display:flex; gap:.5rem; flex-wrap:wrap; }
+.fc-actions { margin-top:.5rem; display:flex; gap:.5rem; }
+.btn { padding:.45rem .7rem; border-radius:10px; border:1px solid rgba(255,255,255,.2); text-decoration:none; }

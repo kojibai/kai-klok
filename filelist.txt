@@ -1,0 +1,280 @@
+src
+├── App.css
+├── App.tsx
+├── SovereignSolar.ts
+├── SplashScreen.css
+├── assets
+│   └── react.svg
+├── components
+│   ├── BusyActionButton.tsx
+│   ├── ChartsPane.tsx
+│   ├── DayDetailModal.css
+│   ├── DayDetailModal.tsx
+│   ├── Errors
+│   │   └── DevErrorBoundary.tsx
+│   ├── EternalKlock.css
+│   ├── EternalKlock.tsx
+│   ├── EternalOverlay.css
+│   ├── EternalOverlay.tsx
+│   ├── GlyphBalanceBar.css
+│   ├── GlyphBalanceBar.tsx
+│   ├── GlyphImportModal.css
+│   ├── GlyphImportModal.tsx
+│   ├── GlyphInstallModal.css
+│   ├── GlyphInstallModal.tsx
+│   ├── GlyphLineage.css
+│   ├── GlyphLineage.tsx
+│   ├── GlyphValueBar.tsx
+│   ├── GlyphVault.css
+│   ├── GlyphVault.tsx
+│   ├── HarmonicLoginModal.css
+│   ├── HarmonicLoginModal.tsx
+│   ├── HistoryModal.tsx
+│   ├── KaiActionModal.css
+│   ├── KaiActionModal.tsx
+│   ├── KaiKlock.css
+│   ├── KaiKlock.tsx
+│   ├── KaiKlockHomeFace.tsx
+│   ├── KaiSigil.tsx
+│   ├── KaiSignatureModal.tsx
+│   ├── KairosGlyphEngine.ts
+│   ├── KairosGlyphViewer.tsx
+│   ├── KairosInstallGuide.css
+│   ├── KairosInstallGuide.tsx
+│   ├── KairosWallpaperRenderer.tsx
+│   ├── MobileFileButton.tsx
+│   ├── MonthKalendarModal.css
+│   ├── MonthKalendarModal.tsx
+│   ├── NoteModal.css
+│   ├── NoteModal.tsx
+│   ├── SealMomentModal.css
+│   ├── SealMomentModal.tsx
+│   ├── SealMomentModalTransfer.tsx
+│   ├── SendSigilModal.css
+│   ├── SendSigilModal.tsx
+│   ├── SigilBreath.css
+│   ├── SigilChatRoom
+│   │   ├── ChatLog.tsx
+│   │   ├── KaiQR.tsx
+│   │   ├── MessageInput.css
+│   │   ├── MessageInput.tsx
+│   │   ├── PresenceBadge.css
+│   │   ├── PresenceBadge.tsx
+│   │   ├── SigilChatRoomRoot.tsx
+│   │   ├── SigilRoomStatus.tsx
+│   │   ├── SigilUploader.tsx
+│   │   ├── hooks
+│   │   │   ├── useBreathSocket.ts
+│   │   │   ├── useChatSession.ts
+│   │   │   ├── useKaiPulse.ts
+│   │   │   ├── useKaiThrottle.ts
+│   │   │   ├── usePresence.ts
+│   │   │   └── useSigilContext.ts
+│   │   ├── lib
+│   │   │   ├── BreathSocket.ts
+│   │   │   ├── PhiGossip.ts
+│   │   │   ├── SigilBeacon.ts
+│   │   │   └── SigilZK.ts
+│   │   ├── types
+│   │   │   ├── ChatMessage.ts
+│   │   │   ├── ChatroomSession.ts
+│   │   │   ├── PhiPacket.ts
+│   │   │   ├── SigilMetadata.ts
+│   │   │   └── ZKProof.ts
+│   │   └── utils
+│   │       ├── cn.ts
+│   │       ├── format.ts
+│   │       ├── generateSigilChatGlyph.ts
+│   │       ├── hashPhiPacket.ts
+│   │       ├── identity.ts
+│   │       ├── isSameChatRoom.ts
+│   │       ├── parseSigilMetadata.ts
+│   │       ├── sigil.ts
+│   │       └── verifyKaiSignature.ts
+│   ├── SigilConflictBanner.tsx
+│   ├── SigilExplorer.css
+│   ├── SigilExplorer.tsx
+│   ├── SigilExplorerModal.css
+│   ├── SigilExplorerModal.tsx
+│   ├── SigilGlyphButton.css
+│   ├── SigilGlyphButton.tsx
+│   ├── SigilModal.css
+│   ├── SigilModal.tsx
+│   ├── SigilMomentRow.tsx
+│   ├── SigilRenderer.tsx
+│   ├── SolarAnchoredDial.css
+│   ├── SolarAnchoredDial.tsx
+│   ├── StargateViewer.css
+│   ├── StargateViewer.tsx
+│   ├── ValuationModal.css
+│   ├── ValuationModal.tsx
+│   ├── ValueHistoryModal.css
+│   ├── ValueHistoryModal.tsx
+│   ├── VerifierStamper
+│   │   ├── SigilModal.groovy
+│   │   ├── VerifierStamper.css
+│   │   ├── VerifierStamper.tsx
+│   │   ├── constants.ts
+│   │   ├── crypto.ts
+│   │   ├── files.ts
+│   │   ├── index.tsx
+│   │   ├── keys.ts
+│   │   ├── merkle.ts
+│   │   ├── segments.ts
+│   │   ├── sigilUtils.ts
+│   │   ├── svg.ts
+│   │   ├── types.ts
+│   │   ├── verifyHistorical.ts
+│   │   ├── verifySovereignOffline.ts
+│   │   └── zk.ts
+│   ├── VerifierStamper.css
+│   ├── VerifierStamper.tsx
+│   ├── WeekKalendarModal.css
+│   ├── WeekKalendarModal.tsx
+│   ├── WeekView.css
+│   ├── WeekView.tsx
+│   ├── harmonicConstants.ts
+│   ├── notifications
+│   │   └── KairosNotifier.ts
+│   ├── sigil
+│   │   ├── GlyphBalanceBar.css
+│   │   ├── KaiQR.tsx
+│   │   ├── MobileSafeFileInput.tsx
+│   │   ├── OwnershipModal.css
+│   │   ├── OwnershipPanel.tsx
+│   │   ├── OwnershipVerifier.tsx
+│   │   ├── OwnershipVerifyModal.tsx
+│   │   ├── ProvenanceList.tsx
+│   │   ├── SigilCTA.tsx
+│   │   ├── SigilFrame.tsx
+│   │   ├── SigilHeader.tsx
+│   │   ├── SigilMetaPanel.tsx
+│   │   ├── SovereignControls.tsx
+│   │   ├── StargateOverlay.css
+│   │   ├── StargateOverlay.tsx
+│   │   ├── UpgradeSigilModal.css
+│   │   ├── UpgradeSigilModal.tsx
+│   │   ├── openOwnershipVerifyModal.tsx
+│   │   └── theme.tsx
+│   ├── sovereignVerifier.ts
+│   └── valuation
+│       ├── DonorsEditor.tsx
+│       ├── MintCompositeModal.css
+│       ├── MintCompositeModal.tsx
+│       ├── asset.ts
+│       ├── chart
+│       │   ├── LiveChart.tsx
+│       │   ├── ValuationCard.tsx
+│       │   └── ValueDonut.tsx
+│       ├── constants.ts
+│       ├── display.ts
+│       ├── drivers.ts
+│       ├── globals.d.ts
+│       ├── hooks.ts
+│       ├── math.ts
+│       ├── platform.ts
+│       ├── rarity.ts
+│       ├── series.ts
+│       └── types
+│           └── window.d.ts
+├── global.d.ts
+├── glyph
+│   ├── GlyphModal.tsx
+│   ├── glyphEngine.ts
+│   ├── glyphUtils.ts
+│   ├── types.ts
+│   └── useGlyphLogic.ts
+├── hooks
+│   ├── useFastPress.ts
+│   ├── useKaiTicker.ts
+│   └── useValueHistory.ts
+├── index.css
+├── lib
+│   ├── download.ts
+│   ├── hash.ts
+│   ├── mobilePopoverFix.ts
+│   ├── qr.ts
+│   └── sigil
+│       ├── breathProof.ts
+│       ├── canonicalize.ts
+│       ├── codec.ts
+│       ├── extract.ts
+│       ├── hash.ts
+│       └── signature.ts
+├── main.tsx
+├── pages
+│   └── SigilPage
+│       ├── SigilPage.css
+│       ├── SigilPage.tsx
+│       ├── constants.ts
+│       ├── debits.ts
+│       ├── descendants.ts
+│       ├── exportZip.ts
+│       ├── linkShare.ts
+│       ├── modalUtils.ts
+│       ├── momentKeys.ts
+│       ├── ogImage.ts
+│       ├── posterExport.tsx
+│       ├── registry.ts
+│       ├── registrySign.ts
+│       ├── rotation.ts
+│       ├── rotationBus.ts
+│       ├── sendLock.ts
+│       ├── styleInject.ts
+│       ├── svgOps.ts
+│       ├── types.ts
+│       ├── useValuation.ts
+│       ├── utils.ts
+│       ├── verifierCanon.public.ts
+│       └── verifierCanon.ts
+├── scripts
+│   ├── inline-verifier.mjs
+│   └── kid-from-pub-raw-hex.mjs
+├── styles
+│   ├── animations.css
+│   ├── atoms.css
+│   ├── chat-content.css
+│   ├── chat-shell.css
+│   ├── globals.css
+│   ├── modals.css
+│   ├── spiral-info.css
+│   └── viewport-fixes.css
+├── types
+│   ├── crypto-shims.d.ts
+│   ├── jsqr.d.ts
+│   ├── klockTypes.ts
+│   ├── pako.d.ts
+│   ├── sigil.ts
+│   ├── snarkjs-shim.d.ts
+│   └── zkp-prover.d.ts
+├── utils
+│   ├── constants.ts
+│   ├── cryptoLedger.ts
+│   ├── domHead.ts
+│   ├── globalTokenRegistry.ts
+│   ├── kai.ts
+│   ├── kaiMath.ts
+│   ├── kai_pulse.ts
+│   ├── kai_turah.ts
+│   ├── kairosMath.ts
+│   ├── klock_adapters.ts
+│   ├── payload.ts
+│   ├── provenance.ts
+│   ├── qrExport.ts
+│   ├── security
+│   │   └── sig.ts
+│   ├── shareUrl.ts
+│   ├── sigilUrl.ts
+│   ├── solarSync.ts
+│   ├── svgMeta.ts
+│   ├── transferPackage.ts
+│   ├── urlShort.ts
+│   ├── useClientReady.ts
+│   ├── useSigilPayload.ts
+│   ├── useSovereignSolarClock.ts
+│   └── valuation.ts
+├── verifier
+│   └── validator.ts
+└── vite-env.d.ts
+
+27 directories, 251 files

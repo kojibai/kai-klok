@@ -52,6 +52,26 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/apple-icon.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/apple-icon.png" />
 
+<!-- Capture the beforeinstallprompt event as early as possible -->
+<script>
+  (function () {
+    // Holds the last seen BIP event
+    window.__bipEvent = null;
+    // Waiters to be called when BIP arrives later
+    window.__bipWaiters = [];
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__bipEvent = e;
+      // Flush waiters
+      var q = window.__bipWaiters;
+      if (q && q.length) {
+        for (var i = 0; i < q.length; i++) q[i](e);
+        window.__bipWaiters = [];
+      }
+    });
+  })();
+</script>
     <!-- Structured Data (fixed domain typos) -->
     <script type="application/ld+json">
       {
@@ -72,11 +92,14 @@
         ]
       }
     </script>
+
+
   </head>
 
   <body>
     <noscript>Please enable JavaScript to run Kai-Klok.</noscript>
     <div id="root"></div>
+
 
     <!-- Early, robust SW registration (auto-update + reload) -->
     <script>
@@ -118,7 +141,6 @@
     </script>
     <!-- Vite/React bundles will be injected here -->
     <script src="https://unpkg.com/snarkjs/dist/snarkjs.min.js" defer></script>
-
 
      <!-- public/index.html (or your root HTML) -->
      <script>

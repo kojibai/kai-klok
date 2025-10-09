@@ -452,7 +452,7 @@ export default function MintCompositeModal({
         createdAtPulseEternal: nowPulse,
       };
 
-      // Canonical URL (non-rotated; ΦGlyphs don’t carry claim tokens)
+      // Canonical URL (non-rotated; Temple-Glyphs don’t carry claim tokens)
       if (!readyHash) throw new Error("Sigil hash not ready");
       const basePayload: SigilSharePayload = {
         pulse: nowPulse,
@@ -573,7 +573,7 @@ export default function MintCompositeModal({
     } catch (e: unknown) {
       setBusy(false);
       setError(
-        "Failed to mint ΦGlyph. " +
+        "Failed to exhale Temple-Glyph. " +
           (e instanceof Error ? e.message : String(e))
       );
     }
@@ -605,7 +605,7 @@ export default function MintCompositeModal({
       <dialog className="send-sigil-modal" open aria-label="Mint Composite ΦGlyph">
         <div className="modal-viewport">
           <div className="modal-topbar">
-            <h2 className="modal-title">Exhale ΦGlyph</h2>
+            <h2 className="modal-title">Exhale Temple-Glyph</h2>
             <button className="close-btn" onClick={onClose} aria-label="Close">
               <XCircle size={22} />
             </button>
@@ -669,11 +669,11 @@ export default function MintCompositeModal({
               className="send-btn"
               onClick={() => void handleMintComposite()}
               disabled={busy}
-              aria-label="Exhale ΦGlyph"
-              title="Exhale a ΦGlyph at the current Eternal pulse"
+              aria-label="Exhale Temple-Glyph"
+              title="Exhale a Temple-Glyph at the current Eternal pulse"
             >
               <span className="ico-exhale" aria-hidden>⟿</span>
-              {busy ? "Exhale..." : "Exhale ΦGlyph"}
+              {busy ? "Exhale..." : "Exhale Temple-Glyph"}
             </button>
 
             <p className="small subtle status-line" aria-live="polite">

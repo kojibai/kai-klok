@@ -7,7 +7,7 @@
    - Audio/video range support; fonts cached; CDNs handled
 */
 
-const VERSION = "v64.7"; // ⬅️ bump every deploy
+const VERSION = "v82.9"; // ⬅️ bump every deploy
 const PREFIX  = "Kaiklok";
 const PRECACHE = `${PREFIX}-precache-${VERSION}`;
 const RUNTIME  = `${PREFIX}-runtime-${VERSION}`;
@@ -26,6 +26,7 @@ const PRECACHE_URLS = [
   "/manifest.json",
   "/favicon.ico",
   "/logo.png",
+  "/KairosKurrensy.jpg",
   "/verification_key.json",
   "/assets/favicon.ico",
   "/assets/chimes/kai_turah_tone.mp3",
@@ -50,9 +51,11 @@ const PRECACHE_URLS = [
   "/assets/eternal.svg",
   "/assets/embodied_solar_aligned.svg",
   // Optional: precache your shortcut routes so they cold-boot offline too:
-  "/clock",
+  "/klok",
   "/sigil/new",
   "/pulse",
+  "/verifier.html",
+
 ];
 
 const sameOrigin = (url) => new URL(url, self.location.href).origin === self.location.origin;

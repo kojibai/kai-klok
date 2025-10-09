@@ -115,7 +115,7 @@ export default function OwnershipVerifierModal({
             </div>
 
             <div className="ovm-body">
-              <p className="sp-fine">Select the Φkey SVG for the current Sigil-Glyph.</p>
+              <p className="sp-fine">Select the Φkey for the current Sigil-Glyph.</p>
 
               {/* IMPORTANT: keep the real input plainly in the modal (no transforms). */}
               <input
@@ -125,7 +125,7 @@ export default function OwnershipVerifierModal({
                 type="file"
                 accept="image/svg+xml,.svg"
                 onChange={onChange}
-                aria-label="Choose Φkey SVG"
+                aria-label="Choose Φkey"
               />
 
               {/* This label looks like your primary button and triggers the native picker. */}

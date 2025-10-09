@@ -2,7 +2,7 @@
   "id": "kaiklok",             
   "name": "Kai-Klok",
   "short_name": "KaiKlok",
-  "description": "Kai-Klok — Eternal Timekeeper of the Harmonic Pulse. A precision Eternal Klok, sigil engine, and resonance toolkit.",
+  "description": "Kai-Klok — Eternal Timekeeper of the Harmonik Pulse. A presision Eternal Klok, sigil engine, and resonanse toolkit.",
   "lang": "en",
   "dir": "ltr",
 
@@ -62,10 +62,10 @@
   "shortcuts": [
     {
       "name": "Open Kai-Klok",
-      "short_name": "Clock",
-      "url": "/clock",
+      "short_name": "Klok",
+      "url": "/klok",
       "description": "Jump to the Eternal timekeeper.",
-      "icons": [{ "src": "/shortcuts/clock.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" }]
+      "icons": [{ "src": "/shortcuts/klok.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" }]
     },
     {
       "name": "Create Sigil",

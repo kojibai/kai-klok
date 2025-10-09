@@ -1,0 +1,8 @@
+/* src/pages/SigilFeedPage.css */
+.sf { max-width:1100px; margin:0 auto; padding:2rem 1rem; display:flex; flex-direction:column; gap:1rem; }
+.sf-head { display:flex; flex-direction:column; gap:.5rem; }
+.sf-add { display:grid; grid-template-columns: 1fr auto; gap:.5rem; align-items:start; }
+.sf-add textarea { width:100%; padding:.6rem .8rem; border-radius:12px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.05); min-height:84px; }
+.sf-add button { padding:.55rem .9rem; border-radius:12px; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.08); }
+.sf-list { display:grid; gap:.8rem; }
+.sf-empty { opacity:.8; border:1px dashed rgba(255,255,255,.2); padding:1rem; border-radius:12px; }

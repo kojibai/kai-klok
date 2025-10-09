@@ -186,7 +186,7 @@ const HarmonicLoginModal = ({
             <strong>kai_signature:</strong>&nbsp;
             {lastSig}
             <button onClick={copySig} className="copy-btn ml-2">
-              Copy
+              Kopy
             </button>
           </p>
         )}

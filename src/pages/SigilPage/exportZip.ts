@@ -124,6 +124,32 @@ function toSharePayload(
   };
 }
 
+/** Update every place inside the SVG that can carry the share URL. */
+function updateSvgUrlSurfaces(svgEl: SVGSVGElement, fullUrl: string): void {
+  // Root attribute (consumed by verifiers/exporters)
+  svgEl.setAttribute("data-share-url", fullUrl);
+
+  // Any <a> links (SVG 1.1 uses xlink:href; SVG 2 uses href)
+  const XLINK_NS = "http://www.w3.org/1999/xlink";
+  svgEl.querySelectorAll("a").forEach((aEl) => {
+    aEl.setAttribute("href", fullUrl);
+    try {
+      aEl.setAttributeNS(XLINK_NS, "xlink:href", fullUrl);
+    } catch {
+      /* noop */
+    }
+  });
+
+  // Inner-ring text fragments like "u=<url> · b58=… · …"
+  const tokenRe = /\bu=([^·\n\r]+?)(?=\s*·|$)/;
+  svgEl.querySelectorAll("text").forEach((t) => {
+    const s = t.textContent || "";
+    if (tokenRe.test(s)) {
+      t.textContent = s.replace(tokenRe, `u=${fullUrl}`);
+    }
+  });
+}
+
 export async function exportZIP(ctx: {
   expired: boolean;
   exporting: boolean;
@@ -174,7 +200,10 @@ export async function exportZIP(ctx: {
     const base = `sigil_${(localHash || routeHash || "mint").slice(0, 16)}`;
     const stepsNum = (payload.stepsPerBeat ?? STEPS_PER_BEAT) as number;
 
+    // KKS: sealed step is derived strictly from the sealed pulse and steps/beat
     const sealedStepIndex = stepIndexFromPulse(payload.pulse, stepsNum);
+
+    // KKS: claim step is derived from "now" (for manifest bookkeeping only)
     const nowPulse = getKaiPulseEternalInt(new Date());
     const claimStepIndex = stepIndexFromPulse(nowPulse, stepsNum);
 
@@ -198,6 +227,7 @@ export async function exportZIP(ctx: {
       ...payload,
       exportedAtPulse: nowPulse,
       stepIndex: sealedStepIndex,
+      stepsPerBeat: stepsNum, // ensure explicit in metadata
       provenance: [...(payload.provenance ?? []), provEntry],
       claimExtendUnit: payload.claimExtendUnit ?? expiryUnit,
       claimExtendAmount: payload.claimExtendAmount ?? expiryAmount,
@@ -223,32 +253,6 @@ export async function exportZIP(ctx: {
       userPhiKey: claimedMeta.userPhiKey || phiKeyCanon,
     };
 
-    // Canonical payload write only (single call)
-    const { putMetadata } = await import("../../utils/svgMeta");
-    putMetadata(svgEl, claimedMetaCanon);
-
-    // Display-only exposure (non-canonical marker)
-    try {
-      svgEl.setAttribute("data-step-index", String(sealedStepIndex));
-      const NS = "http://www.w3.org/2000/svg";
-      let dispMeta = svgEl.querySelector("metadata#sigil-display");
-      if (!dispMeta) {
-        dispMeta = document.createElementNS(NS, "metadata");
-        dispMeta.setAttribute("id", "sigil-display");
-        dispMeta.setAttribute("data-noncanonical", "1");
-        svgEl.appendChild(dispMeta);
-      }
-      dispMeta.textContent = JSON.stringify({
-        stepIndex: sealedStepIndex,
-        stepsPerBeat: stepsNum,
-      });
-    } catch {
-      console.debug("Display metadata write failed");
-    }
-
-    retagSvgIdsForStep(svgEl, claimedMetaCanon.pulse, claimedMetaCanon.beat, sealedStepIndex);
-    ensureCanonicalMetadataFirst(svgEl);
-
     // Build the canonical share URL for manifest — canonical is in the path, NOT the payload
     const canonicalLower = (localHash || routeHash || "").toLowerCase();
     const sharePayloadForManifest = toSharePayload({
@@ -271,6 +275,44 @@ export async function exportZIP(ctx: {
       tokenForManifest
     );
 
+    // Canonical payload write only (single call) — include URL hints for readers
+    const { putMetadata } = await import("../../utils/svgMeta");
+    const metaForSvg: Record<string, unknown> = {
+      ...claimedMetaCanon,
+      stepsPerBeat: stepsNum,
+      shareUrl: fullUrlForManifest, // hint for consumers
+      fullUrl: fullUrlForManifest,  // alias
+    };
+    putMetadata(svgEl, metaForSvg);
+
+    // Display-only exposure (non-canonical marker)
+    try {
+      svgEl.setAttribute("data-step-index", String(sealedStepIndex));
+      const NS = "http://www.w3.org/2000/svg";
+      let dispMeta = svgEl.querySelector("metadata#sigil-display");
+      if (!dispMeta) {
+        dispMeta = document.createElementNS(NS, "metadata");
+        dispMeta.setAttribute("id", "sigil-display");
+        dispMeta.setAttribute("data-noncanonical", "1");
+        svgEl.appendChild(dispMeta);
+      }
+      dispMeta.textContent = JSON.stringify({
+        stepIndex: sealedStepIndex,
+        stepsPerBeat: stepsNum,
+      });
+    } catch {
+      // eslint-disable-next-line no-console
+      console.debug("Display metadata write failed");
+    }
+
+    // Retag + canonicalize metadata order
+    retagSvgIdsForStep(svgEl, claimedMetaCanon.pulse, claimedMetaCanon.beat, sealedStepIndex);
+    ensureCanonicalMetadataFirst(svgEl);
+
+    // Update ALL URL surfaces inside the SVG to the canonical manifest URL
+    updateSvgUrlSurfaces(svgEl, fullUrlForManifest);
+
+    // Extract URL bits for the manifest file
     let pValue: string | null = null;
     let tValue: string | null = null;
     try {
@@ -278,12 +320,13 @@ export async function exportZIP(ctx: {
       pValue = u.searchParams.get("p");
       tValue = u.searchParams.get("t");
     } catch {
+      // eslint-disable-next-line no-console
       console.debug("URL parse failed");
     }
 
     // Create artifacts
     const svgBlob = await svgBlobForExport(svgEl, EXPORT_PX, {
-      metaOverride: claimedMetaCanon,
+      metaOverride: metaForSvg, // includes shareUrl/fullUrl
       addQR: false,
       addPulseBar: false,
       title: "Kairos Sigil-Glyph — Sealed KairosMoment",
@@ -341,6 +384,7 @@ export async function exportZIP(ctx: {
 
     signal(setToast, "Access key generated");
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.error(e);
     signal(setToast, "Claim failed");
   } finally {

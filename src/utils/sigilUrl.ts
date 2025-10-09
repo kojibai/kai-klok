@@ -449,8 +449,8 @@ export function subscribeSigilRegistry(
   if (!hasWindowEnv) return () => {};
 
   const onEvent = (e: Event) => {
-    const any = e as CustomEvent<{ url?: string }>;
-    const u = any?.detail?.url;
+    const evt = e as CustomEvent<{ url?: string }>;
+    const u = evt?.detail?.url;
     if (typeof u === "string") handler(u, "event");
   };
 
@@ -505,6 +505,7 @@ export function getRegisteredSigilUrls(): string[] {
   }
   return out;
 }
+
 /** 🔁 Canonicalize sealed sigil URL from current location for QR rendering and click */
 export function makeCanonicalQrUrl(currentUrl: string): string | null {
   try {
@@ -534,18 +535,66 @@ export function makeCanonicalQrUrl(currentUrl: string): string | null {
     return null;
   }
 }
-// add this helper (and export it)
-export function canonicalUrlFromContext(
-  canonicalHash: string,
-  base?: string
-): string {
-  const origin = base || (typeof location !== "undefined" ? location.origin : "");
-  const u = new URL(`/s/${canonicalHash.toLowerCase()}`, origin);
+// Optional: augment Vite env typing (keeps strict TS happy without `any`)
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_SITE_URL?: string; // e.g. https://kaiklok.com
+  }
+}
 
-  // Preserve live query that SigilPage keeps
-  const locQs = typeof location !== "undefined" ? new URLSearchParams(location.search) : null;
-  const d = locQs?.get("d"); if (d) u.searchParams.set("d", d);
-  const t = locQs?.get("t"); if (t) u.searchParams.set("t", t);
+/* ──────────────── SAFE ORIGIN RESOLVER (Vite-only, no `any`) ──────────────── */
+function resolveSiteOrigin(explicit?: string): string {
+  // 1) explicit override from caller
+  if (explicit) {
+    try {
+      return new URL(explicit).origin;
+    } catch {
+      /* ignore invalid explicit */
+    }
+  }
+
+  // 2) Vite environment
+  const hasImportMeta = typeof import.meta !== "undefined";
+  const hasEnv = hasImportMeta && typeof import.meta.env !== "undefined";
+  const envOrigin =
+    hasEnv && typeof import.meta.env.VITE_SITE_URL === "string"
+      ? import.meta.env.VITE_SITE_URL
+      : "";
+
+  if (envOrigin) {
+    try {
+      return new URL(envOrigin).origin;
+    } catch {
+      /* ignore invalid env */
+    }
+  }
+
+  // 3) browser at runtime
+  if (typeof window !== "undefined" && typeof window.location?.origin === "string" && window.location.origin) {
+    return window.location.origin;
+  }
+
+  // 4) final fallback (SSR/tests)
+  return "https://kaiklok.com";
+}
+
+// export this helper
+export function canonicalUrlFromContext(canonicalHash: string, base?: string): string {
+  const origin = resolveSiteOrigin(base);
+
+  const hash = (canonicalHash ?? "").toString().trim().toLowerCase();
+  if (!hash) return origin + "/";
+
+  const u = new URL(`/s/${encodeURIComponent(hash)}`, origin);
+
+  // Preserve live query that SigilPage keeps (browser-only)
+  if (typeof window !== "undefined") {
+    const locQs = new URLSearchParams(window.location.search);
+    const d = locQs.get("d");
+    if (d) u.searchParams.set("d", d);
+    const t = locQs.get("t");
+    if (t) u.searchParams.set("t", t);
+  }
 
   return u.toString();
 }

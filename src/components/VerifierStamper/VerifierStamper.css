@@ -1004,3 +1004,335 @@ img, svg, video, canvas, iframe{ max-width:100%; height:auto; display:block; -we
 .row.zk-recv[data-state="pending"] .zk-dot { background: var(--warn); }
 .row.zk-send[data-state="failed"] .zk-dot,
 .row.zk-recv[data-state="failed"] .zk-dot  { background: var(--err); }
+
+/* =============== OMG WOW CHIP STRIP (2x size + tooltips) =============== */
+/* Theme tokens */
+:root{
+  /* doubled */
+  --chip-size: clamp(52px, 8.4vw, 68px);
+  --chip-blur: 12px;
+
+  --chip-glass: rgba(255,255,255,.06);
+  --chip-border: rgba(255,255,255,.14);
+  --chip-inner: rgba(255,255,255,.22);
+  --chip-shadow: rgba(0,0,0,.55);
+
+  /* badge + tooltip */
+  --chip-badge-h: 22px;
+  --chip-badge-pad-x: 6px;
+  --chip-tip-bg: rgba(10,14,20,.9);
+  --chip-tip-fg: #eaf2ff;
+  --chip-tip-radius: 10px;
+}
+
+.status-strip{
+  display:flex;
+  gap: 10px;                 /* room for bigger chips */
+  padding: 8px 12px;
+  mask-image: linear-gradient( to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100% );
+  -webkit-mask-image: linear-gradient( to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100% );
+  scrollbar-width:none;
+}
+.status-strip::-webkit-scrollbar{ display:none; }
+
+/* Base chip */
+.chip.icon{
+  position:relative;
+  width:var(--chip-size);
+  height:var(--chip-size);
+  flex:0 0 var(--chip-size);
+  border-radius:999px;
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.22) 0%, rgba(255,255,255,.08) 40%, rgba(255,255,255,.02) 60%, transparent 100%),
+    var(--chip-glass);
+  box-shadow:
+    inset 0 1px 0 var(--chip-inner),
+    inset 0 -12px 22px rgba(255,255,255,.06),
+    0 8px 22px var(--chip-shadow);
+  border: 1px solid var(--chip-border);
+  backdrop-filter: saturate(125%) blur(var(--chip-blur));
+  -webkit-backdrop-filter: saturate(125%) blur(var(--chip-blur));
+  display:inline-flex; align-items:center; justify-content:center;
+  color:#a7c7ff;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, background .18s ease, color .18s ease;
+  outline: none;
+}
+
+/* scale the icon art inside the bigger chip */
+.chip.icon .ico,
+.chip.icon svg{
+  position:relative;
+  z-index:1;
+  display:block;
+  width: 56%;               /* visually balanced inside 2x circle */
+  height: 56%;
+  stroke-width: 2.4;
+}
+
+/* motion */
+@media (hover:hover){ .chip.icon:hover{ transform: translateY(-1px) scale(1.03); } }
+.chip.icon:active{ transform: translateY(0) scale(.97); }
+@media (prefers-reduced-motion:reduce){
+  .chip.icon, .chip.icon::before{ transition:none !important; animation:none !important; }
+}
+
+/* slow conic halo */
+.chip.icon::before{
+  content:"";
+  position:absolute; inset:-3px;
+  border-radius:inherit;
+  background: conic-gradient(from 0deg, transparent 0 40%, currentColor 47% 53%, transparent 60% 100%);
+  filter: blur(8px) saturate(140%);
+  opacity:.35; z-index:0;
+  animation: chipSpin 12s linear infinite;
+}
+@keyframes chipSpin{ to{ transform: rotate(360deg); } }
+
+/* state hues */
+.chip.icon.ok   { color:#35e49a; box-shadow: inset 0 1px 0 var(--chip-inner), inset 0 -12px 22px rgba(53,228,154,.10), 0 8px 22px rgba(53,228,154,.25); }
+.chip.icon.warn { color:#ffd64d; box-shadow: inset 0 1px 0 var(--chip-inner), inset 0 -12px 22px rgba(255,214,77,.10), 0 8px 22px rgba(255,214,77,.25); }
+.chip.icon.err  { color:#ff6b6b; box-shadow: inset 0 1px 0 var(--chip-inner), inset 0 -12px 22px rgba(255,107,107,.10), 0 8px 22px rgba(255,107,107,.28); }
+.chip.icon.info { color:#7ab8ff; box-shadow: inset 0 1px 0 var(--chip-inner), inset 0 -12px 22px rgba(122,184,255,.10), 0 8px 22px rgba(122,184,255,.25); }
+
+/* breathing celebration for ok */
+.chip.icon.ok::after{
+  content:"";
+  position:absolute; inset:-10px;
+  border-radius:inherit;
+  background: radial-gradient(60% 60% at 50% 50%, currentColor 0%, transparent 60%);
+  opacity:.2; filter: blur(14px); z-index:0;
+  animation: breathe 5.236s ease-in-out infinite;
+}
+@keyframes breathe{ 0%,100%{ opacity:.16; transform:scale(1);} 50%{ opacity:.30; transform:scale(1.05);} }
+
+/* badge (scaled up) */
+.chip.icon[data-badge]::after{
+  content: attr(data-badge);
+  position:absolute;
+  right:-4px; top:-6px;
+  min-width: calc(var(--chip-badge-h));
+  height: var(--chip-badge-h);
+  padding: 0 var(--chip-badge-pad-x);
+  border-radius:999px;
+  font: 800 12px/var(--chip-badge-h) ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", Roboto, "Segoe UI", "Helvetica Neue", Arial;
+  text-align:center;
+  color:#0b0f14;
+  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.85) 100%), currentColor;
+  box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+  border: 1px solid rgba(0,0,0,.15);
+  z-index:2;
+}
+
+/* ======= Accessible tooltips (hover/focus) ======= */
+/* Add data-tip="..." to the chip. Title remains as native fallback. */
+.chip.icon[data-tip]{
+  --tip-offset: 12px;
+}
+.chip.icon[data-tip]::tooltip,
+.chip.icon[data-tip]::before,
+.chip.icon[data-tip]::marker{ /* no-op to appease older engines */ }
+
+.chip.icon[data-tip]::selection{ background:transparent; }
+
+/* bubble */
+.chip.icon[data-tip]::after,
+.chip.icon[data-tip]::before{
+  pointer-events:none;
+  position:absolute;
+  opacity:0;
+  transform: translateY(4px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+/* tooltip body */
+.chip.icon[data-tip]::before{
+  content: attr(data-tip);
+  bottom: calc(100% + var(--tip-offset));
+  left: 50%; translate: -50% 0;
+  background: var(--chip-tip-bg);
+  color: var(--chip-tip-fg);
+  font: 600 12px/1.2 ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", Roboto, "Segoe UI", "Helvetica Neue", Arial;
+  padding: 8px 10px;
+  border-radius: var(--chip-tip-radius);
+  box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+  white-space: nowrap;
+  z-index: 30;
+}
+
+/* little arrow */
+.chip.icon[data-tip]::after{
+  content:"";
+  bottom: calc(100% + var(--tip-offset) - 6px);
+  left:50%; translate: -50% 0;
+  width: 10px; height: 10px;
+  background: var(--chip-tip-bg);
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  z-index: 29;
+}
+
+/* show on hover or keyboard focus */
+@media (hover:hover){
+  .chip.icon[data-tip]:hover::before,
+  .chip.icon[data-tip]:hover::after{
+    opacity:1; transform: translateY(0);
+  }
+}
+.chip.icon[data-tip]:focus-visible::before,
+.chip.icon[data-tip]:focus-visible::after{
+  opacity:1; transform: translateY(0);
+}
+
+/* high-contrast tweak */
+@media (prefers-contrast: more){
+  .chip.icon{ border-color: rgba(255,255,255,.35); }
+}
+
+/* optional: snug gaps if needed for ultra-narrow screens */
+@container style(--chip-size: 52px){
+  .status-strip{ gap:8px; }
+}
+
+/* sticky topbar separator */
+.modal-topbar{
+  position: sticky; top: 0;
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+/* ==== 20% smaller chips (override tokens + a few sizes) ==== */
+:root{
+  --chip-size: clamp(42px, 6.7vw, 54px); /* was 52/8.4vw/68 */
+  --chip-blur: 10px;                     /* was 12 */
+
+  /* badge + tooltip */
+  --chip-badge-h: 18px;                  /* was 22 */
+  --chip-badge-pad-x: 5px;               /* was 6 */
+  --chip-tip-radius: 8px;                /* was 10 */
+}
+
+/* slightly tighter strip spacing */
+.status-strip{ gap: 8px; padding: 8px 10px; }
+
+/* icon art stays proportional but a touch smaller inside the circle */
+.chip.icon .ico,
+.chip.icon svg{
+  width: 52%;        /* was 56% */
+  height: 52%;
+  stroke-width: 2.2; /* was 2.4 */
+}
+
+/* halo + breathe blur tuned down a notch for the smaller size */
+.chip.icon::before{ inset:-2px; filter: blur(7px) saturate(140%); }
+.chip.icon.ok::after{ inset:-8px; filter: blur(12px); }
+
+/* tooltip sizing tweaks */
+.chip.icon[data-tip]{ --tip-offset: 10px; }
+.chip.icon[data-tip]::before{ font-weight:600; font-size: 11px; padding: 7px 9px; }
+.chip.icon[data-tip]::after{ width: 8px; height: 8px; bottom: calc(100% + var(--tip-offset) - 5px); }
+
+/* badge pill scales with the new token, no further change needed */
+/* ==== Neon badge — glossy, alive, legible (no size changes) ==== */
+:root{
+  /* themeable neon hues */
+  --badge-neon-1: #00ffc6;  /* mint core */
+  --badge-neon-2: #6fe7ff;  /* aqua sweep */
+  --badge-neon-3: #19bfff;  /* cyan edge */
+  --badge-ink:   #061012;   /* deep ink for digits */
+}
+
+/* Only style the badge pill; avoid clashing with tooltip ::after */
+.chip.icon[data-badge]:not([data-tip])::after{
+  /* keep your sizing from tokens */
+  min-width: calc(var(--chip-badge-h));
+  height: var(--chip-badge-h);
+  padding: 0 var(--chip-badge-pad-x);
+  border-radius: 999px;
+
+  /* typography — crisp, important, tabular digits */
+  font: 900 12px/var(--chip-badge-h) ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", Roboto, "Segoe UI", "Helvetica Neue", Arial;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: .02em;
+  color: var(--badge-ink);
+  -webkit-text-stroke: .5px rgba(0,0,0,.35);  /* subtle outline for contrast */
+  text-shadow:
+      0 0 8px rgba(111,231,255,.55);          /* neon aura */
+  
+  /* glossy neon layers: glare + glaze + flowing neon gradient */
+  background:
+    radial-gradient(140% 170% at 28% 12%, rgba(255,255,255,.95) 0%, rgba(255,255,255,.25) 28%, transparent 52%) ,
+    linear-gradient(180deg, rgba(255,255,255,.80) 0%, rgba(255,255,255,.55) 8%, rgba(255,255,255,0) 14%) ,
+    linear-gradient(90deg, var(--badge-neon-1) 0%, var(--badge-neon-2) 50%, var(--badge-neon-3) 100%);
+  background-size: auto, auto, 200% 100%;
+  background-position: 0 0, 0 0, 0% 0%;
+
+  /* crisp edge + inner bevel + neon bloom */
+  border: 1px solid rgba(0,0,0,.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    inset 0 -1px 8px rgba(0,0,0,.18),
+    0 2px 4px rgba(0,0,0,.35),
+    0 0 10px rgba(25,191,255,.55),
+    0 0 22px rgba(111,231,255,.45);
+
+  /* subtle breath + slow shimmer */
+  will-change: background-position, filter;
+  animation: badgeGlow 5.236s ease-in-out infinite, badgeShimmer 8s linear infinite;
+}
+
+/* If a chip has both a badge and a tooltip, keep the tooltip arrow behavior intact */
+.chip.icon[data-badge][data-tip]::after{
+  /* fall back to your original tooltip arrow styles defined earlier */
+}
+
+/* Motion safety */
+@media (prefers-reduced-motion: reduce){
+  .chip.icon[data-badge]:not([data-tip])::after{
+    animation: none;
+    background-position: 0 0, 0 0, 50% 0;
+  }
+}
+
+/* Higher-contrast mode: tame bloom, boost edge */
+@media (prefers-contrast: more){
+  .chip.icon[data-badge]:not([data-tip])::after{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.85),
+      0 2px 4px rgba(0,0,0,.45),
+      0 0 0 2px rgba(111,231,255,.7);
+    text-shadow: none;
+    -webkit-text-stroke: .6px rgba(0,0,0,.5);
+  }
+}
+
+/* Breathing intensity synced to Kai breath (~5.236s) */
+@keyframes badgeGlow{
+  0%,100%{
+    filter: saturate(115%) brightness(1);
+    background-position: 0 0, 0 0, 0% 0%;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.75),
+      inset 0 -1px 8px rgba(0,0,0,.18),
+      0 2px 4px rgba(0,0,0,.35),
+      0 0 10px rgba(25,191,255,.48),
+      0 0 20px rgba(111,231,255,.38);
+  }
+  50%{
+    filter: saturate(135%) brightness(1.06);
+    background-position: 0 0, 0 0, 100% 0%;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.85),
+      inset 0 -1px 10px rgba(0,0,0,.16),
+      0 3px 6px rgba(0,0,0,.38),
+      0 0 14px rgba(25,191,255,.65),
+      0 0 28px rgba(111,231,255,.55);
+  }
+}
+
+/* Slow shimmering sweep along the neon gradient */
+@keyframes badgeShimmer{
+  0%   { background-position: 0 0, 0 0,   0% 0%; }
+  50%  { background-position: 0 0, 0 0, 100% 0%; }
+  100% { background-position: 0 0, 0 0,   0% 0%; }
+}

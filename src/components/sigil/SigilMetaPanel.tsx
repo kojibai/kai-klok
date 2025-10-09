@@ -152,7 +152,7 @@ export default function SigilMetaPanel({
 
         <div className="sp-actions">
           <button className="btn-ghost" {...copyLinkPress} aria-label="Copy link">
-            Copy Link
+            Kopy Link
           </button>
           <button className="btn-ghost" {...sharePress} aria-label="Share">
             Share Link
@@ -252,16 +252,16 @@ export default function SigilMetaPanel({
 
             {/* ── Live window ─────────────────────────────────────────── */}
             <div className="sp-meta-row">
-              <span className="lbl">Ownership Window</span>
+              <span className="lbl">Sealing Window</span>
               <span>
                 {isArchived
-                  ? "Archived (transfer burned)"
+                  ? "Arkived (transfer burned)"
                   : isFutureSealed
                   ? "Eternally Sealed (pre-moment)"
                   : pulsesLeft == null
                   ? "—"
                   : pulsesLeft === 0
-                  ? "Closed"
+                  ? "Klosed"
                   : `${pulsesLeft} Breath${pulsesLeft === 1 ? "" : "s"} left`}
               </span>
             </div>

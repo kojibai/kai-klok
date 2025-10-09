@@ -439,7 +439,7 @@ useEffect(() => {
                     onClick={() => copy(generatedUrl)}
                     onPointerDown={ripple}
                   >
-                    Copy link
+                    Kopy link
                   </button>
                   <a
                     href={generatedUrl}

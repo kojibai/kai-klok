@@ -313,12 +313,12 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
               <span className="v mono" style={{ overflowWrap: "anywhere" }}>{hValueNoPrefix ?? "—"}</span>
             </div>
             <div className="row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="secondary" onClick={onCopyParam} disabled={!hValueNoPrefix}>Copy “h=…”</button>
-              <button className="secondary" onClick={onCopyValue} disabled={!hValueNoPrefix}>Copy value only</button>
+              <button className="secondary" onClick={onCopyParam} disabled={!hValueNoPrefix}>Kopy “h=…”</button>
+              <button className="secondary" onClick={onCopyValue} disabled={!hValueNoPrefix}>Kopy value only</button>
               <button className="secondary" onClick={onExportJson} disabled={historyList.length === 0}>Export JSON</button>
               {shareUrl && (
                 <button className="secondary" onClick={onCopyUrl} disabled={!hValueNoPrefix}>
-                  Copy URL + &h
+                  Kopy URL + &h
                 </button>
               )}
             </div>

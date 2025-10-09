@@ -1699,3 +1699,79 @@ body.modal-open :where(.sigilpage, .sp-viewport, .sp-shell, .sp-veil, .sp-veil-s
 @media (hover:hover) {
   .owner-gated button:hover { transform: translateY(-1px); }
 }
+
+/* 🔥 Mobile heat-killer profile — same look, cheaper work */
+@media (max-width: 820px), (pointer: coarse) {
+  /* 1) Kill the most expensive bits on full-viewport layers */
+  .sigilpage::before,
+  .sp-veil,
+  .sp-veil-stars,
+  .stargate-overlay {
+    filter: none !important;
+    hue-rotate:(0deg) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    mix-blend-mode: normal !important;
+  }
+
+  /* 2) Pause decorative, always-on animations (keep one main breathe) */
+  .sp-kicker,
+  .sp-title::after,
+  .sp-card::before,
+  .sp-rune--tl, .sp-rune--tr, .sp-rune--bl, .sp-rune--br,
+  .auth-badge, .auth-badge::after,
+  .sp-price-chip .phi,
+  .sp-price-chip .phi::before, .sp-price-chip .phi::after,
+  .sp-price-chip .live-badge,
+  .sp-price-chip .live-badge::after,
+  .sp-price-chip .live-badge .twinkles,
+  .verifier-btn,
+  .sp-lineage, .sp-lineage::before, .sp-lineage::after,
+  .sp-lineage__node, .sp-lineage__child, .sp-lineage__arrow, .sp-lineage__note {
+    animation: none !important;
+  }
+
+  /* Keep the vibe with a single cheap breathe on the frame */
+  .sp-frame { animation: frame-breathe var(--pulse) var(--ease-breath) infinite; }
+  .sp-title::after { opacity: .6; } /* keep underline present without anim */
+
+  /* 3) Replace glass/blur with static translucent fill */
+  .auth-badge,
+  .sp-price-chip,
+  .sp-card,
+  .sp-panel,
+  .sp-provenance,
+  .sp-lineage {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(18,24,26,.55) !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 10px 24px rgba(0,0,0,.35);
+  }
+
+  /* 4) Tame heavy glows on tiny GPUs */
+  .sp-price-chip .phi { filter: saturate(130%) brightness(1.05); }
+  .sp-price-chip .phi::before,
+  .sp-price-chip .phi::after { display: none !important; }
+  .sp-price-chip .price { text-shadow: none !important; }
+
+  /* 5) When any modal is open, freeze background layers entirely */
+  body.modal-open .sigilpage::before,
+  body.modal-open .sp-veil,
+  body.modal-open .sp-veil-stars { animation: none !important; }
+}
+
+/* 6) Don’t paint heavy sections until needed */
+.sp-lineage,
+.owner-gated,
+.sigilpage .sp-debits__list {
+  content-visibility: auto;
+  contain-intrinsic-size: 800px 600px; /* reserve space to avoid layout jank */
+}
+
+/* 7) Respect data-saver users too */
+@media (prefers-reduced-data: reduce) {
+  .sigilpage::before, .sp-veil, .sp-veil-stars { animation: none !important; }
+  .auth-badge, .sp-card, .sp-panel, .sp-provenance, .sp-lineage {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+}
