@@ -1775,3 +1775,4 @@ body.modal-open :where(.sigilpage, .sp-viewport, .sp-shell, .sp-veil, .sp-veil-s
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 }
+.sp-price-chip .usd-inline { opacity:.8; margin-left:.5ch; font-variant-numeric: tabular-nums; }

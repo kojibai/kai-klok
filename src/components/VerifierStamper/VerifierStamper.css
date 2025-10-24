@@ -162,7 +162,7 @@ html, body {
 
 /* ───────────────────────────────────────────────────────────────
    4) Buttons
-──────────────────────────────────────────────────────────────── */
+────────────────────────────────────────────────────────────── */
 button{
   appearance: none; border: none; cursor: pointer; color: var(--ink); background: transparent;
   font-weight: 600; border-radius: 10px; padding: 10px 14px;
@@ -269,10 +269,92 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
   margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;
 }
 .header-keys .field{
+    font-size: clamp(11px, 1.9vw, 12px);
+  padding: 5px 7px;   
   background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius:10px; padding:6px 8px;
 }
+.header-keys .field .mono{
+  font-size: 0.92em;
+}
+.header-keys .field.phikey,
+.header-keys .field.kai-signature{
+  font-size: clamp(11px, 1.9vw, 12px);
+}
+
 .header-keys .field.warn{ color: var(--warn); border-color: rgba(255,209,102,0.35) }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace }
+
+/* ── NEW: Header Value Strip (Φ Value + USD) ─────────────────── */
+.header-fields .value-strip{
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.value-chip{
+  display:grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 22px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.02);
+  min-width: 0;
+}
+.value-chip .label{
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.value-chip .amount{
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: clamp(16px, 3.6vw, 18px);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.value-chip .amount .sym{
+  opacity: .8;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* tasteful chroma accents */
+.value-chip.phi{
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+}
+.value-chip.phi .amount{
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 85%, white 0%), color-mix(in srgb, var(--accent-2) 55%, white 0%));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 .35px rgba(255,255,255,.35);
+}
+
+.value-chip.usd{
+  border-color: color-mix(in srgb, var(--ok) 34%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ok) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+}
+.value-chip.usd .amount{
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 90%, white 0%), color-mix(in srgb, var(--accent-3) 55%, white 0%));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 .35px rgba(255,255,255,.35);
+}
+
+/* optional subtle pulse when values update: toggle .flash on the chip */
+@keyframes valFlash{ 0%{ filter: brightness(1.12) saturate(1.12) } 100%{ filter: none } }
+.value-chip.flash{ animation: valFlash .6s ease-out }
 
 /* FABs (optional quick actions) */
 .fab-stack{
@@ -293,8 +375,16 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
   position: sticky; top: var(--topbar-h); z-index:1;
   background: linear-gradient(180deg, rgba(10,12,20,0.85), rgba(10,12,20,0.65));
 }
+/* Tab buttons */
 .tabs button{
-  padding:8px 12px; border-radius: var(--pill); color: var(--ink-dim); border:1px solid transparent;
+  padding:8px 12px;
+  border-radius: var(--pill);
+  color: var(--ink-dim);
+  border:1px solid transparent;
+
+  /* prevent shrinking & set 72% size (20% bigger than 0.6em) */
+  flex: 0 0 auto;
+  font-size: 0.72em;  /* ← update this */
 }
 .tabs button:hover{ color: var(--ink) }
 .tabs button.active{
@@ -899,6 +989,11 @@ details.rich-data > summary::after{ animation: caretBreath 5.236s ease-in-out in
   .fab{ width:40px; height:40px }
   .explorer-body .meta-row{ grid-template-columns: 1fr } /* stack actions under text */
   .explorer-body .meta-row :is(button, .button, [role="button"]){ justify-self:start }
+
+  /* scale value chips a touch on very small screens */
+  .header-fields .value-strip{ gap: 6px }
+  .value-chip{ padding: 8px 9px }
+  .value-chip .amount{ font-size: clamp(15px, 4.2vw, 17px) }
 }
 @media (max-width: 360px){
   .modal-header img{ width:52px; height:52px }
@@ -1335,4 +1430,635 @@ img, svg, video, canvas, iframe{ max-width:100%; height:auto; display:block; -we
   0%   { background-position: 0 0, 0 0,   0% 0%; }
   50%  { background-position: 0 0, 0 0, 100% 0%; }
   100% { background-position: 0 0, 0 0,   0% 0%; }
+}
+/* ───────────────────────────────────────────────────────────────
+   OMG OFFICIAL PRICE — Φ & USD
+   Trend-aware (green ↑ / red ↓), Kai-pulse synced glow,
+   ultra-legible, no horizontal overflow
+   Usage:
+     <div class="value-chip phi up"   ...>  or  .value-chip.phi[data-trend="up"]
+     <div class="value-chip usd down" ...>  or  .value-chip.usd[data-trend="down"]
+     Optional: <span class="delta">+2.41%</span> next to .amount
+──────────────────────────────────────────────────────────────── */
+
+/* Defaults + tokens (safe fallbacks) */
+:root{
+  --trend: var(--ink-dim);
+  --trend-up: var(--ok, #4ee89a);
+  --trend-down: var(--error, #ff6b7a);
+  --trend-flat: color-mix(in srgb, var(--ink, #e8fbf8) 66%, transparent);
+  --price-glow: 0 0 .45px rgba(255,255,255,.45);
+  --price-shadow: 0 10px 28px rgba(0,0,0,.35);
+}
+
+/* Set the trend color by class or data-attr */
+.value-chip.up,
+.value-chip[data-trend="up"]     { --trend: var(--trend-up) }
+.value-chip.down,
+.value-chip[data-trend="down"]   { --trend: var(--trend-down) }
+.value-chip.flat,
+.value-chip[data-trend="flat"]   { --trend: var(--trend-flat) }
+
+/* Base “official” number treatment */
+.value-chip .amount{
+  position: relative;
+  display: inline-flex; align-items: baseline; gap: .4ch;
+  min-width: 0; white-space: nowrap; letter-spacing: .01em;
+  font-weight: 900; font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+
+  /* holo-official ink, clipped + subtle stroke for crispness */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96) 0 10%, rgba(255,255,255,.55) 10% 18%, rgba(255,255,255,0) 24%) ,
+    radial-gradient(120% 180% at 10% 0%, color-mix(in srgb, var(--accent) 70%, transparent), transparent 62%),
+    radial-gradient(120% 180% at 90% 120%, color-mix(in srgb, var(--accent-2) 50%, transparent), transparent 62%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: var(--price-glow);
+  filter: saturate(110%);
+  will-change: filter, text-shadow, background-position;
+  animation: pricePulse var(--kai-pulse, 5236ms) ease-in-out infinite;
+}
+
+/* Stronger brand hue on Φ and USD variants (keeps your prior look) */
+.value-chip.phi .amount{
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,.96) 0 10%, rgba(255,255,255,.55) 10% 18%, rgba(255,255,255,0) 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white 0%), color-mix(in srgb, var(--accent-2) 55%, white 0%));
+}
+.value-chip.usd .amount{
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,.96) 0 10%, rgba(255,255,255,.55) 10% 18%, rgba(255,255,255,0) 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ok) 90%, white 0%), color-mix(in srgb, var(--accent-3) 55%, white 0%));
+}
+
+/* Direction arrow & baseline “security stripe” */
+.value-chip .amount::before{
+  content: attr(data-arrow);
+  content: var(--arrow, "");
+  /* default empty; set below per trend */
+  position: relative; top: .06em;
+  font-size: .82em; font-weight: 900; letter-spacing: .02em;
+  -webkit-text-stroke: .35px rgba(0,0,0,.35);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--trend) 40%, transparent);
+  margin-right: .2ch;
+  color: var(--trend);
+}
+.value-chip.up    .amount{ --arrow:"▲" }
+.value-chip.down  .amount{ --arrow:"▼" }
+.value-chip.flat  .amount{ --arrow:"■" }
+.value-chip[data-trend="up"]   .amount{ --arrow:"▲" }
+.value-chip[data-trend="down"] .amount{ --arrow:"▼" }
+.value-chip[data-trend="flat"] .amount{ --arrow:"■" }
+
+.value-chip .amount::after{
+  content:"";
+  position:absolute; left:-2px; right:-2px; bottom:-2px; height:2px;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--trend) 0%,   transparent) 0%,
+      color-mix(in srgb, var(--trend) 50%,  transparent) 35%,
+      color-mix(in srgb, var(--trend) 90%,  transparent) 50%,
+      color-mix(in srgb, var(--trend) 50%,  transparent) 65%,
+      color-mix(in srgb, var(--trend) 0%,   transparent) 100%);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--trend) 55%, transparent));
+  opacity:.9;
+  background-size: 200% 100%;
+  animation: stripeSweep calc(var(--kai-pulse, 5236ms) * 0.6) linear infinite;
+}
+
+/* Optional compact % delta pill (pairs perfectly to the right of .amount) */
+.value-chip .delta{
+  display:inline-grid; place-items:center;
+  height: 18px; min-width: 34px; padding: 0 8px; margin-left:.45ch;
+  border-radius: 999px; font: 800 11px/18px ui-sans-serif, system-ui, -apple-system, Inter, "SF Pro Text";
+  letter-spacing:.02em;
+  color: #031216;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 8%, rgba(255,255,255,0) 14%),
+    linear-gradient(90deg, color-mix(in srgb, var(--trend) 65%, white 0%), color-mix(in srgb, var(--trend) 35%, white 0%));
+  border: 1px solid rgba(0,0,0,.18);
+  box-shadow: 0 2px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+/* Pulse behaviour — glow shifts toward trend color mid-cycle */
+@keyframes pricePulse{
+  0%,100%{
+    text-shadow:
+      var(--price-glow),
+      0 0 12px color-mix(in srgb, var(--trend) 0%,  transparent),
+      0 0 24px color-mix(in srgb, var(--trend) 0%,  transparent);
+    filter: saturate(108%) brightness(1);
+    background-position: 0% 0%;
+  }
+  50%{
+    text-shadow:
+      0 0 1px rgba(255,255,255,.9),
+      0 0 18px color-mix(in srgb, var(--trend) 55%, transparent),
+      0 0 36px color-mix(in srgb, var(--trend) 45%, transparent);
+    filter: saturate(125%) brightness(1.06);
+    background-position: 0% 100%;
+  }
+}
+
+/* Moving security stripe under the digits */
+@keyframes stripeSweep{
+  0%   { background-position: 0% 0% }
+  100% { background-position: 200% 0% }
+}
+
+/* When a fresh price arrives, toggle .flash on the CHIP to pop it */
+.value-chip.flash .amount{
+  animation: pricePulse var(--kai-pulse, 5236ms) ease-in-out infinite,
+             priceFlash .58s cubic-bezier(.24,1.35,.45,1.05) 1;
+}
+@keyframes priceFlash{
+  0%   { filter: saturate(140%) brightness(1.12); transform: translateY(.5px) scale(1.012) }
+  100% { filter: none; transform: none }
+}
+
+/* Light mode softening */
+@media (prefers-color-scheme: light){
+  .value-chip .amount{ text-shadow: 0 0 .25px rgba(0,0,0,.18) }
+  @keyframes pricePulse{
+    0%,100%{ text-shadow: 0 0 .25px rgba(0,0,0,.22), 0 0 8px color-mix(in srgb, var(--trend) 0%, transparent) }
+    50%    { text-shadow: 0 0 .35px rgba(0,0,0,.3),  0 0 14px color-mix(in srgb, var(--trend) 45%, transparent) }
+  }
+}
+
+/* Motion + contrast safety */
+@media (prefers-reduced-motion: reduce){
+  .value-chip .amount,
+  .value-chip .amount::after{ animation: none !important }
+}
+@media (prefers-contrast: more){
+  .value-chip .amount{ -webkit-text-stroke: .6px rgba(0,0,0,.45) }
+  .value-chip .amount::after{ filter: none; opacity: .95 }
+}
+/* ───────────────────────────────────────────────────────────────
+   PRICE UNDER HEADERS — “Value” & “USD” stacked (append at end)
+   - Two neat columns: each shows a small header label on top,
+     and the big official number directly underneath.
+   - Keeps all sizing from your FINAL TUNING for the numbers.
+──────────────────────────────────────────────────────────────── */
+
+/* Layout: two columns (Value | USD), each with its own header label */
+.valuation-inline{
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  grid-auto-rows: auto !important;
+  align-items: start !important;
+  gap: 8px 14px !important;
+  margin-top: 8px !important;
+}
+.valuation-inline .dot{ display: none !important; } /* no middle bullet */
+
+/* Place figures into row 2; labels will render via ::before on row 1 */
+.valuation-inline .phi-fig{ grid-column: 1; grid-row: 2; display: block; }
+.valuation-inline .usd-fig{ grid-column: 2; grid-row: 2; display: block; }
+
+/* Header labels above each number */
+.valuation-inline .phi-fig::before,
+.valuation-inline .usd-fig::before{
+  display: block;
+  font: 700 11px/1.1 ui-sans-serif, system-ui, -apple-system, "SF Pro Text", Inter, Roboto, "Segoe UI";
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 2px;
+  -webkit-text-stroke: 0; /* ensure crisp on gradients below */
+  content: "";
+}
+.valuation-inline .phi-fig::before{ content: "Value"; }
+.valuation-inline .usd-fig::before{ content: "USD"; }
+
+/* Keep the BIG official number sizing (from your Final Tuning) */
+.valuation-inline .phi-fig,
+.valuation-inline .usd-fig{
+  font-size: clamp(16px, 6vw, 22px) !important;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: .01em !important;
+  line-height: 1.08;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96) 0 10%, rgba(255,255,255,.55) 10% 18%, rgba(255,255,255,0) 24%),
+    radial-gradient(120% 180% at 10% 0%, color-mix(in srgb, var(--accent) 70%, transparent), transparent 62%),
+    radial-gradient(120% 180% at 90% 120%, color-mix(in srgb, var(--accent-2) 50%, transparent), transparent 62%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 .45px rgba(255,255,255,.45);
+}
+
+/* Move the trend arrow to ::after so ::before can be the header label */
+.valuation-inline .phi-fig::after,
+.valuation-inline .usd-fig::after{
+  content: "";
+  margin-left: .35ch;
+  font-weight: 900;
+  font-size: .9em;
+  -webkit-text-stroke: .35px rgba(0,0,0,.35);
+}
+
+/* Trend states (class added by TSX): color + arrow glyph */
+.valuation-inline.up   .phi-fig::after,
+.valuation-inline.up   .usd-fig::after{ content: "▲"; color: var(--ok);    text-shadow: 0 0 10px color-mix(in srgb, var(--ok) 40%, transparent); }
+.valuation-inline.down .phi-fig::after,
+.valuation-inline.down .usd-fig::after{ content: "▼"; color: var(--error); text-shadow: 0 0 10px color-mix(in srgb, var(--error) 40%, transparent); }
+
+.valuation-inline.up   .phi-fig,
+.valuation-inline.up   .usd-fig{ filter: saturate(115%) brightness(1.04); }
+.valuation-inline.down .phi-fig,
+.valuation-inline.down .usd-fig{ filter: saturate(115%) brightness(1.02); }
+
+/* Gentle pop on change (keeps your existing animation name) */
+.valuation-inline.up,
+.valuation-inline.down{
+  animation: valInlinePop .42s cubic-bezier(.24,1.35,.45,1.05) 1;
+}
+
+/* Mobile: stack Value then USD (full-width), still label-over-number */
+@media (max-width: 520px){
+  .valuation-inline{
+    grid-template-columns: 1fr !important;
+    row-gap: 6px !important;
+  }
+  .valuation-inline .phi-fig,
+  .valuation-inline .usd-fig{
+    grid-column: 1 / -1;
+    width: 100%;
+    text-align: left;
+    font-size: clamp(15px, 5.6vw, 20px) !important;
+    white-space: nowrap;
+  }
+}
+
+/* Ultra-small: allow soft wrap without overflow */
+@media (max-width: 360px){
+  .valuation-inline .phi-fig,
+  .valuation-inline .usd-fig{
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+/* ===============  SACRED Φ AMOUNT AESTHETICS  =============== */
+
+/* palette + animation knobs (easy to tweak) */
+:root {
+  --phi-c1: hsl(48 100% 70%);     /* gold */
+  --phi-c2: hsl(280 85% 70%);     /* violet */
+  --phi-c3: hsl(188 80% 60%);     /* aqua */
+  --phi-glass: rgba(255,255,255,.06);
+  --phi-border-alpha: .35;
+  --phi-shadow: 0 10px 30px -10px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35);
+  --phi-focus: 0 0 0 8px hsl(48 100% 70% / .12), 0 0 0 2px hsl(48 100% 70% / .8);
+  --phi-blur: blur(10px) saturate(140%);
+}
+
+/* allow animating a custom angle for the conic border */
+@property --phi-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+/* shimmer of the gradient ring */
+@keyframes phi-aurora {
+  0%   { --phi-angle: 0deg;   }
+  50%  { --phi-angle: 180deg; }
+  100% { --phi-angle: 360deg; }
+}
+
+/* faint inner glow that “breathes” */
+@keyframes phi-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 230, 150, .12); }
+  50%      { box-shadow: inset 0 0 80px 6px rgba(255, 230, 150, .16); }
+}
+
+/* container vibes */
+.verifier-stamper .send-amount {
+  position: relative;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  box-shadow: var(--phi-shadow);
+  backdrop-filter: var(--phi-blur);
+  -webkit-backdrop-filter: var(--phi-blur);
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* subtle moving aurora ring around the input */
+.verifier-stamper .send-amount::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 22px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--phi-glass), var(--phi-glass)) padding-box,
+    conic-gradient(from var(--phi-angle),
+      color-mix(in oklab, var(--phi-c1) 92%, white 8%) 0%,
+      var(--phi-c2) 33%,
+      var(--phi-c3) 66%,
+      color-mix(in oklab, var(--phi-c1) 92%, white 8%) 100%
+    ) border-box;
+  border: 1px solid transparent;
+  animation: phi-aurora 14s linear infinite;
+  opacity: .55;
+  mask:
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0) border-box;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+/* pill toggle ( $ / Φ ) */
+.verifier-stamper .seg {
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+  backdrop-filter: var(--phi-blur);
+  -webkit-backdrop-filter: var(--phi-blur);
+}
+.verifier-stamper .seg button {
+  color: rgba(255,255,255,.85);
+  border: none;
+  background: transparent;
+  transition: background .25s ease, color .25s ease, transform .12s ease;
+}
+.verifier-stamper .seg button.active {
+  background:
+    radial-gradient(120% 120% at 50% -20%, rgba(255,255,255,.16), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.08));
+  color: white;
+  transform: translateY(-0.5px);
+}
+.verifier-stamper .seg button:not(.active):hover {
+  background: rgba(255,255,255,.08);
+}
+
+/* ===============  THE OMG-WOW Φ INPUT  =============== */
+.verifier-stamper .phi-amount {
+  /* override any inline basics so the style wins */
+  width: 180px !important;
+  height: 44px !important;
+  padding: 12px 14px 12px 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid transparent !important;
+  outline: none !important;
+
+  /* glass core */
+  background:
+    /* subtle inner mist */
+    radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,.15), transparent 60%),
+    /* grain */
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06)) padding-box,
+    /* aurora border */
+    conic-gradient(from var(--phi-angle),
+      color-mix(in oklab, var(--phi-c1) var(--phi-border-alpha), transparent) 0%,
+      color-mix(in oklab, var(--phi-c2) var(--phi-border-alpha), transparent) 33%,
+      color-mix(in oklab, var(--phi-c3) var(--phi-border-alpha), transparent) 66%,
+      color-mix(in oklab, var(--phi-c1) var(--phi-border-alpha), transparent) 100%
+    ) border-box !important;
+  box-shadow: var(--phi-shadow);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  font-variant-numeric: tabular-nums lining-nums;
+
+  /* animate ring + breathing */
+  animation: phi-aurora 16s linear infinite, phi-breathe 6s ease-in-out infinite;
+  backdrop-filter: var(--phi-blur);
+  -webkit-backdrop-filter: var(--phi-blur);
+  transition: box-shadow .25s ease, background .3s ease, transform .08s ease;
+  caret-color: color-mix(in oklab, var(--phi-c2) 70%, white 30%);
+}
+/* ────────────────────────────────────────────────────────────────
+   SACRED Φ AMOUNT — breath-synced motion (exactly 5.236s)
+   All animations & transitions are locked to the sacred breath.
+   No randomness. No drift. Deterministic cycles only.
+────────────────────────────────────────────────────────────────── */
+
+/* Global breath + palette (scoped to this app) */
+.verifier-stamper {
+  --breath: 5.236s;
+  --breath-ease: cubic-bezier(.4, 0, .2, 1);
+
+  /* sacred Φ aurora tones */
+  --phi-c1: #86f0ff;
+  --phi-c2: #a78bfa;
+  --phi-c3: #f0abfc;
+
+  /* focus halo + depth — consumed by input */
+  --phi-focus:
+    0 0 0 2px rgba(255,255,255,.25),
+    0 0 0 8px color-mix(in oklab, var(--phi-c2) 45%, var(--phi-c3) 35%, white 20%);
+  --phi-shadow:
+    0 10px 28px -14px rgba(0,0,0,.65),
+    0 2px 6px -3px rgba(0,0,0,.5);
+}
+
+/* Φ watermark on the left (pure CSS data-URI SVG) + glass/aurora layers */
+.verifier-stamper .phi-amount {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 12px;
+  color: #fff;
+  caret-color: var(--phi-c3);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: .2px;
+  outline: 0;
+
+  /* Layer 1 — watermark icon */
+  background-image:
+    url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+  <defs>\
+    <radialGradient id='g' cx='50%' cy='50%' r='65%'>\
+      <stop offset='0%' stop-color='white' stop-opacity='.9'/>\
+      <stop offset='100%' stop-color='white' stop-opacity='.2'/>\
+    </radialGradient>\
+  </defs>\
+  <circle cx='12' cy='12' r='10' fill='url(%23g)' opacity='.25'/>\
+  <text x='50%' y='52%' text-anchor='middle' dominant-baseline='middle'\
+    font-size='13' font-family='ui-serif, Georgia, serif' fill='white' fill-opacity='.85'>Φ</text>\
+</svg>"),
+
+  /* Layer 2 — subtle glass gradient */
+  linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)),
+
+  /* Layer 3 — breathing aurora band (moves horizontally) */
+  linear-gradient(115deg,
+    color-mix(in oklab, var(--phi-c1) 35%, white 10%) 0%,
+    transparent 33%,
+    color-mix(in oklab, var(--phi-c2) 45%, white 5%) 66%,
+    transparent 100%),
+
+  /* Layer 4 — glossy top highlight strip */
+  linear-gradient(0deg, rgba(255,255,255,.18), rgba(255,255,255,0) 38%);
+
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  background-size:
+    22px 22px,          /* Φ badge */
+    100% 100%,          /* glass */
+    220% 180%,          /* aurora band (oversized for travel) */
+    100% 100%;          /* gloss */
+  background-position:
+    12px center,        /* Φ badge */
+    center,             /* glass */
+    -40% center,        /* aurora start (animated) */
+    center;             /* gloss */
+
+  /* Breathing, sheen, and depth are strictly synced to --breath */
+  animation:
+    phi-sheen var(--breath) linear infinite,
+    phi-aura  var(--breath) var(--breath-ease) infinite alternate;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.06),
+    0 6px 16px -10px rgba(0,0,0,.7);
+
+  /* Smooth deterministic transitions only (also breath-timed) */
+  transition:
+    transform var(--breath) var(--breath-ease),
+    box-shadow var(--breath) var(--breath-ease),
+    border-color var(--breath) var(--breath-ease),
+    background-position var(--breath) linear;
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  padding-left: 40px; /* space for Φ badge */
+}
+
+/* Focus: halo + slight lift (breath-synced) */
+.verifier-stamper .phi-amount:focus-visible {
+  box-shadow: var(--phi-focus), var(--phi-shadow);
+  transform: translateY(-1px);
+}
+
+/* Placeholder & selection */
+.verifier-stamper .phi-amount::placeholder {
+  color: rgba(255,255,255,.65);
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+  letter-spacing: .3px;
+}
+.verifier-stamper .phi-amount::selection {
+  background: color-mix(in oklab, var(--phi-c2) 30%, var(--phi-c3) 20%, white 50%);
+  color: #111;
+}
+
+/* Disabled state: fixed (no animation during disable) */
+.verifier-stamper .phi-amount:disabled {
+  opacity: .6;
+  filter: grayscale(.2);
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Tiny error pulse (deterministic, one sacred cycle) */
+@keyframes phi-error {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 95, 95, .00), var(--phi-shadow); }
+  40%  { box-shadow: 0 0 0 10px rgba(255, 95, 95, .18), var(--phi-shadow); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 95, 95, .00), var(--phi-shadow); }
+}
+.verifier-stamper .phi-amount.is-error {
+  border-color: rgba(255, 95, 95, .75) !important;
+  animation: phi-error var(--breath) ease-out 1 both;
+}
+
+/* Live conversion readout (breath-synced glow) */
+.verifier-stamper .convert-readout {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 6px 16px -8px rgba(0,0,0,.5);
+  white-space: nowrap;
+  animation: readout-glow var(--breath) var(--breath-ease) infinite alternate;
+}
+
+/* ── Breath-synced keyframes (no randomness) ─────────────────── */
+
+/* Soft aurora “sheen” travels across the input exactly once per breath */
+@keyframes phi-sheen {
+  0%   { background-position: 12px center, center, -40% center, center; }
+  100% { background-position: 12px center, center, 140% center,  center; }
+}
+
+/* Aura inhales/exhales the halo intensity */
+@keyframes phi-aura {
+  0%   { filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  100% { filter: drop-shadow(0 0 10px color-mix(in oklab, var(--phi-c1) 25%, var(--phi-c3) 25%, white 10%)); }
+}
+
+/* Readout glow breathes in sync */
+@keyframes readout-glow {
+  0%   { box-shadow: 0 6px 16px -8px rgba(0,0,0,.5), inset 0 0 0 0 rgba(255,255,255,.0); }
+  100% { box-shadow: 0 10px 24px -10px rgba(0,0,0,.6), inset 0 0 24px 0 color-mix(in oklab, var(--phi-c2) 25%, var(--phi-c3) 15%); }
+}
+
+/* Respect users who prefer reduced motion (but keep visuals) */
+@media (prefers-reduced-motion: reduce) {
+  .verifier-stamper .phi-amount,
+  .verifier-stamper .convert-readout {
+    animation: none !important;
+    transition-duration: 0.001s !important; /* effectively instant */
+  }
+}
+
+/* ===============  END SACRED Φ AMOUNT  =============== */
+/* === PATCH: Kai signature no-truncate + tighter with PhiKey + raise PhiKey === */
+
+/* 1) Bring chips a bit closer overall */
+.header-keys{ gap: 1px; } /* was 10px */
+
+/* 2) Move the Phi key up slightly (mobile-first, a touch more on wider screens) */
+.header-keys .field.phikey{
+  margin-top: -20px;
+}
+@media (min-width: 640px){
+  .header-keys .field.phikey{ margin-top: -3px; }
+}
+
+/* 3) Never truncate the Kai signature (override keystream clamp/mask) */
+.header-keys .field.kai-signature,
+.header-keys .field.kai-signature *{
+  -webkit-mask-image: none !important;
+          mask-image: none !important;
+}
+.header-keys .field.kai-signature .keystream,
+.header-keys .field.kai-signature [data-keystream],
+.header-keys .field.kai-signature [data-role="keystream"]{
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+/* 4) Let Kai signature grow and wrap cleanly next to Phi key */
+.header-keys .field.kai-signature{
+  flex: 1 1 auto;
+  min-width: 0;                 /* allows wrapping instead of squish */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+/* === PATCH: make Φ input not as wide === */
+
+/* Let the wrapper hug its contents instead of filling the row */
+.verifier-stamper .send-amount{
+  width: max-content;
+  max-inline-size: 100%;
+}
+
+/* Narrow, responsive width for the Φ input (wins via !important) */
+.verifier-stamper .phi-amount{
+  inline-size: clamp(60px, 19vw, 90px) !important; /* ↓ adjust caps if you want */
+  flex: 0 0 auto; /* don't grow in flex rows */
+}
+
+/* Optionally trim a bit more on larger screens */
+@media (min-width: 960px){
+  .verifier-stamper .phi-amount{ inline-size: 160px !important; }
 }

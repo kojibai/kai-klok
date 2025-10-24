@@ -62,7 +62,7 @@ export async function openOwnershipVerifyModal(
 
     root.render(
       <OwnershipVerifyModal
-        title={opts?.title ?? "Verify Ownership"}
+        title={opts?.title ?? "Verify Stewardship"}
         subtitle={opts?.subtitle ?? "Pick the Φkey for this Sigil-Glyph."}
         accept={opts?.accept ?? "image/svg+xml,.svg"}
         onResolve={safeResolve}

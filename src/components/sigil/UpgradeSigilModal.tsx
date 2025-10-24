@@ -166,7 +166,7 @@ useEffect(() => {
   }: UpgradeSigilModalProps) {
     const [busy, setBusy] = useState(false);
     const [status, setStatus] = useState<"idle" | "verifying" | "ok" | "bad" | "warn">("idle");
-    const [msg, setMsg] = useState<string>("Upload your SVG Φkey to verify ownership.");
+    const [msg, setMsg] = useState<string>("Upload your SVG Φkey to verify stewardship.");
     const [uploaded, setUploaded] = useState<SigilPayload | null>(null);
     const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   
@@ -182,7 +182,7 @@ useEffect(() => {
         // reset when closing
         setBusy(false);
         setStatus("idle");
-        setMsg("Upload your SVG Φkey to verify ownership.");
+        setMsg("Upload your SVG Φkey to verify stewardship.");
         setUploaded(null);
         setGeneratedUrl(null);
       }
@@ -257,7 +257,7 @@ useEffect(() => {
   
           // Success: authentic legacy Φkey for this moment
           setStatus("ok");
-          setMsg("Ownership verified (legacy SVG). You can upgrade this key.");
+          setMsg("Stewardship verified (legacy SVG). You can upgrade this key.");
           setUploaded(payload);
           onVerified?.(payload);
         } catch {

@@ -287,7 +287,7 @@ export default function SigilHeader(props: SigilHeaderProps) {
       </h1>
 
       <p id="sp-sub" className="sp-sub">
-        Exhale • Verify • Remember • Inhale
+        Inhale • Verify • Remember • Exhale
       </p>
 
       {/* Glyph Authenticity & Link Status */}

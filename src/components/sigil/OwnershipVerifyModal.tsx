@@ -208,7 +208,7 @@ export default function OwnershipVerifyModal({
         >
           <div className="ovm-header">
             <h4 id="ovm-title" className="ovm-title">
-              {title || "Verify Ownership"}
+              {title || "Verify"}
             </h4>
             <button
               className="ovm-close"

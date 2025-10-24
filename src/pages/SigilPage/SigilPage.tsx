@@ -39,7 +39,9 @@ import {
   getKaiPulseEternalInt,
   beatIndexFromPulse,
 } from "../../SovereignSolar";
-
+import { DEFAULT_ISSUANCE_POLICY, quotePhiForUsd } from "../../utils/phi-issuance";
+import { usd as fmtUsd } from "../../components/valuation/display";
+import type { SigilMetadataLite } from "../../utils/valuation";
 /* pulses/breaths conversion (expiry math) */
 import { stepsToPulses, breathsToPulses } from "../../utils/kaiMath";
 import type { VerifyUIState } from "./types";
@@ -445,7 +447,7 @@ export default function SigilPage() {
   const [verified, setVerified] = useState<VerifyUIState>("checking");
   const [glyphAuth, setGlyphAuth] = useState<"checking" | "authentic" | "forged">("checking");
   const [ownershipVerified, setOwnershipVerified] = useState<boolean>(false);
-  const [ownershipMsg, setOwnershipMsg] = useState<string>("Upload Φkey to verify ownership");
+  const [ownershipMsg, setOwnershipMsg] = useState<string>("Upload Φkey to verify Stewardship");
   const [toast, setToast] = useState<string>("");
 
   const [sigilSize, setSigilSize] = useState<number>(320);
@@ -1446,7 +1448,7 @@ setSealUrl(toAbsUrl(finalUrl));            // defensive
       }
 
       if (!payload || !uploadedPayload) {
-        setOwnershipMsg("Load or link a sigil first, then verify ownership.");
+        setOwnershipMsg("Load or link a sigil first, then verify stewardship.");
         return;
       }
 
@@ -1479,7 +1481,7 @@ setSealUrl(toAbsUrl(finalUrl));            // defensive
           setVerified("ok");
           setLinkStatus("archived");
           setOwnershipVerified(true);
-          setOwnershipMsg("Ownership verified (legacy SVG). Issuing modern link…");
+          setOwnershipMsg("Stewardship verified (legacy SVG). Issuing modern link…");
 
           if (lh) {
             void beginUpgradeClaimLocal({ ...(payload as SigilPayload) }, lh, true);
@@ -1504,7 +1506,7 @@ setSealUrl(toAbsUrl(finalUrl));            // defensive
       }
 
       setOwnershipVerified(true);
-      setOwnershipMsg("Ownership verified");
+      setOwnershipMsg("Stewardship verified");
     },
     [
       payload,
@@ -1935,6 +1937,42 @@ setSealUrl(toAbsUrl(attestedUrl));
     if (hasDebitsOrFrozen) return availablePhi;
     return livePrice ?? valSeal?.valuePhi ?? 0;
   }, [hasDebitsOrFrozen, availablePhi, livePrice, valSeal?.valuePhi]);
+/* ---------- Live USD quote (same model as ValuationModal) ---------- */
+// import type { SigilMetadataLite } from "../../utils/valuation";
+
+const issuancePolicy = DEFAULT_ISSUANCE_POLICY;
+
+const { usdPerPhi, phiPerUsd } = useMemo(() => {
+  try {
+    const nowKai = currentPulse ?? getKaiPulseEternalInt(new Date());
+
+    // Safely coerce payload to SigilMetadataLite without using `any`
+    const meta: SigilMetadataLite = payload
+      ? (payload as unknown as SigilMetadataLite)
+      : ({} as unknown as SigilMetadataLite);
+
+    const q = quotePhiForUsd(
+      {
+        meta,
+        nowPulse: nowKai,
+        usd: 100,
+        currentStreakDays: 0,
+        lifetimeUsdSoFar: 0,
+      },
+      issuancePolicy
+    );
+
+    return {
+      usdPerPhi: q.usdPerPhi ?? 0,
+      phiPerUsd: q.phiPerUsd ?? 0,
+    };
+  } catch {
+    return { usdPerPhi: 0, phiPerUsd: 0 };
+  }
+}, [payload, currentPulse, issuancePolicy]);
+
+// USD for whatever number you're currently showing in the chip
+const chipUsd: number = (displayedChipPhi ?? 0) * (usdPerPhi || 0);
 
   /* helper: generate canonical recipient Φkey (verifier algorithm) */
   const generateRecipientPhiKey = useCallback(async () => {
@@ -2209,7 +2247,7 @@ const ensureParentTokenActive = useCallback(
   /* === Send Φ flow — v48 hardened === */
   const [sendAmount, setSendAmount] = useState<number>(0);
   const handleSendPhi = useCallback(async () => {
-    if (!ownerVerified) return signal(setToast, "Verify ownership first");
+    if (!ownerVerified) return signal(setToast, "Verify Stewardship first");
     if (!payload) return signal(setToast, "No payload");
     if (sendInFlight) return;
   
@@ -2788,7 +2826,8 @@ useEffect(() => {
               }`}
               aria-live="polite"
               aria-label="Open historical value chart"
-              title={`Kai ${valSeal.computedAtPulse} • premium ×${valSeal.premium.toFixed(6)} • stamp ${valSeal.stamp.slice(0, 12)}…`}
+              title={`Kai ${valSeal.computedAtPulse} • premium ×${valSeal.premium.toFixed(6)} • ${fmtUsd(usdPerPhi)}/Φ • ${Number.isFinite(phiPerUsd) ? `${phiPerUsd.toFixed(6)} Φ/$` : "—"} • stamp ${valSeal.stamp.slice(0, 12)}…`}
+               {...openHistoryPress}
               {...openHistoryPress}
             >
               {/* Φ rainbow icon — /assets/phi.svg mask */}
@@ -2804,6 +2843,7 @@ useEffect(() => {
               <span className="price" aria-label={hasDebitsOrFrozen ? "Available amount" : "Live valuation"}>
                 {currency(displayedChipPhi)}
               </span>
+              <span className="usd-inline" aria-hidden="true">≈ {fmtUsd(chipUsd)}</span>
               <span className="chip-spacer" aria-hidden="true" />
               <span className="live-badge" aria-label={hasDebitsOrFrozen ? "Available amount" : "Live valuation"}>
                 {hasDebitsOrFrozen ? "AVAILABLE" : "LIVE"}
@@ -3311,7 +3351,7 @@ useEffect(() => {
           
 
           <p className="sp-fine">
-            Deterministik sigil-glyph; the hash reflekts the kanonikal payload. All provenanse and ownership are
+            Deterministik sigil-glyph; the hash reflekts the kanonikal payload. All provenanse and Stewardship are
             embedded in the Φkey metadata. Sovereign. End-to-end.
           </p>
 

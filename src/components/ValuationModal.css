@@ -34,7 +34,8 @@
 }
 
 /* ============================ UTILITIES ============================ */
-html, body{ margin:0; height:100% } /* eliminate UA top margin that can fake “gap” */
+html, body{ margin:0; height:100% }
+html{ -webkit-text-size-adjust:100%; text-size-adjust:100% } /* iOS zoom sanity */
 
 .sr-only{
   position:absolute!important; width:1px; height:1px; padding:0; margin:-1px;
@@ -64,12 +65,13 @@ dialog.valuation-modal{
     inset 0 0 0 1px var(--border),
     0 0 0 1px color-mix(in srgb, var(--seal-core) 12%, transparent);
   /* ── Top anchoring: no vertical centering ─────────────────────── */
-  position:fixed;              /* override UA absolute/centering */
+  position:fixed;
   left:50%;
   top:max(8px, env(safe-area-inset-top));
-  transform:translate(-50%, 0) translateZ(0); /* kill default -50% Y */
-  margin:0 auto auto;          /* cancel UA margin centering */
+  transform:translate(-50%, 0) translateZ(0);
+  margin:0 auto auto;
   will-change:transform;
+  z-index:2147483646;
 }
 dialog.valuation-modal::backdrop{
   background:
@@ -89,7 +91,7 @@ dialog.valuation-modal::backdrop{
     inline-size:100vw;
     max-height:calc(var(--vh, 1vh) * 100);
     border-radius:0;
-    top:env(safe-area-inset-top); /* snug to notch */
+    top:env(safe-area-inset-top);
     transform:translate(-50%, 0) translateZ(0);
     margin:0 auto auto;
   }
@@ -118,7 +120,7 @@ dialog.valuation-modal::backdrop{
     0 24px 64px rgba(0,0,0,.6),
     inset 0 0 0 1px var(--border),
     0 0 0 1px color-mix(in srgb, var(--seal-core) 12%, transparent);
-  transform:none;                 /* keep it tight to the bottom */
+  transform:none;
   animation: sheet-in .18s ease-out forwards;
   position:relative;
   will-change: transform, opacity;
@@ -237,8 +239,63 @@ dialog.valuation-modal::backdrop{
 }
 @keyframes ripple{ from{ opacity:.35 } to{ opacity:0 } }
 
+/* ====================== K P I — BIG Φ + USD ======================= */
+.ticker-price {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;              /* lets USD wrap under on narrow viewports */
+  line-height: 1.05;
+}
+.ticker-price .phi-mark {
+  font-weight: 600;
+  opacity: 0.9;
+  margin-right: 4px;
+  transform: translateY(-2px);
+}
+.ticker-price .phi-int {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  font-size: clamp(28px, 8vw, 44px);
+}
+.ticker-price .phi-frac {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+  margin-left: 1px;
+  font-size: clamp(18px, 6vw, 28px);
+}
+.ticker-price .usd-inline {
+  font-size: 0.9rem;
+  opacity: 0.75;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* KPI subline / deltas */
+.kpi-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+.kpi-subline .dot { opacity: 0.5 }
+.kpi-subline .gain { color: var(--green-500, #22c55e) }
+.kpi-subline .loss { color: var(--red-400, #f87171) }
+
+/* Slightly emphasize the Φ marker */
+.ticker-price .phi-mark { font-size: clamp(18px, 5vw, 24px) }
+
+/* Mobile polish: put USD on its own line if tight */
+@media (max-width: 760px) {
+  .ticker-price { gap: 8px }
+  .ticker-price .usd-inline { order: 2; width: 100% }
+}
+
 /* ============================ BODY SCROLL ========================== */
-/* This is the ONLY scroll container for modal content */
 .val-body{
   flex:1 1 auto; min-height:0;
   overflow:auto;

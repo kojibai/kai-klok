@@ -334,9 +334,6 @@ export default function HomePriceChartCard({
             <button type="button" className="hp-primary" onClick={(e) => { e.stopPropagation(); openInlineCheckout(); }} aria-haspopup="dialog">
               Inhale
             </button>
-            <button type="button" className="hp-min" onClick={(e) => { e.stopPropagation(); setExpanded(false); onExpandChange?.(false); }}>
-              Minimize
-            </button>
           </div>
 
           {errorMsg && <div className="hp-error">{errorMsg}</div>}

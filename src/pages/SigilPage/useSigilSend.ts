@@ -265,7 +265,7 @@ export function useSigilSend(params: {
 
   /** Main handler */
   const handleSendPhi = useCallback(async () => {
-    if (!ownerVerified) return setToast("Verify ownership first");
+    if (!ownerVerified) return setToast("Verify Stewardship first");
     if (!payload) return setToast("No payload");
     if (sendInFlight) return;
 

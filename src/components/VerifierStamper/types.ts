@@ -156,6 +156,11 @@ export interface SigilMetadata {
   zkVerifyingKey?: unknown;
 
   [k: string]: unknown;
+    /** Parent branch base Φ (decimal string, up to 18dp). */
+  branchBasePhi?: string;
+
+  /** Cumulative Φ exhaled on this branch across sealed segments (decimal string, up to 18dp). */
+  branchSpentPhi?: string;
 }
 
 export type UiState =

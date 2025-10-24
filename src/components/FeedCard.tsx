@@ -247,7 +247,7 @@ export const FeedCard: React.FC<Props> = ({ url }) => {
             Open Sigil
           </a>
           <button className="btn" type="button" onClick={onCopy} aria-pressed={copied}>
-            {copied ? "Copied" : "Kopy URL"}
+            {copied ? "Kopied" : "Kopy URL"}
           </button>
         </div>
       </div>

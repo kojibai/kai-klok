@@ -27,7 +27,7 @@ export default function OwnershipPanel({
     try {
       const file = await openOwnershipVerifyModal({
         accept: "image/svg+xml,.svg",
-        title: "Verify Ownership",
+        title: "Verify",
         subtitle: "Pick the Φkey for this Sigil-Glyph.",
       });
       if (file) onVerifyOwnershipFile(file);
@@ -41,7 +41,7 @@ export default function OwnershipPanel({
 
   return (
     <div className="sp-panel" role="group" aria-labelledby="own-title">
-      <h3 id="own-title">Ownership</h3>
+      <h3 id="own-title">Stewardship</h3>
 
       <div className="sp-field">
         <label className="lbl" htmlFor="btn-own-verify">
@@ -76,7 +76,7 @@ export default function OwnershipPanel({
             void open();
           }}
         >
-          {busy ? "Opening…" : "Verify Ownership"}
+          {busy ? "Opening…" : "Verify"}
         </button>
       </div>
 

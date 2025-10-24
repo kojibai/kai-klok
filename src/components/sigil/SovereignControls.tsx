@@ -629,7 +629,7 @@ useMemo(() => {
       {/* ─────────────── Ownership & Expiry panel ─────────────── */}
       {ownerVerified && (
         <div className="sp-panel" role="group" aria-labelledby="own-exp-title">
-          <h3 id="own-exp-title">Add Derivative Ownership &amp; Expiry</h3>
+          <h3 id="own-exp-title">Add Derivative Stewardship &amp; Expiry</h3>
 
           <div className="sp-field">
             <label className="lbl">New Owner PhiKey</label>

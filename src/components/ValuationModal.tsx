@@ -16,6 +16,7 @@ import {
   type SigilMetadataLite,
   type ValueSeal,
 } from "../utils/valuation";
+import { DEFAULT_ISSUANCE_POLICY, quotePhiForUsd } from "../utils/phi-issuance";
 
 import { TrendingUp, Gem, ShieldCheck, UploadCloud } from "lucide-react";
 
@@ -27,7 +28,8 @@ import type { Glyph } from "../glyph/types";
 
 /* ───────── internal modularized pieces ───────── */
 import { COLORS, BREATH_MS } from "./valuation/constants";
-import { currency, pct } from "./valuation/display";
+/* ⬇︎ keep Φ everywhere via `currency`; use $ only via `usd` */
+import { currency, usd, pct } from "./valuation/display";
 import { supportsDialog } from "./valuation/platform";
 import {
   useIsMounted,
@@ -49,16 +51,13 @@ import {
   momentRarityLiftFromPulse,
   genesisProximityLift,
 } from "./valuation/rarity";
-import {
-  sha256HexStable,
-} from "./valuation/asset";
+import { sha256HexStable } from "./valuation/asset";
 import DonorsEditor, { type DonorRow } from "./valuation/DonorsEditor";
 import { buildDriversSections } from "./valuation/drivers";
 
 /** ----------------------------------------------------------------
  * ValuationModal — Market Ticker + ΦGlyph Mint
  * ----------------------------------------------------------------- */
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -84,12 +83,10 @@ const devWarn = (...args: ReadonlyArray<unknown>): void => {
       // eslint-disable-next-line no-console
       console.debug(...args);
     } catch (err: unknown) {
-      // keep block non-empty without rethrowing
       void String(err);
     }
   }
 };
-
 
 /* ───────── Helpers ───────── */
 const onRipple = (e: React.MouseEvent<HTMLElement>) => {
@@ -103,7 +100,46 @@ const onRipple = (e: React.MouseEvent<HTMLElement>) => {
 
 const round6 = (n: number) => Number((Number.isFinite(n) ? n : 0).toFixed(6));
 
-/* ───────── Main Component ───────── */
+/** Split a Φ value into integer and fractional parts for crisp typography */
+const formatPhiParts = (val: number): { int: string; frac: string } => {
+  const n = Number.isFinite(val) ? val : 0;
+  const s = n.toFixed(6);
+  const [i, f] = s.split(".");
+  return { int: i, frac: f ? `.${f}` : "" };
+};
+
+/** Compact numeric to 6dp, trimming trailing zeros */
+const tiny = (n: number) => {
+  if (!Number.isFinite(n)) return "0";
+  const s = n.toFixed(6);
+  return s.replace(/0+$/g, "").replace(/\.$/, "");
+};
+
+/** Robust mobile detection to force bottom-sheet fallback where dialog is flaky */
+const useForceFallback = (stacked: boolean) => {
+  const [forceFallback, setForceFallback] = useState(false);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isAndroidWebView =
+      /wv/.test(ua) || /\bVersion\/\d+\.\d+ Chrome\/\d+\.\d+/.test(ua);
+
+    // Prefer the bottom-sheet on:
+    //  - iOS Safari / WebViews (dialog focus/trapping can be unreliable)
+    //  - Android WebViews
+    //  - Very small viewports (stacked layout)
+    if (isIOS || isAndroidWebView || stacked) {
+      setForceFallback(true);
+    } else {
+      setForceFallback(false);
+    }
+  }, [stacked]);
+
+  return forceFallback;
+};
+
 const ValuationModal: React.FC<Props> = ({
   open,
   onClose,
@@ -146,7 +182,6 @@ const ValuationModal: React.FC<Props> = ({
 
   // choose dialog vs fallback
   const [useFallback, setUseFallback] = useState(false);
-  const canUseModal = supportsDialog && !useFallback;
 
   useBodyScrollLock(open);
   useFocusTrap(open, chromeRef);
@@ -182,12 +217,13 @@ const ValuationModal: React.FC<Props> = ({
       ),
     [donors]
   );
+
   const totalDonorAmount = useMemo(
     () => round6(totalUrlDonorsPhi + Math.max(0, balanceForMintPhi)),
     [totalUrlDonorsPhi, balanceForMintPhi]
   );
 
-  // viewport height var for iOS
+  // viewport height var for iOS (mobile-friendly safe VH)
   useEffect(() => {
     const setVH = () => {
       if (typeof window === "undefined") return;
@@ -206,16 +242,19 @@ const ValuationModal: React.FC<Props> = ({
   // background root
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const candidates = ["#__next", "#root", "#app", "main"];
+    const candidates = ["#__next", "#root", "#app", "main", "body"];
     let root: HTMLElement | null = null;
     for (const sel of candidates) {
-      const el = document.querySelector(sel) as HTMLElement | null;
+      const el =
+        sel === "body"
+          ? (document.body as HTMLElement)
+          : (document.querySelector(sel) as HTMLElement | null);
       if (el) {
         root = el;
         break;
       }
     }
-    bgRootRef.current = root;
+    bgRootRef.current = root ?? document.body;
   }, []);
 
   // Avoid nested dialog collisions
@@ -243,28 +282,42 @@ const ValuationModal: React.FC<Props> = ({
     d.style.margin = "0 auto auto";
   }, []);
 
+  // Mobile/iOS: prefer bottom-sheet fallback to avoid native <dialog> quirks
+  const forceFallbackOnMobile = useForceFallback(stacked);
+
   // OPEN/CLOSE + a11y + force chart reflow
   useEffect(() => {
     const d = dlgRef.current;
     const bg = bgRootRef.current;
+
     const setBgHidden = (hidden: boolean) => {
       if (!bg) return;
       if (hidden) {
         bg.setAttribute("aria-hidden", "true");
-        bg.toggleAttribute("inert", true);
+        // inert attribute: add without value (boolean attribute)
+        bg.setAttribute("inert", "");
       } else {
         bg.removeAttribute("aria-hidden");
-        bg.toggleAttribute("inert", false);
+        bg.removeAttribute("inert");
       }
     };
 
-    if (supportsDialog && d) {
+    // Decide branch once per state change
+    const usingDialog =
+      supportsDialog && !useFallback && !forceFallbackOnMobile && !!d;
+
+    if (usingDialog && d) {
       if (open && !d.open) {
         Promise.resolve().then(() => {
           try {
             d.showModal();
           } catch (err) {
-            devWarn("dialog.showModal failed:", err);
+            // On iOS or quirky browsers, fall back immediately
+            devWarn("dialog.showModal failed — falling back:", err);
+            setUseFallback(true);
+            setBgHidden(true);
+            setVisible(true);
+            return;
           }
           snapDialogToTop();
           setBgHidden(true);
@@ -284,11 +337,16 @@ const ValuationModal: React.FC<Props> = ({
         });
       }
       if (!open && d.open) {
-        d.close();
+        try {
+          d.close();
+        } catch {
+          // ignore
+        }
         setBgHidden(false);
         setVisible(false);
       }
     } else {
+      // Fallback bottom sheet
       if (open) {
         setBgHidden(true);
         requestAnimationFrame(() => {
@@ -309,12 +367,12 @@ const ValuationModal: React.FC<Props> = ({
       const bg2 = bgRootRef.current;
       if (bg2) {
         bg2.removeAttribute("aria-hidden");
-        bg2.toggleAttribute("inert", false);
+        bg2.removeAttribute("inert");
       }
     };
-  }, [open, snapDialogToTop]);
+  }, [open, snapDialogToTop, useFallback, forceFallbackOnMobile]);
 
-  // Keep snapped
+  // Keep snapped on orientation/resize
   useEffect(() => {
     setReflowKey((k) => k + 1);
     snapDialogToTop();
@@ -333,20 +391,48 @@ const ValuationModal: React.FC<Props> = ({
     };
   }, [snapDialogToTop]);
 
+  // Close on Escape for fallback & normalize dialog cancel
+  useEffect(() => {
+    const d = dlgRef.current;
+    const onKey = (ev: KeyboardEvent) => {
+      if (!open) return;
+      if (ev.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+
+    if (d) {
+      const onCancel = (ev: Event) => {
+        ev.preventDefault();
+        onClose();
+      };
+      d.addEventListener("cancel", onCancel as EventListener);
+      return () => {
+        window.removeEventListener("keydown", onKey);
+        d.removeEventListener("cancel", onCancel as EventListener);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
   // Layout metrics → CSS vars
   useEffect(() => {
-    const host = (dlgRef.current ?? fallbackRef.current) as HTMLElement | null;
+    const host = (dlgRef.current ?? fallbackRef.current) as
+      | HTMLElement
+      | null;
     const headerEl = headerRef.current;
     const footerEl = footerRef.current;
 
     const update = () => {
       const headerH = headerEl?.offsetHeight ?? 0;
       const footerH = (footerEl?.offsetHeight ?? 0) + 8;
-      const innerH = typeof window !== "undefined" ? window.innerHeight : 0;
+      const innerH =
+        typeof window !== "undefined" ? window.innerHeight : 0;
 
       host?.style.setProperty("--header-h", `${headerH}px`);
       host?.style.setProperty("--footer-h", `${footerH}px`);
-
       const maxH = Math.max(240, innerH - headerH - footerH - 24);
       host?.style.setProperty("--content-max-h", `${maxH}px`);
     };
@@ -354,9 +440,13 @@ const ValuationModal: React.FC<Props> = ({
     update();
 
     const roHeader =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(update)
+        : null;
     const roFooter =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(update)
+        : null;
 
     if (headerEl && roHeader) roHeader.observe(headerEl);
     if (footerEl && roFooter) roFooter.observe(footerEl);
@@ -373,7 +463,8 @@ const ValuationModal: React.FC<Props> = ({
     };
   }, [open]);
 
-  const onBackdropPointerDown: React.PointerEventHandler<HTMLDivElement> =
+  /** Backdrop pointer-down handler used for BOTH dialog & fallback (closes on outside tap) */
+  const onBackdropPointerDown: React.PointerEventHandler<Element> =
     useCallback(
       (e) => {
         if (e.currentTarget === e.target) onClose();
@@ -392,16 +483,14 @@ const ValuationModal: React.FC<Props> = ({
           sha256HexStable
         );
         if (!alive) return;
-
         setSeal(builtSeal);
         rngRef.current = mulberry32(seedFrom(meta, nowPulse));
-
         const boot = bootstrapSeries(builtSeal, meta, nowPulse);
         setChart(boot);
-
         startRef.current = builtSeal.valuePhi;
         liveRef.current = builtSeal.valuePhi;
-        tickIndexRef.current = boot.lineData[boot.lineData.length - 1]?.i ?? 0;
+        tickIndexRef.current =
+          boot.lineData[boot.lineData.length - 1]?.i ?? 0;
         setLivePrice(builtSeal.valuePhi);
       } catch (err) {
         devWarn("buildValueSeal/bootstrap failed:", err);
@@ -421,11 +510,11 @@ const ValuationModal: React.FC<Props> = ({
       const rng = rngRef.current;
       const last = liveRef.current;
       const target = seal.valuePhi;
-
       const noise = (rng() - 0.5) * 0.032 * target; // ±3.2%
       const next = Math.max(0, last + (target - last) * 0.12 + noise);
+      const dir: "up" | "down" | null =
+        next > last ? "up" : next < last ? "down" : null;
 
-      const dir: "up" | "down" | null = next > last ? "up" : next < last ? "down" : null;
       liveRef.current = next;
       setLivePrice(next);
       setFlash(dir);
@@ -436,9 +525,14 @@ const ValuationModal: React.FC<Props> = ({
         const nextI = (tickIndexRef.current || 0) + 1;
         tickIndexRef.current = nextI;
 
-        const nextSpark = [...prev.sparkData.slice(1), { i: nextI, value: next }];
+        const nextSpark = [
+          ...prev.sparkData.slice(1),
+          { i: nextI, value: next },
+        ];
+
         const t = nextI / (prev.lineData[prev.lineData.length - 1].i + 1);
         const premiumFactor = 0.98 + 0.08 * Math.abs(Math.sin(t * Math.PI));
+
         const nextLine = [
           ...prev.lineData.slice(1),
           { i: nextI, value: next, premium: next * premiumFactor },
@@ -446,10 +540,14 @@ const ValuationModal: React.FC<Props> = ({
 
         const y = nextLine.map((p) => p.value);
         const { slope, r2 } = linreg(y);
-        const change = ((y[y.length - 1] - y[0]) / (y[0] || 1)) * 100;
+        const change =
+          ((y[y.length - 1] - y[0]) / (y[0] || 1)) * 100;
         const vol =
-          y.reduce((a, _, k) => (k ? a + Math.abs(y[k] - y[k - 1]) : 0), 0) /
-          (y.length - 1 || 1);
+          y.reduce(
+            (a, _, k) =>
+              k ? a + Math.abs(y[k] - y[k - 1]) : 0,
+            0
+          ) / (y.length - 1 || 1);
 
         return {
           sparkData: nextSpark,
@@ -475,6 +573,7 @@ const ValuationModal: React.FC<Props> = ({
       return;
     }
     if (seededRef.current) return;
+
     if (initialGlyph) {
       setImportedGlyphs([initialGlyph]);
       setBalancePhi(Math.max(0, Number(initialGlyph.value ?? 0)));
@@ -488,7 +587,10 @@ const ValuationModal: React.FC<Props> = ({
 
   // Recompute pooled hash whenever imported glyphs change
   useEffect(() => {
-    const summarize = importedGlyphs.map((g) => ({ h: g.hash, v: g.value }));
+    const summarize = importedGlyphs.map((g) => ({
+      h: g.hash,
+      v: g.value,
+    }));
     const s = JSON.stringify(summarize);
     (async () => {
       const h = await sha256HexStable(`pool:${s}`);
@@ -523,6 +625,37 @@ const ValuationModal: React.FC<Props> = ({
     return ((livePrice - start) / (start || 1)) * 100;
   }, [livePrice]);
 
+  /* ---------- Live USD quote (same model as ExhaleNote) ---------- */
+  const issuancePolicy = DEFAULT_ISSUANCE_POLICY;
+  const liveQuote = useMemo(() => {
+    try {
+      return quotePhiForUsd(
+        {
+          meta,
+          nowPulse,
+          usd: 100,
+          currentStreakDays: 0,
+          lifetimeUsdSoFar: 0,
+        },
+        issuancePolicy
+      );
+    } catch {
+      return { usdPerPhi: 0, phiPerUsd: 0 };
+    }
+  }, [meta, nowPulse, issuancePolicy]);
+
+  const usdPerPhi = liveQuote.usdPerPhi || 0;
+  const phiPerUsd = liveQuote.phiPerUsd || 0;
+
+  const usdPerPhiText = `${usd(usdPerPhi)}/Φ`;
+  const phiPerUsdText = `${tiny(phiPerUsd)} Φ/$`;
+
+  const displayPhi = Number.isFinite(livePrice)
+    ? (livePrice as number)
+    : (seal?.valuePhi ?? 0);
+  const displayUsd = displayPhi * usdPerPhi;
+  const phiUI = formatPhiParts(displayPhi);
+
   /* ───────── Moment display analysis (UI-only) ───────── */
   const momentUi = useMemo(() => {
     const claimPulse =
@@ -540,10 +673,11 @@ const ValuationModal: React.FC<Props> = ({
 
     const pulsesPerBeat = seal?.inputs?.pulsesPerBeat || 44;
     const yearPulsesApprox = 36 * pulsesPerBeat * 11 * 336;
+
     const genesisX = genesisProximityLift(claimPulse, yearPulsesApprox);
     const claimX = momentRarityLiftFromPulse(claimPulse);
-
     const momentX = seal?.inputs?.momentLift || 1;
+
     const lineageGM = Math.max(1e-9, momentX / (claimX * genesisX));
 
     const badges: string[] = [];
@@ -584,8 +718,10 @@ const ValuationModal: React.FC<Props> = ({
   /* ───────── donors editor helpers ───────── */
   const addDonor = () =>
     setDonors((rows: DonorRow[]) => [...rows, { url: "", amount: 0 }]);
+
   const removeDonor = (idx: number) =>
     setDonors((rows: DonorRow[]) => rows.filter((_, i) => i !== idx));
+
   const updateDonor = (idx: number, patch: Partial<DonorRow>) =>
     setDonors((rows: DonorRow[]) =>
       rows.map((r, i) => (i === idx ? { ...r, ...patch } : r))
@@ -595,7 +731,6 @@ const ValuationModal: React.FC<Props> = ({
   const onMintComposite = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       onRipple(e);
-      // let the modal perform the actual mint + ZIP export
       setMintOpen(true);
     },
     []
@@ -633,15 +768,12 @@ const ValuationModal: React.FC<Props> = ({
           </span>{" "}
           Asset
         </h5>
-
         <div className="val-top-actions" role="toolbar" aria-label="Actions">
           {!stacked && (
             <>
               <div className="balance-chip" title="Pooled Φ balance">
-                Pool:&nbsp;<strong className="mono">{balancePhi.toFixed(6)}</strong>
-                &nbsp;Φ
+                Pool:&nbsp;<strong className="mono">{currency(balancePhi)}</strong>
               </div>
-
               <input
                 className="send-amt-input"
                 type="number"
@@ -660,7 +792,6 @@ const ValuationModal: React.FC<Props> = ({
                   )
                 }
               />
-
               <button
                 className="btn primary attach-btn"
                 onClick={(ev) => {
@@ -677,9 +808,9 @@ const ValuationModal: React.FC<Props> = ({
                     : "Send derivative glyph"
                 }
               >
-                <Gem size={16} /> <span className="hide-xs">Send</span>
+                <Gem size={16} />
+                <span className="hide-xs">Send</span>
               </button>
-
               <button
                 className="btn ghost small"
                 onClick={() => setImportOpen(true)}
@@ -688,7 +819,6 @@ const ValuationModal: React.FC<Props> = ({
                 <UploadCloud size={16} />
                 <span className="small hide-xs">Upload</span>
               </button>
-
               <button
                 className="btn secondary small"
                 onClick={onMintComposite}
@@ -707,7 +837,11 @@ const ValuationModal: React.FC<Props> = ({
             <span className="live-dot" /> LIVE
           </span>
 
-          <button className="btn close-btn holo" aria-label="Close" onClick={onClose}>
+          <button
+            className="btn close-btn holo"
+            aria-label="Close"
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
@@ -722,15 +856,18 @@ const ValuationModal: React.FC<Props> = ({
                 <section className="card kpi-card">
                   <header className="card-hd">
                     <div className="hd-left">
-                      <TrendingUp size={18} /> <strong>Valuation</strong>
+                      <TrendingUp size={18} />
+                      <strong>Valuation</strong>
                     </div>
                     <div className="badge dim">
                       <ShieldCheck size={16} /> Kai {seal.computedAtPulse}
                     </div>
                   </header>
+
                   <div className="card-bd">
                     <div className="kpi-row">
                       <div className="kpi-main">
+                        {/* Big Φ with inline USD — SHOW $ ONLY HERE */}
                         <div
                           className={
                             "figure-xl ticker-price " +
@@ -740,19 +877,30 @@ const ValuationModal: React.FC<Props> = ({
                               ? "flash-down"
                               : "")
                           }
-                          title="premium ×1 + intrinsic PV"
+                          title="Φ value with indicative USD"
                           aria-live="polite"
                         >
-                          {currency(livePrice ?? seal.valuePhi)}
+                          <span className="phi-mark" aria-hidden>
+                            Φ
+                          </span>
+                          <span className="phi-int">{phiUI.int}</span>
+                          <span className="phi-frac">{phiUI.frac}</span>
+                          {/* IMPORTANT: ensure .usd-inline CSS does NOT inject Φ via ::before */}
+                          <span className="usd-inline">≈ {usd(displayUsd)}</span>
                         </div>
+
                         <div className="subtle small kpi-subline">
                           <span
                             className={sessionChangePct >= 0 ? "gain" : "loss"}
                           >
                             {pct(sessionChangePct)}
-                          </span>{" "}
-                          session • premium ×{(seal.premium ?? 1).toFixed(6)} •
-                          moment ×{(seal.inputs.momentLift ?? 1).toFixed(6)}
+                          </span>
+                          &nbsp;session <span className="dot">•</span>{" "}
+                          {usdPerPhiText} <span className="dot">•</span>{" "}
+                          {phiPerUsdText} <span className="dot">•</span> premium ×
+                          {(seal.premium ?? 1).toFixed(6)}{" "}
+                          <span className="dot">•</span> moment ×
+                          {(seal.inputs.momentLift ?? 1).toFixed(6)}
                         </div>
                       </div>
 
@@ -769,7 +917,7 @@ const ValuationModal: React.FC<Props> = ({
                         {visible && (
                           <LiveChart
                             data={chart.lineData}
-                            live={livePrice ?? seal.valuePhi}
+                            live={displayPhi}
                             pv={Math.max(0, seal.inputs.pv_phi ?? 0)}
                             premiumX={seal.premium ?? 1}
                             momentX={seal.inputs.momentLift ?? 1}
@@ -789,11 +937,20 @@ const ValuationModal: React.FC<Props> = ({
 
                         {/* MOBILE action cluster */}
                         {stacked && visible && (
-                          <section className="card mobile-actions actions-card" aria-label="Glyph & Pool">
+                          <section
+                            className="card mobile-actions actions-card"
+                            aria-label="Glyph & Pool"
+                          >
                             <div className="card-bd">
                               <div className="actions-balance-row">
-                                <div className="balance-chip" title="Pooled Φ balance">
-                                  Pool:&nbsp;<strong className="mono">{balancePhi.toFixed(6)}</strong>&nbsp;Φ
+                                <div
+                                  className="balance-chip"
+                                  title="Pooled Φ balance"
+                                >
+                                  Pool:&nbsp;
+                                  <strong className="mono">
+                                    {currency(balancePhi)}
+                                  </strong>
                                 </div>
                               </div>
 
@@ -806,10 +963,20 @@ const ValuationModal: React.FC<Props> = ({
                                   max={balancePhi}
                                   placeholder="Φ to send"
                                   aria-label="Amount from pool to send"
-                                  value={Number.isFinite(sendAmountPhi) ? sendAmountPhi : 0}
+                                  value={
+                                    Number.isFinite(sendAmountPhi)
+                                      ? sendAmountPhi
+                                      : 0
+                                  }
                                   onChange={(e) =>
                                     setSendAmountPhi(
-                                      Math.min(Math.max(0, Number(e.currentTarget.value || 0)), balancePhi)
+                                      Math.min(
+                                        Math.max(
+                                          0,
+                                          Number(e.currentTarget.value || 0)
+                                        ),
+                                        balancePhi
+                                      )
                                     )
                                   }
                                 />
@@ -817,7 +984,8 @@ const ValuationModal: React.FC<Props> = ({
                                   className="btn primary btn-full"
                                   onClick={(ev) => {
                                     onRipple(ev);
-                                    if (pooledGlyph && sendAmountPhi > 0) setSendOpen(true);
+                                    if (pooledGlyph && sendAmountPhi > 0)
+                                      setSendOpen(true);
                                   }}
                                   aria-label="Send glyph"
                                   disabled={!pooledGlyph || sendAmountPhi <= 0}
@@ -847,7 +1015,9 @@ const ValuationModal: React.FC<Props> = ({
                                   onClick={onMintComposite}
                                   title="Exhale Temple-Glyph (ZIP)"
                                   disabled={
-                                    !donors.some((d) => d.url && d.amount > 0) && balanceForMintPhi <= 0
+                                    !donors.some(
+                                      (d) => d.url && d.amount > 0
+                                    ) && balanceForMintPhi <= 0
                                   }
                                 >
                                   Exhale
@@ -881,14 +1051,15 @@ const ValuationModal: React.FC<Props> = ({
                           >
                             <header className="card-hd">
                               <div className="hd-left">
-                                <ShieldCheck size={16} /> <strong>Drivers</strong>
+                                <ShieldCheck size={16} />
+                                <strong>Drivers</strong>
                               </div>
                               <div className="badge dim small">
                                 live&nbsp;•&nbsp;
                                 {driversSections.reduce(
                                   (n, s) => n + s.rows.length,
                                   0
-                                )}
+                                )}{" "}
                                 &nbsp;fields
                               </div>
                             </header>
@@ -906,17 +1077,22 @@ const ValuationModal: React.FC<Props> = ({
                                     ev.currentTarget.closest(
                                       ".drivers-card"
                                     ) as HTMLElement | null;
-                                  host?.style.setProperty(
-                                    "--drivers-filter",
-                                    `"${term}"`
-                                  );
+                                  if (host) {
+                                    host.style.setProperty(
+                                      "--drivers-filter",
+                                      term
+                                    );
+                                  }
                                 }}
                               />
                             </div>
 
                             <div className="drivers-panel" role="list">
                               {driversSections.map((section, i) => (
-                                <div className="drivers-section" key={`m-${i}`}>
+                                <div
+                                  className="drivers-section"
+                                  key={`m-${i}`}
+                                >
                                   <div className="drivers-title">
                                     {section.title}
                                   </div>
@@ -971,10 +1147,11 @@ const ValuationModal: React.FC<Props> = ({
                 <section className="card pool-card" aria-label="Pooled glyphs">
                   <header className="card-hd">
                     <div className="hd-left">
-                      <UploadCloud size={16} /> <strong>Pool</strong>
+                      <UploadCloud size={16} />
+                      <strong>Pool</strong>
                     </div>
                     <div className="badge dim small">
-                      Φ {balancePhi.toFixed(6)}
+                      {currency(balancePhi)}
                     </div>
                   </header>
                   <div className="card-bd">
@@ -985,10 +1162,14 @@ const ValuationModal: React.FC<Props> = ({
                     ) : (
                       <div className="pool-list" role="list">
                         {importedGlyphs.map((g, i) => (
-                          <div className="pool-item" key={`g-${i}`} role="listitem">
+                          <div
+                            className="pool-item"
+                            key={`g-${i}`}
+                            role="listitem"
+                          >
                             <div className="mono small">{g.hash}</div>
                             <div className="mono small">
-                              {Number(g.value).toFixed(6)} Φ
+                              {currency(Number(g.value))}
                             </div>
                           </div>
                         ))}
@@ -1008,7 +1189,8 @@ const ValuationModal: React.FC<Props> = ({
                   <section className="card drivers-card">
                     <header className="card-hd">
                       <div className="hd-left">
-                        <ShieldCheck size={16} /> <strong>Drivers</strong>
+                        <ShieldCheck size={16} />
+                        <strong>Drivers</strong>
                       </div>
                       <div className="badge dim small">
                         live&nbsp;•&nbsp;
@@ -1033,10 +1215,9 @@ const ValuationModal: React.FC<Props> = ({
                             ev.currentTarget.closest(
                               ".drivers-card"
                             ) as HTMLElement | null;
-                          host?.style.setProperty(
-                            "--drivers-filter",
-                            `"${term}"`
-                          );
+                          if (host) {
+                            host.style.setProperty("--drivers-filter", term);
+                          }
                         }}
                       />
                     </div>
@@ -1098,7 +1279,8 @@ const ValuationModal: React.FC<Props> = ({
           <div className="card" aria-busy="true">
             <header className="card-hd">
               <div className="hd-left">
-                <TrendingUp size={18} /> <strong>Valuation</strong>
+                <TrendingUp size={18} />
+                <strong>Valuation</strong>
               </div>
               <div className="badge dim">Loading…</div>
             </header>
@@ -1150,25 +1332,27 @@ const ValuationModal: React.FC<Props> = ({
         removeDonor={removeDonor}
         updateDonor={updateDonor}
         totalDonorAmount={totalDonorAmount}
-        // Optional identity for the minted ΦGlyph visual:
-        // userPhiKey={/* pass if you have */}
-        // kaiSignature={/* pass if you have */}
-        // creatorPublicKey={/* pass if you have */}
         onMinted={() => {
-          // You can toast/log here if desired.
+          // hook: toast/log if desired
         }}
       />
     </div>
   );
 
-  // PORTAL: dialog or bottom-sheet fallback
+  // Decide final rendering path
+  const canUseDialog =
+    supportsDialog && !useFallback && !forceFallbackOnMobile;
+
   return createPortal(
-    canUseModal ? (
+    canUseDialog ? (
       <dialog
         ref={dlgRef}
         className="valuation-modal"
         aria-label="Φ Valuation"
         aria-modal="true"
+        onPointerDown={
+          onBackdropPointerDown as React.PointerEventHandler<HTMLDialogElement>
+        }
         style={{
           position: "fixed",
           left: "50%",
@@ -1186,7 +1370,13 @@ const ValuationModal: React.FC<Props> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Φ Valuation"
-        onPointerDown={onBackdropPointerDown}
+        onPointerDown={
+          onBackdropPointerDown as React.PointerEventHandler<HTMLDivElement>
+        }
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+        tabIndex={-1}
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div

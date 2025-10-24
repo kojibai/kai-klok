@@ -57,21 +57,21 @@ export default function SigilCTA({
         {isArchived
           ? "Arkived (Burned)"
           : expired
-          ? "Eternally Sealed"
+          ? "Sealed"
           : isFutureSealed
-          ? "Eternally Sealed (Pre-Moment)"
+          ? "Sealed (Pre-Moment)"
           : exporting
           ? "Sealing…"
-          : "Inhale Ownership"}
+          : "Inhale"}
       </button>
 
       {hasPayload && (
         <>
           <button className="btn-ghost" {...stargatePress}>
-            View in Stargate
+            Stargate
           </button>
           <button className="btn-ghost" {...posterPress} title="Save a shareable poster (QR + sleek Pulse Bar)">
-            Save Sigil-Glyph
+            Sigil-Stamp
           </button>
         </>
       )}

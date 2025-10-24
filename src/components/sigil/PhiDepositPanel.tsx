@@ -277,7 +277,7 @@ export default function PhiDepositPanel(props: PhiDepositPanelProps) {
         <span
           title={
             ownerVerified
-              ? "Ownership/valuation verified"
+              ? "Stewardship/valuation verified"
               : ownershipMsg || "Upload any Φkey glyph to verify and valuate"
           }
           style={{
@@ -292,7 +292,7 @@ export default function PhiDepositPanel(props: PhiDepositPanelProps) {
             color: ownerVerified ? "#061012" : "#cfe9e1",
           }}
         >
-          {ownerVerified ? "OWNER VERIFIED" : "VERIFY OWNERSHIP"}
+          {ownerVerified ? "STEWARD VERIFIED" : "VERIFY STEWARDSHIP"}
         </span>
       </header>
 

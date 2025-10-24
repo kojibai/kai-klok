@@ -152,10 +152,10 @@ export default function SigilMetaPanel({
 
         <div className="sp-actions">
           <button className="btn-ghost" {...copyLinkPress} aria-label="Copy link">
-            Kopy Link
+            Kopy
           </button>
           <button className="btn-ghost" {...sharePress} aria-label="Share">
-            Share Link
+            Share
           </button>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function SigilMetaPanel({
         <div className="sp-epulse">
           <div className="epulse-card">
             <div className="epulse-head">
-              <div className="epulse-label">Kai ☤ (Eternal Breath)</div>
+              <div className="epulse-label">Kai ☤</div>
               <div className="epulse-value">{payload.pulse.toLocaleString()}</div>
             </div>
           </div>
@@ -252,16 +252,16 @@ export default function SigilMetaPanel({
 
             {/* ── Live window ─────────────────────────────────────────── */}
             <div className="sp-meta-row">
-              <span className="lbl">Sealing Window</span>
+              <span className="lbl">Inhale Step</span>
               <span>
                 {isArchived
                   ? "Arkived (transfer burned)"
                   : isFutureSealed
-                  ? "Eternally Sealed (pre-moment)"
+                  ? "Sealed (pre-moment)"
                   : pulsesLeft == null
                   ? "—"
                   : pulsesLeft === 0
-                  ? "Klosed"
+                  ? "Sealed"
                   : `${pulsesLeft} Breath${pulsesLeft === 1 ? "" : "s"} left`}
               </span>
             </div>

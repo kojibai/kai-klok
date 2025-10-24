@@ -84,7 +84,7 @@ export default function OwnershipVerifierModal({
 
   return (
     <div className="sp-panel" role="group" aria-labelledby="own-title">
-      <h3 id="own-title">Ownership</h3>
+      <h3 id="own-title">Stewardship</h3>
 
       <div className="sp-field">
         <label className="lbl">Upload Φkey of the Sigil-Glyph</label>
@@ -92,10 +92,10 @@ export default function OwnershipVerifierModal({
           type="button"
           className={`btn-primary btn-primary--xl ${isArchived ? "is-disabled" : ""}`}
           aria-disabled={isArchived}
-          title={isArchived ? "Archived link — cannot verify here" : "Verify Ownership"}
+          title={isArchived ? "Archived link — cannot verify here" : "Verify"}
           onClick={() => !isArchived && setOpen(true)}
         >
-          {isArchived ? "Archived" : "Verify Ownership"}
+          {isArchived ? "Archived" : "Verify"}
         </button>
       </div>
 
@@ -110,7 +110,7 @@ export default function OwnershipVerifierModal({
         <div className="ovm-backdrop" role="dialog" aria-modal="true" aria-labelledby="ovm-title">
           <div className="ovm-dialog">
             <div className="ovm-header">
-              <h4 id="ovm-title" className="ovm-title">Verify Ownership</h4>
+              <h4 id="ovm-title" className="ovm-title">Verify Stewardship</h4>
               <button className="ovm-close" aria-label="Close" onClick={() => setOpen(false)}>✕</button>
             </div>
 
