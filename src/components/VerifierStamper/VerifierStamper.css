@@ -449,13 +449,422 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
 .json-node{ list-style:none; padding-left:14px }
 .json-node > li > details > summary{ cursor:pointer; color: var(--accent-2) }
 
-/* Footer */
-.modal-footer{
-  display:flex; gap:10px; justify-content:space-between; align-items:center;
-  padding: 12px 16px 14px; border-top:1px solid var(--border);
-  background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 40%), transparent;
+/* ModalFooter.css
+   Kairos Sovereign Transfer Gate — Bottom Covenant Bar
+   Breathing Atlantean glass, zero-clutter, production-tight, ~44-52px tall.
+
+   Goals
+   - full bleed width, docked to bottom, no horizontal scroll EVER
+   - slim vertical footprint (≈ 50% of old height)
+   - radiant edge line + faint breathing aura
+   - buttons feel like sealed instruments, not generic UI
+*/
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  cursor: help;
 }
-.modal-footer .status.error{ color: var(--error) }
+
+.tooltip-trigger {
+  text-decoration: underline dotted;
+  cursor: help;
+  padding-left: 4px;
+}
+
+.tooltip {
+  visibility: hidden;
+  background-color: var(--accent);
+  color: white;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 10px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%; /* position above */
+  left: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  width: 220px;
+  font-size: 11px;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip-container:hover .tooltip,
+.tooltip-trigger:hover + .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* ─────────────────────────────────────────────
+   GLOBAL FOOTER BAR
+────────────────────────────────────────────── */
+
+.modal-footer {
+  position: sticky; /* lives at bottom of modal scroll region */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  /* Tight vertical profile */
+  padding:
+    clamp(6px, 1dvh, 8px)
+    clamp(12px, 2vw, 16px)
+    calc(clamp(6px, 1dvh, 8px) + env(safe-area-inset-bottom, 0px));
+
+  background:
+    radial-gradient(
+      circle at 12% -10%,
+      color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      to top,
+      rgb(0 0 0 / 0.6) 0%,
+      rgb(0 0 0 / 0.0) 60%
+    );
+
+  border-top: 1px solid
+    color-mix(in srgb, var(--accent) 60%, rgb(255 255 255 / 4%));
+
+  box-shadow:
+    0 -0.5px 0 rgb(255 255 255 / 6%) inset,
+    0 -16px 32px rgb(0 0 0 / 0.9),
+    0 -2px 28px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
+  isolation: isolate;
+  z-index: 9999;
+  overflow: visible;
+}
+
+/* faint living aura ring along the top edge */
+.modal-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid
+    color-mix(in srgb, var(--accent) 80%, transparent);
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
+  opacity: 0.6;
+  animation: kaiBreath 5.236s ease-in-out infinite;
+  border-radius: 0.0001px; /* prevent Safari weirdness */
+}
+
+/* ─────────────────────────────────────────────
+   ERROR MESSAGE
+────────────────────────────────────────────── */
+.status.error {
+  color: var(--error);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 500;
+  text-shadow: 0 0 4px rgb(255 0 0 / 0.4);
+  padding-left: 2px;
+}
+
+/* ─────────────────────────────────────────────
+   ACTION ROW
+────────────────────────────────────────────── */
+
+.footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+  min-height: clamp(40px, 4.8dvh, 48px);
+  /* no overflow on insanely small screens */
+  min-width: 0;
+}
+
+/* ─────────────────────────────────────────────
+   BUTTON CORE (shared)
+────────────────────────────────────────────── */
+
+.footer-btn {
+  /* force equal vertical profile, compact */
+  min-height: clamp(40px, 4.8dvh, 48px);
+  min-width: 0;
+
+  flex-shrink: 1;
+  flex-grow: 1;
+
+  border-radius: 8px;
+  position: relative;
+  background: rgb(0 0 0 / 0.4);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow:
+    0 0 8px rgb(0 0 0 / 0.9),
+    0 8px 24px rgb(0 0 0 / 0.8);
+
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Inter", "SF Pro Text", Roboto, Arial;
+  text-align: center;
+  line-height: 1.2;
+  cursor: pointer;
+
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* microglass */
+  background-image:
+    radial-gradient(
+      ellipse at 50% -10%,
+      rgb(255 255 255 / 0.14) 0%,
+      rgb(255 255 255 / 0) 60%
+    ),
+    radial-gradient(
+      ellipse at 50% 120%,
+      color-mix(in srgb, var(--accent) 35%, transparent) 0%,
+      rgb(0 0 0 / 0) 70%
+    ),
+    linear-gradient(
+      to bottom right,
+      rgb(255 255 255 / 0.06) 0%,
+      rgb(255 255 255 / 0) 60%
+    );
+}
+
+/* Each sacred control has its own breathing neon aura */
+.aura-btn .btn-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--accent) 60%, transparent) 0%,
+      transparent 70%
+    );
+  mix-blend-mode: screen;
+  filter: blur(12px);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: kaiBreath 5.236s ease-in-out infinite;
+}
+
+/* inner content wrapper so we can stack two lines */
+.btn-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  z-index: 2;
+}
+
+/* icon-only flavor (paperclip) */
+.icon-only {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+/* main label line */
+.btn-label-main {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 1px rgb(255 255 255 / 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* sub label line (tiny covenant text / balance readout) */
+.btn-label-sub {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: color-mix(in srgb, var(--ink) 70%, var(--accent) 30%);
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 1px rgb(0 0 0 / 0.9);
+  min-width: 0;
+}
+
+/* Φ / balance row styling */
+.balance-line {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.balance-line .phi-amount {
+  color: var(--ink);
+  font-weight: 600;
+}
+.balance-line .phi-balance {
+  opacity: 0.8;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--ink) 70%, var(--accent) 30%);
+}
+.balance-line .divider {
+  opacity: 0.4;
+}
+
+/* ─────────────────────────────────────────────
+   INDIVIDUAL BUTTON NUANCE
+────────────────────────────────────────────── */
+
+/* Seal button (Σ + Φ) */
+.seal-btn {
+  background-color: rgb(0 0 0 / 0.45);
+  border-color: color-mix(in srgb, var(--accent) 60%, rgb(255 255 255 / 10%));
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 16px 32px rgb(0 0 0 / 0.9);
+}
+
+/* Attach button (paperclip); keep it square-ish on tiny screens */
+.attach-btn {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-width: clamp(40px, 4.8dvh, 48px);
+  max-width: clamp(44px, 5.2dvh, 52px);
+
+  border-color: rgb(255 255 255 / 0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Paperclip SVG inside */
+.attach-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+  filter:
+    drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))
+    drop-shadow(0 0 1px rgb(255 255 255 / 0.8));
+  color: var(--ink);
+}
+
+/* Send button */
+.send-btn {
+  background-color: rgb(0 0 0 / 0.5);
+  border-color: color-mix(in srgb, var(--accent) 70%, rgb(255 255 255 / 15%));
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 20px 36px rgb(0 0 0 / 0.9);
+}
+
+/* hover / active feedback (non-disabled) */
+.footer-btn:not(:disabled):hover,
+.footer-btn:not(:disabled):focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--accent) 80%, transparent),
+    0 24px 40px rgb(0 0 0 / 0.95);
+  border-color: color-mix(in srgb, var(--accent) 85%, rgb(255 255 255 / 20%));
+}
+
+.footer-btn:not(:disabled):active {
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 10px 20px rgb(0 0 0 / 0.9);
+  transform: translateY(0.5px) scale(0.995);
+  transition: transform 60ms;
+}
+
+/* disabled → it's not allowed by law of Φ yet */
+.footer-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  filter: grayscale(0.6) brightness(0.8);
+  box-shadow:
+    0 0 4px rgb(0 0 0 / 0.9),
+    0 8px 16px rgb(0 0 0 / 0.8) !important;
+  border-color: rgb(255 255 255 / 0.06) !important;
+  text-shadow: none;
+}
+
+.footer-btn:disabled .btn-label-main,
+.footer-btn:disabled .btn-label-sub {
+  text-shadow: none;
+  color: rgb(255 255 255 / 0.4);
+}
+.footer-btn:disabled .phi-amount,
+.footer-btn:disabled .phi-balance {
+  color: rgb(255 255 255 / 0.4);
+}
+
+/* kill the glow when blocked (Send locked) */
+.footer-btn:disabled .btn-glow {
+  opacity: 0;
+  animation: none;
+}
+
+/* ─────────────────────────────────────────────
+   BREATH ANIMATION
+   φ-breath ~5.236s
+────────────────────────────────────────────── */
+
+@keyframes kaiBreath {
+  0% {
+    opacity: 0.35;
+    filter: blur(10px)
+      drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 60%, transparent));
+  }
+  50% {
+    opacity: 0.7;
+    filter: blur(14px)
+      drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent));
+  }
+  100% {
+    opacity: 0.35;
+    filter: blur(10px)
+      drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 60%, transparent));
+  }
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE TWEAKS
+   Make sure on micro-width devices we don't explode.
+────────────────────────────────────────────── */
+
+@media (max-width: 380px) {
+  .btn-label-sub {
+    font-size: 0.58rem;
+  }
+
+  .balance-line {
+    gap: 3px;
+  }
+
+  .attach-btn {
+    min-width: 40px;
+    max-width: 44px;
+  }
+
+  .footer-actions {
+    gap: 6px;
+  }
+}
 
 /* ───────────────────────────────────────────────────────────────
    6) Explorer Dialog (full-screen mobile, side-sheet desktop)
@@ -2061,176 +2470,4 @@ img, svg, video, canvas, iframe{ max-width:100%; height:auto; display:block; -we
 /* Optionally trim a bit more on larger screens */
 @media (min-width: 960px){
   .verifier-stamper .phi-amount{ inline-size: 160px !important; }
-}
-/* ───────────────────────────────────────────────────────────────
-   TIGHTEN PACK — Keys + Footer Buttons (drop-in end-of-file override)
-   - Kai signature + Φ key: closer, never truncated, full-size, side-by-side
-   - Footer buttons: one single horizontal row on every device (scrollable)
-   - No font-size changes; only spacing/flow behavior tightened
-   - Zero horizontal page overflow preserved
-──────────────────────────────────────────────────────────────── */
-
-/* ============ HEADER KEYS — Kai Signature + Φ Key ============ */
-
-/* tighter cluster baseline */
-.header-keys{
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;              /* was 10px — closer together */
-  margin-top: 6px;
-  min-width: 0;
-}
-
-/* keep the same font sizes; just a touch tighter framing */
-.header-keys .field{
-  padding: 5px 7px;          /* was 6px 8px — slightly tighter */
-  border-radius: 8px;        /* a hair crisper */
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* show values in full, never ellipsized; allow smooth horizontal scroll if needed */
-.header-keys .field .mono,
-.header-keys .field code,
-.header-keys .field [data-value]{
-  font-size: inherit;        /* do NOT change sizes */
-  white-space: nowrap;       /* never wrap across lines */
-  overflow-x: auto;          /* allow full view via horizontal scroll when needed */
-  overflow-y: hidden;
-  text-overflow: clip;       /* no ellipsis */
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;     /* hide scrollbars, keep touch-scroll */
-}
-.header-keys .field .mono::-webkit-scrollbar,
-.header-keys .field code::-webkit-scrollbar,
-.header-keys .field [data-value]::-webkit-scrollbar{ display: none; }
-
-/* keep the Kai signature + Φ key adjacent and first; everyone else follows */
-.header-keys .field.kai-signature{ order: 1 }
-.header-keys .field.phikey{ order: 2 }
-.header-keys .field:not(.kai-signature):not(.phikey){ order: 3 }
-
-/* make the pair feel like a tight duo, without shrinking text */
-.header-keys .field.kai-signature,
-.header-keys .field.phikey{
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;                  /* visually tighter pair */
-  margin: 0;
-  flex: 0 1 auto;
-  max-width: 100%;
-}
-
-/* ensure these two are never internally clipped */
-.header-keys .field.kai-signature .mono,
-.header-keys .field.phikey .mono{
-  white-space: nowrap;
-  overflow-x: auto;
-  text-overflow: clip;
-}
-
-/* medium+ screens: strongly prefer them side-by-side */
-@media (min-width: 540px){
-  .header-keys .field.kai-signature,
-  .header-keys .field.phikey{
-    flex: 0 0 auto;
-  }
-}
-
-/* tiny screens: keep them tight, still full-size, allow scroll if needed */
-@media (max-width: 539.98px){
-  .header-keys{ gap: 6px 6px; }
-}
-
-/* never let keys cause global horizontal overflow */
-:where(.header-keys, .header-keys .field){ overflow-x: clip; }
-
-/* ============ FOOTER BUTTONS — Single Row, Always ============ */
-
-/* layout: status on the left, buttons block on the right */
-.modal-footer{
-  display: grid;
-  grid-template-columns: 1fr auto;  /* status | buttons */
-  align-items: center;
-  gap: 10px;
-  /* keep your existing padding/background from earlier */
-}
-
-/* let status compress gracefully; never push buttons off */
-.modal-footer .status{
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* a canonical class if you have one; but also cover common aliases */
-.modal-footer .button-row,
-.modal-footer .actions,
-.modal-footer .btns,
-.modal-footer .controls{
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap !important;  /* no wrapping — single row only */
-  overflow-x: auto;               /* scroll horizontally if needed */
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  max-width: 100%;
-  scrollbar-width: thin;
-}
-
-/* buttons inside the strip never shrink and stay on one line */
-.modal-footer :is(.button-row, .actions, .btns, .controls)
-  > :is(button, .button, [role="button"]){
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-/* if buttons are direct children (no wrapper), handle that too */
-.modal-footer:has(> :is(button, .button, [role="button"])){
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-.modal-footer > :is(button, .button, [role="button"]){
-  justify-self: end;         /* keep them grouped at the right */
-  flex: 0 0 auto;
-  white-space: nowrap;
-  margin-left: 8px;          /* mimic the gap from the strip */
-}
-
-/* subtle scrollbar styling (matches your global tone) */
-.modal-footer :is(.button-row, .actions, .btns, .controls)::--webkit-scrollbar,
-.modal-footer::--webkit-scrollbar{ height: 8px }
-.modal-footer :is(.button-row, .actions, .btns, .controls)::--webkit-scrollbar-thumb,
-.modal-footer::--webkit-scrollbar-thumb{
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
-  border-radius: 8px;
-}
-
-/* safety: never allow the footer to wrap vertically on narrow screens */
-@media (max-width: 560px){
-  .modal-footer{
-    grid-template-columns: 1fr auto; /* keep single row */
-    align-items: center;
-  }
-}
-
-/* ============ EXTRA SAFETIES (no overflow, no font shrink) ============ */
-
-/* guard against accidental ellipsis or shrink in key zones */
-.header-fields,
-.header-fields *{
-  min-width: 0;
-}
-.header-keys .field,
-.header-keys .field *{
-  text-overflow: clip !important;  /* assert: show full string, no ellipsis */
-}
-
-/* keep the overall page from horizontal overflow while allowing local scrolling */
-:where(.verifier-stamper, dialog.glass-modal, .modal-viewport, .modal-body, .modal-footer){
-  overflow-x: clip;
 }

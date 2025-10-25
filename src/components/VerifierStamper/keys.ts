@@ -9,11 +9,18 @@ const KEY_PUB = "kairos:key:spki";
 const algo = { name: "ECDSA", namedCurve: "P-256" } as const;
 const sigParams = { name: "ECDSA", hash: "SHA-256" } as const;
 
+/**
+ * Create a fresh ArrayBuffer copy from any Uint8Array, guaranteeing the
+ * backing buffer is a real ArrayBuffer (not SharedArrayBuffer/ArrayBufferLike).
+ */
 function u8ToBuf(u8: Uint8Array): ArrayBuffer {
-  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+  const ab = new ArrayBuffer(u8.byteLength);
+  new Uint8Array(ab).set(u8);
+  return ab;
 }
 
 async function importPriv(pkcs8: ArrayBuffer) {
+  // WebCrypto accepts BufferSource; we pass a clean ArrayBuffer.
   return crypto.subtle.importKey("pkcs8", pkcs8, algo, true, ["sign"]);
 }
 async function importPub(spki: ArrayBuffer) {
@@ -21,11 +28,11 @@ async function importPub(spki: ArrayBuffer) {
 }
 
 async function exportPriv(pk: CryptoKey): Promise<string> {
-  const pkcs8 = await crypto.subtle.exportKey("pkcs8", pk);
+  const pkcs8 = await crypto.subtle.exportKey("pkcs8", pk); // ArrayBuffer
   return b64u.encode(new Uint8Array(pkcs8));
 }
 async function exportPub(pk: CryptoKey): Promise<string> {
-  const spki = await crypto.subtle.exportKey("spki", pk);
+  const spki = await crypto.subtle.exportKey("spki", pk); // ArrayBuffer
   return b64u.encode(new Uint8Array(spki));
 }
 
@@ -41,8 +48,11 @@ export async function loadOrCreateKeypair(): Promise<Keypair> {
     const spkiB64 = localStorage.getItem(KEY_PUB);
 
     if (pkcs8B64 && spkiB64) {
-      const priv = await importPriv(u8ToBuf(b64u.decode(pkcs8B64)));
-      const pub = await importPub(u8ToBuf(b64u.decode(spkiB64)));
+      // Decode → force real ArrayBuffer → import
+      const privBytes = b64u.decode(pkcs8B64); // Uint8Array<ArrayBufferLike>
+      const pubBytes = b64u.decode(spkiB64);   // Uint8Array<ArrayBufferLike>
+      const priv = await importPriv(u8ToBuf(privBytes));
+      const pub = await importPub(u8ToBuf(pubBytes));
       return { priv, pub, spkiB64u: spkiB64 };
     }
 
@@ -57,14 +67,21 @@ export async function loadOrCreateKeypair(): Promise<Keypair> {
 }
 
 export async function signB64u(priv: CryptoKey, msg: Uint8Array): Promise<string> {
-  const sig = await crypto.subtle.sign(sigParams, priv, msg);
+  // Pass an explicit ArrayBuffer to satisfy strict BufferSource typing.
+  const msgBuf = u8ToBuf(msg);
+  const sig = await crypto.subtle.sign(sigParams, priv, msgBuf);
   return b64u.encode(new Uint8Array(sig));
 }
 
 export async function verifySig(pubB64u: string, msg: Uint8Array, sigB64u: string): Promise<boolean> {
-  const pub = await importPub(u8ToBuf(b64u.decode(pubB64u)));
-  const sig = b64u.decode(sigB64u);
-  return crypto.subtle.verify(sigParams, pub, sig, msg);
+  const pubBytes = b64u.decode(pubB64u);   // Uint8Array<ArrayBufferLike>
+  const pub = await importPub(u8ToBuf(pubBytes));
+
+  const sigBytes = b64u.decode(sigB64u);   // Uint8Array<ArrayBufferLike>
+  const sigBuf = u8ToBuf(sigBytes);
+  const msgBuf = u8ToBuf(msg);
+
+  return crypto.subtle.verify(sigParams, pub, sigBuf, msgBuf);
 }
 
 // Ensure named exports are visible to the module loader

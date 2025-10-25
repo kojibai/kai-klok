@@ -25,6 +25,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import "./VerifierStamper.css";
+import SendPhiAmountField from "./SendPhiAmountField";
 
 /* Error boundary prevents the whole app from crashing if VerifierStamper throws */
 class VerifierErrorBoundary extends React.Component<
@@ -637,7 +638,7 @@ const VerifierStamperInner: React.FC = () => {
 
   /* Canonical (parent or child) + context flag */
   const [canonical, setCanonical] = useState<string | null>(null);
-  const [canonicalContext, setCanonicalContext] = useState<"parent" | "child" | null>(null);
+  const [canonicalContext, setCanonicalContext] = useState<"parent" | "derivative" | null>(null);
 
   /* Modal open/close helpers */
   const openVerifier = () => {
@@ -829,7 +830,7 @@ const VerifierStamperInner: React.FC = () => {
       if (used || lastClosed) {
         return { canonical: childCanon, context: "parent" as const };
       }
-      return { canonical: childCanon, context: "child" as const };
+      return { canonical: childCanon, context: "derivative" as const };
     }
 
     // Ephemeral CHILD (open transfer)
@@ -853,7 +854,7 @@ const VerifierStamperInner: React.FC = () => {
       leafSend: sendLeaf,
     });
     const childCanonical = (await sha256Hex(seed)).toLowerCase();
-    return { canonical: childCanonical, context: "child" as const };
+    return { canonical: childCanonical, context: "derivative" as const };
   }, [isPersistedChild]);
 
   /* Child lock/expiry inspection */
@@ -960,7 +961,7 @@ const VerifierStamperInner: React.FC = () => {
     const m2 = await refreshHeadWindow(m);
 
     // Effective canonical (parent or child)
-    let effCtx: "parent" | "child" | null = null;
+    let effCtx: "parent" | "derivative" | null = null;
     try {
       const eff = await computeEffectiveCanonical(m2);
       setCanonical(eff.canonical);
@@ -992,7 +993,7 @@ const VerifierStamperInner: React.FC = () => {
         childUsed,
         childExpired,
         parentOpenExpired,
-        isChildContext: effCtx === "child",
+        isChildContext: effCtx === "derivative",
       })
     );
 
@@ -1198,7 +1199,7 @@ const VerifierStamperInner: React.FC = () => {
       const isUnsigned = !mNew.kaiSignature;
 
       // effective canonical / context
-      let effCtx: "parent" | "child" | null = null;
+      let effCtx: "parent" | "derivative" | null = null;
       try {
         const eff = await computeEffectiveCanonical(mNew);
         setCanonical(eff.canonical);
@@ -1235,7 +1236,7 @@ const VerifierStamperInner: React.FC = () => {
           childUsed,
           childExpired,
           parentOpenExpired,
-          isChildContext: effCtx === "child",
+          isChildContext: effCtx === "derivative",
         })
       );
     },
@@ -1395,7 +1396,7 @@ const VerifierStamperInner: React.FC = () => {
   }, [meta?.transfers]);
 
   const lastTransfer = useMemo(() => (meta?.transfers ?? []).slice(-1)[0], [meta?.transfers]);
-  const isChildContext = useMemo(() => canonicalContext === "child", [canonicalContext]);
+  const isChildContext = useMemo(() => canonicalContext === "derivative", [canonicalContext]);
 
   const basePhiScaled = useMemo(() => {
     if (isChildContext) {
@@ -1624,7 +1625,7 @@ const VerifierStamperInner: React.FC = () => {
       return;
     }
     if (reqScaled > remainingPhiScaled) {
-      setError(`Exhale exceeds remaining Φ — requested Φ ${fromScaledBigFixed(reqScaled, 4)} but only Φ ${remainingPhiDisplay4} remains on this glyph.`);
+      setError(`Exhale exceeds resonance Φ — requested Φ ${fromScaledBigFixed(reqScaled, 4)} but only Φ ${remainingPhiDisplay4} remains on this glyph.`);
       return;
     }
 
@@ -2085,7 +2086,7 @@ const VerifierStamperInner: React.FC = () => {
     const anyZkVerified = (meta?.hardenedTransfers ?? []).some((ht) => !!(ht.zkSend?.verified || ht.zkReceive?.verified));
     if (anyZkVerified) push(<IconCircle key="zk" kind="ok" title="Zero-knowledge proof verified"><Svg path="zk" /></IconCircle>);
 
-    const isChildContextLocal = canonicalContext === "child";
+    const isChildContextLocal = canonicalContext === "derivative";
     if (isChildContextLocal && childUsed) push(<IconCircle key="used" kind="warn" title="Transfer link used"><Svg path="lock" /></IconCircle>);
     if (isChildContextLocal && childExpired) push(<IconCircle key="expired" kind="warn" title="Transfer link expired"><Svg path="timer" /></IconCircle>);
     if (canonicalContext === "parent" && parentOpenExp) push(<IconCircle key="pexp" kind="warn" title="Send expired"><Svg path="timer" /></IconCircle>);
@@ -2156,9 +2157,9 @@ const VerifierStamperInner: React.FC = () => {
                       className={`value-chip phi ${headerTrend}${headerFlash ? " flash" : ""}`}
                       data-trend={headerTrend}
                       title={
-                        canonicalContext === "child"
-                          ? "Remaining Φ for this child link"
-                          : "Remaining Φ on this glyph"
+                        canonicalContext === "derivative"
+                          ? "Resonance Φ for this derivative glyph"
+                          : "Resonance Φ on this glyph"
                       }
                     >
                       <span className="amount">
@@ -2183,17 +2184,17 @@ const VerifierStamperInner: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Mode banners */}
-                  {isSendFilename && (
-                    <div className="child-banner" style={{ fontSize: 12, opacity: 0.9, marginTop: 6 }}>
-                     <strong>11 Steps (121 Breaths) From Last Exhale</strong> to <strong>INHALE</strong>   
-                    </div>
-                  )}
-                  {canonicalContext === "child" && !isSendFilename && (
-                    <div className="child-banner" style={{ fontSize: 12, opacity: 0.9, marginTop: 6 }}>
-                      Child link view: Remaining Φ equals the Φ exhaled into this link.
-                    </div>
-                  )}
+               {isSendFilename && (
+  <div className="child-banner tooltip-container" style={{ fontSize: 10, opacity: 0.9, marginTop: 6 }}>
+    <strong>11 Steps from Exhale</strong> <span className="tooltip-trigger">INHALE:</span>
+    <div className="tooltip">
+      You have 11 steps (121 pulses) to inhale & seal this Sigil.
+      After this period, INHALE is permanently finalized & the Sigil is eternally sealed.
+    </div>
+  </div>
+)}
+
+            
                 </div>
               </header>
 
@@ -2292,14 +2293,14 @@ const VerifierStamperInner: React.FC = () => {
 
                     {/* Remaining Φ is the single source of truth */}
                     <div className="kv">
-                      <span className="k">{canonicalContext === "child" ? "Child Remaining Φ" : "Remaining Φ"}</span>
+                      <span className="k">{canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance"}</span>
                       <span className="v">Φ {remainingPhiDisplay4}</span>
                     </div>
 
                     {/* If child, show the fixed allocation clearly */}
-                    {canonicalContext === "child" && (
+                    {canonicalContext === "derivative" && (
                       <div className="kv">
-                        <span className="k">Allocation (this child)</span>
+                        <span className="k">Allocation (this derivative)</span>
                         <span className="v">
                           Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
                           {" · $"}
@@ -2318,7 +2319,7 @@ const VerifierStamperInner: React.FC = () => {
                     )}
 
                     {/* Child lock/expiry info */}
-                    {canonicalContext === "child" && (
+                    {canonicalContext === "derivative" && (
                       <>
                         {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
                           <div className="kv">
@@ -2547,165 +2548,141 @@ const VerifierStamperInner: React.FC = () => {
               </section>
 
               {/* Footer */}
-              <footer className="modal-footer" style={{ position: "sticky", bottom: 0 }}>
-                {error && (
-                  <p className="status error" style={{ overflowWrap: "anywhere" }}>
-                    {error}
-                  </p>
-                )}
+<footer className="modal-footer" style={{ position: "sticky", bottom: 0 }}>
+  {error && (
+    <p className="status error" style={{ overflowWrap: "anywhere" }}>
+      {error}
+    </p>
+  )}
 
-                <div className="footer-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {uiState === "unsigned" && (
-                    <button className="secondary" onClick={sealUnsigned}>
-                      Seal content (Σ + Φ)
-                    </button>
-                  )}
+  <div
+    className="footer-actions"
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",          // ← NEW: allow a controlled wrap
+      width: "100%",             // ← NEW: full width
+      boxSizing: "border-box",   // ← NEW
+    }}
+  >
+    {uiState === "unsigned" && (
+      <button className="secondary" onClick={sealUnsigned}>
+        Seal content (Σ + Φ)
+      </button>
+    )}
 
-                  {(uiState === "readySend" || uiState === "verified") && (
-                    <>
-                      <button
-                        className="secondary"
-                        onClick={() => fileInput.current?.click()}
-                        aria-label="Attach a file"
-                        title="Attach a file"
-                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, padding: 0 }}
-                      >
-                        <Svg path="paperclip" label="Attach" />
-                      </button>
-                      <input ref={fileInput} type="file" hidden onChange={handleAttach} />
+    {(uiState === "readySend" || uiState === "verified") && (
+      <>
+   
+<SendPhiAmountField
+  amountMode={amountMode}
+  setAmountMode={setAmountMode}
+  usdInput={usdInput}
+  phiInput={phiInput}
+  setUsdInput={setUsdInput}
+  setPhiInput={(v) => setPhiInput(v)}       // keep your exact state
+  convDisplayRight={conv.displayRight}
+  remainingPhiDisplay4={remainingPhiDisplay4}
+  canonicalContext={canonicalContext}
+  phiFormatter={fmtPhiCompact}              // uses your existing formatter
+/>
 
-                      {/* Amount switcher + input */}
-                      <div className="send-amount" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div
-                          role="tablist"
-                          aria-label="Amount unit"
-                          className="seg"
-                          style={{
-                            display: "inline-grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            borderRadius: 999,
-                            border: "1px solid var(--border, rgba(255,255,255,.18))",
-                            overflow: "hidden",
-                          }}
-                        >
-                          <button
-                            role="tab"
-                            aria-selected={amountMode === "USD"}
-                            className={amountMode === "USD" ? "active" : ""}
-                            onClick={() => setAmountMode("USD")}
-                            style={{ padding: "6px 10px", fontSize: 12 }}
-                            title="Enter in dollars"
-                          >
-                            $
-                          </button>
-                          <button
-                            role="tab"
-                            aria-selected={amountMode === "PHI"}
-                            className={amountMode === "PHI" ? "active" : ""}
-                            onClick={() => setAmountMode("PHI")}
-                            style={{ padding: "6px 10px", fontSize: 12 }}
-                            title="Enter in Φ"
-                          >
-                            Φ
-                          </button>
-                        </div>
+        <button
+          className="primary"
+          onClick={send}
+          aria-label="Exhale (send)"
+          title={canShare ? "Exhale (seal & share)" : "Exhale (seal & copy link)"}
+          disabled={!canExhale}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 44,
+            height: 44,
+            padding: 0,
+            flex: "0 0 auto", // ← NEW
+          }}
+        >
+          <Svg path="send" label="Exhale" />
+        </button>
+      </>
+    )}
+     <button
+          className="secondary"
+          onClick={() => fileInput.current?.click()}
+          aria-label="Attach a file"
+          title="Attach a file"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 40,
+            height: 40,
+            padding: 0,
+            flex: "0 0 auto", // ← NEW: keep icon button compact
+          }}
+        >
+          <Svg path="paperclip" label="Attach" />
+        </button>
+        <input ref={fileInput} type="file" hidden onChange={handleAttach} />
 
-                        <input
-                          className="phi-amount"
-                          inputMode="decimal"
-                          aria-label={amountMode === "USD" ? "Dollar amount to exhale" : "Phi amount to exhale"}
-                          placeholder={amountMode === "USD" ? "$" : "Φ"}
-                          value={amountMode === "USD" ? usdInput : phiInput}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (/^\d*\.?\d*$/.test(v)) {
-                              if (amountMode === "USD") setUsdInput(v);
-                              else setPhiInput(fmtPhiCompact(v));
-                            }
-                          }}
-                          style={{
-                            width: 150,
-                            height: 36,
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid var(--border, rgba(255,255,255,.18))",
-                            background: "var(--glass, rgba(255,255,255,.06))",
-                            color: "inherit",
-                          }}
-                        />
+    {uiState === "readyReceive" && (
+      <button
+        className="primary"
+        onClick={receive}
+        aria-label="Inhale (receive)"
+        title={
+          canonicalContext === "derivative"
+            ? childExpired
+              ? "Link expired"
+              : childUsed
+              ? "Link already used"
+              : "Inhale"
+            : parentOpenExp
+            ? "Send expired"
+            : "Inhale"
+        }
+        disabled={
+          (canonicalContext === "derivative" && (childExpired || childUsed)) ||
+          (canonicalContext === "parent" && parentOpenExp)
+        }
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 44,
+          height: 44,
+          padding: 0,
+          flex: "0 0 auto", // ← NEW
+        }}
+      >
+        <Svg path="recv" label="Inhale" />
+      </button>
+    )}
 
-                        {/* Live conversion */}
-                        <div className="convert-readout" aria-live="polite" style={{ fontSize: 12, opacity: 0.9, minWidth: 90, textAlign: "left" }}>
-                          {conv.displayRight}
-                        </div>
+    {(meta?.transfers?.length ?? 0) > 0 && !isSendFilename && (
+      <button
+        className="secondary"
+        onClick={sealSegmentNow}
+        aria-label="Segment head window"
+        title="Roll current head-window into a segment (continuous)"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 40,
+          height: 40,
+          padding: 0,
+          flex: "0 0 auto", // ← NEW
+        }}
+      >
+        <Svg path="stack" label="Segment" />
+      </button>
+    )}
+  </div>
+</footer>
 
-                        {/* Remaining readout */}
-                        <div className="remaining-readout" aria-live="polite" style={{ fontSize: 12, opacity: 0.9, minWidth: 140, textAlign: "left" }} title="Remaining Φ available to exhale">
-                          {canonicalContext === "child" ? "Child Rem:" : "Rem:"} Φ {remainingPhiDisplay4}
-                        </div>
-                      </div>
-
-                      <button
-                        className="primary"
-                        onClick={send}
-                        aria-label="Exhale (send)"
-                        title={canShare ? "Exhale (seal & share)" : "Exhale (seal & copy link)"}
-                        disabled={!canExhale}
-                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, padding: 0 }}
-                      >
-                        <Svg path="send" label="Exhale" />
-                      </button>
-                    </>
-                  )}
-
-                  {/* RECEIVE:
-                      - Enabled for CHILD open links within expiry.
-                      - Disabled when expired or already used.
-                      - Parent RECEIVE also allowed if not expired.
-                    */}
-                  {uiState === "readyReceive" && (
-                    <button
-                      className="primary"
-                      onClick={receive}
-                      aria-label="Inhale (receive)"
-                      title={
-                        canonicalContext === "child"
-                          ? childExpired
-                            ? "Link expired"
-                            : childUsed
-                            ? "Link already used"
-                            : "Inhale"
-                          : parentOpenExp
-                          ? "Send expired"
-                          : "Inhale"
-                      }
-                      disabled={
-                        (canonicalContext === "child" && (childExpired || childUsed)) ||
-                        (canonicalContext === "parent" && parentOpenExp)
-                      }
-                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, padding: 0 }}
-                    >
-                      <Svg path="recv" label="Inhale" />
-                    </button>
-                  )}
-
-                  {/* Segment button:
-                      - Available if there are head-window transfers AND NOT a SEND filename child.
-                      - Segmentation no longer archives or retires; it's continuous.
-                    */}
-                  {(meta?.transfers?.length ?? 0) > 0 && !isSendFilename && (
-                    <button
-                      className="secondary"
-                      onClick={sealSegmentNow}
-                      aria-label="Segment head window"
-                      title="Roll current head-window into a segment (continuous)"
-                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, padding: 0 }}
-                    >
-                      <Svg path="stack" label="Segment" />
-                    </button>
-                  )}
-                </div>
-              </footer>
             </>
           )}
         </div>

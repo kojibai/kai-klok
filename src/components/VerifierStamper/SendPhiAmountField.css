@@ -1,0 +1,244 @@
+/* SendPhiAmountField.css
+   Atlantean Decimal Gate
+   This is the small slab where the Sovereign declares the Φ amount.
+
+   Visual goals:
+   - same divine glass language as ModalFooter.css
+   - tight, no wasted vertical space
+   - input looks like a calibrated instrument, not a chat box
+*/
+
+.phi-send-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  isolation: isolate;
+  color: var(--ink);
+}
+
+/* label stack */
+.phi-send-label {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  line-height: 1.2;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Inter", "SF Pro Text", Roboto, Arial;
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 1px rgb(255 255 255 / 0.8);
+}
+
+.phi-send-label .label-main {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.phi-send-label .label-sub {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--ink) 70%, var(--accent) 30%);
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 1px rgb(0 0 0 / 0.8);
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+/* input shell = glass capsule */
+.phi-send-inputShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  background: rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+
+  box-shadow:
+    0 0 8px rgb(0 0 0 / 0.9),
+    0 12px 24px rgb(0 0 0 / 0.8),
+    0 0 24px color-mix(in srgb, var(--accent) 50%, transparent);
+
+  padding: 10px 12px;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* prefix "Φ" glyph */
+.phi-prefix {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 1px rgb(255 255 255 / 0.9);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* the sacred input itself */
+.phi-send-input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  min-width: 0;
+  flex: 1 1 auto;
+  text-shadow:
+    0 0 8px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 1px rgb(255 255 255 / 1);
+  caret-color: color-mix(in srgb, var(--accent) 90%, white 10%);
+}
+
+/* remove iOS number spinner ghosts on some browsers */
+.phi-send-input::-webkit-outer-spin-button,
+.phi-send-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* glowing underbar, breath-synced */
+.phi-input-glow {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 6px;
+  height: 1px;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--accent) 75%, transparent) 0%,
+      transparent 70%
+    );
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 2px rgb(255 255 255 / 0.9);
+  border-radius: 999px;
+  pointer-events: none;
+  animation: phiInputBreath 5.236s ease-in-out infinite;
+}
+
+/* breathing aura under input line, same pulse period as footer */
+@keyframes phiInputBreath {
+  0% {
+    opacity: 0.4;
+    filter: blur(6px)
+      drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 60%, transparent));
+  }
+  50% {
+    opacity: 0.9;
+    filter: blur(8px)
+      drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent));
+  }
+  100% {
+    opacity: 0.4;
+    filter: blur(6px)
+      drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 60%, transparent));
+  }
+}
+
+/* compact tweak for ultra-thin screens */
+@media (max-width: 380px) {
+  .phi-send-inputShell {
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+
+  .phi-prefix {
+    font-size: 0.75rem;
+  }
+
+  .phi-send-input {
+    font-size: 0.8rem;
+  }
+
+  .phi-send-label .label-main {
+    font-size: 0.7rem;
+  }
+
+  .phi-send-label .label-sub {
+    font-size: 0.62rem;
+  }
+}
+/* ——— Official ephemeral error toast ——— */
+.phi-error-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 86px; /* floats above sticky footer without shifting it */
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+  animation: phiToastIn 140ms ease-out;
+}
+
+.phi-error-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 14px;
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--error, #ff4d4f) 18%, rgba(0,0,0,0)) 0%,
+      rgba(0,0,0,0.55) 100%
+    );
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--error, #ff4d4f) 30%, rgba(255,255,255,0.14));
+
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.35),
+    0 18px 36px rgba(0,0,0,0.45),
+    0 0 28px color-mix(in srgb, var(--error, #ff4d4f) 36%, transparent);
+}
+
+.phi-error-card .badge {
+  letter-spacing: .06em;
+  font-weight: 700;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: white;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.08));
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.12),
+    0 0 14px color-mix(in srgb, var(--error, #ff4d4f) 40%, transparent);
+}
+
+.phi-error-card .phi-error-text {
+  margin: 0;
+  color: white;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-shadow:
+    0 0 8px rgba(0,0,0,0.7),
+    0 0 1px rgba(255,255,255,0.9);
+}
+
+@keyframes phiToastIn {
+  from { transform: translate(-50%, 8px); opacity: 0 }
+  to   { transform: translate(-50%, 0);   opacity: 1 }
+}
