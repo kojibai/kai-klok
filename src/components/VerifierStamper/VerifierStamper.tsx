@@ -2299,9 +2299,8 @@ const VerifierStamperInner: React.FC = () => {
                         </div>
                       ) : null;
                     })()}
-                  </div>
-                )}
-                                    {liveSig && (
+
+                      {liveSig && (
                       <div className="kv wide">
                         <span className="k">Live Centre-Pixel ZK Sig</span>
                         <span className="v mono" style={{ overflowWrap: "anywhere" }}>
@@ -2341,6 +2340,10 @@ const VerifierStamperInner: React.FC = () => {
                     )}
 
 
+                  </div>
+                  
+                )}
+                                  
 
 
 
