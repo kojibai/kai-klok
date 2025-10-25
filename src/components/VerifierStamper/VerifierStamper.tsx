@@ -2201,16 +2201,16 @@ const VerifierStamperInner: React.FC = () => {
               {/* Tabs */}
               <nav className="tabs" role="tablist" aria-label="Views" style={{ position: "sticky", top: 48, zIndex: 2 }}>
                 <button role="tab" aria-selected={tab === "summary"} className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>
-                  Summary
+                  Presence
                 </button>
                 <button role="tab" aria-selected={tab === "lineage"} className={tab === "lineage" ? "active" : ""} onClick={() => setTab("lineage")}>
-                  Lineage
+                  Stewardship
                 </button>
                 <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>
-                  Data
+                  Memory
                 </button>
                 <button className="secondary" onClick={openValuation} disabled={!meta}>
-                  Φ Value
+                  Resonance
                 </button>
                 <button className="secondary" onClick={openNote} disabled={!svgURL}>
                   Note
@@ -2225,6 +2225,43 @@ const VerifierStamperInner: React.FC = () => {
                       <span className="k">Now</span>
                       <span className="v">{pulseNow}</span>
                     </div>
+                                     {/* Child lock/expiry info */}
+                    {canonicalContext === "derivative" && (
+                      <>
+                        {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
+                          <div className="kv">
+                            <span className="k">One-time lock</span>
+                            <span className="v">Used</span>
+                          </div>
+                        )}
+                        {getChildLockInfo(meta, pulseNow).expireAt && (
+                          <div className="kv">
+                            <span className="k">Expires @ pulse</span>
+                            <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                         {/* If child, show the fixed allocation clearly */}
+                    {canonicalContext === "derivative" && (
+                      <div className="kv">
+                        <span className="k">Allocation (this derivative)</span>
+                        <span className="v">
+                          Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
+                          {" · $"}
+                          {fmtUsdNoSym(
+                            Number(
+                              fromScaledBig(
+                                mulScaled(
+                                  toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
+                                  usdPerPhiRateScaled
+                                )
+                              )
+                            )
+                          )}
+                        </span>
+                      </div>
+                    )}
                     <div className="kv">
                       <span className="k">Segments</span>
                       <span className="v">{meta.segments?.length ?? 0}</span>
@@ -2297,51 +2334,12 @@ const VerifierStamperInner: React.FC = () => {
                       <span className="v">Φ {remainingPhiDisplay4}</span>
                     </div>
 
-                    {/* If child, show the fixed allocation clearly */}
-                    {canonicalContext === "derivative" && (
-                      <div className="kv">
-                        <span className="k">Allocation (this derivative)</span>
-                        <span className="v">
-                          Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
-                          {" · $"}
-                          {fmtUsdNoSym(
-                            Number(
-                              fromScaledBig(
-                                mulScaled(
-                                  toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
-                                  usdPerPhiRateScaled
-                                )
-                              )
-                            )
-                          )}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Child lock/expiry info */}
-                    {canonicalContext === "derivative" && (
-                      <>
-                        {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
-                          <div className="kv">
-                            <span className="k">One-time lock</span>
-                            <span className="v">Used</span>
-                          </div>
-                        )}
-                        {getChildLockInfo(meta, pulseNow).expireAt && (
-                          <div className="kv">
-                            <span className="k">Expires @ pulse</span>
-                            <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-
                     {/* Parent open-link expiry info */}
                     {canonicalContext === "parent" && (() => {
                       const pe = getParentOpenExpiry(meta, pulseNow);
                       return pe.expireAt ? (
                         <div className="kv">
-                          <span className="k">Send expires @</span>
+                          <span className="k">Exhale expires @</span>
                           <span className="v">{pe.expireAt}</span>
                         </div>
                       ) : null;
@@ -2522,7 +2520,7 @@ const VerifierStamperInner: React.FC = () => {
                         })}
                       </ol>
                     ) : (
-                      <p className="empty">No resonance yet — ready to exhale from Sigil-Glyph.</p>
+                      <p className="empty">No stewardship yet — ready to exhale from Sigil-Glyph.</p>
                     )}
                   </div>
                 )}

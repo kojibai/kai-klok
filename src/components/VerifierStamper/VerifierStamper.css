@@ -384,7 +384,7 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
 
   /* prevent shrinking & set 72% size (20% bigger than 0.6em) */
   flex: 0 0 auto;
-  font-size: 0.72em;  /* ← update this */
+  font-size: 0.5em;  /* ← update this */
 }
 .tabs button:hover{ color: var(--ink) }
 .tabs button.active{
