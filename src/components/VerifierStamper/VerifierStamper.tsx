@@ -2175,14 +2175,7 @@ const VerifierStamperInner: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="header-keys" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {meta.kaiSignature ? <span className="field">Σ <code>{meta.kaiSignature.slice(0, 16)}…</code></span> : <span className="field warn">Unsigned</span>}
-                    {meta.userPhiKey && (
-                      <span className="field">
-                        Φ <code style={{ wordBreak: "break-all" }}>{meta.userPhiKey}</code>
-                      </span>
-                    )}
-                  </div>
+             
 
                {isSendFilename && (
   <div className="child-banner tooltip-container" style={{ fontSize: 10, opacity: 0.9, marginTop: 6 }}>
@@ -2262,6 +2255,60 @@ const VerifierStamperInner: React.FC = () => {
                         </span>
                       </div>
                     )}
+                           {meta.userPhiKey && (
+                      <div className="kv wide">
+                        <span className="k">Φ-Key</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {meta.userPhiKey}
+                          {phiKeyExpected && (phiKeyMatches ? <span className="chip ok">match</span> : <span className="chip err">mismatch</span>)}
+                        </span>
+                      </div>
+                    )}
+                                        {meta.kaiSignature && (
+                      <div className="kv wide">
+                        <span className="k">Metadata Σ</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {meta.kaiSignature}
+                          {contentSigMatches === true && <span className="chip ok">match</span>}
+                          {contentSigMatches === false && <span className="chip err">mismatch</span>}
+                        </span>
+                      </div>
+                    )}
+                    {contentSigExpected && (
+                      <div className="kv wide">
+                        <span className="k">Expected Σ</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {contentSigExpected}
+                        </span>
+                      </div>
+                    )}
+
+                                 {/* Remaining Φ is the single source of truth */}
+                    <div className="kv">
+                      <span className="k"> {canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance "} </span>
+                      <span className="v"> Φ {remainingPhiDisplay4}</span>
+                    </div>
+
+                    {/* Parent open-link expiry info */}
+                    {canonicalContext === "parent" && (() => {
+                      const pe = getParentOpenExpiry(meta, pulseNow);
+                      return pe.expireAt ? (
+                        <div className="kv">
+                          <span className="k">Exhale expires @</span>
+                          <span className="v">{pe.expireAt}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                                    {liveSig && (
+                      <div className="kv wide">
+                        <span className="k">Live Centre-Pixel ZK Sig</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {liveSig}
+                        </span>
+                      </div>
+                    )}
                     <div className="kv">
                       <span className="k">Segments</span>
                       <span className="v">{meta.segments?.length ?? 0}</span>
@@ -2285,14 +2332,7 @@ const VerifierStamperInner: React.FC = () => {
                         <span className="v">{headProof.ok ? `#${headProof.index} ✓` : `#${headProof.index} ×`}</span>
                       </div>
                     )}
-                    {liveSig && (
-                      <div className="kv wide">
-                        <span className="k">Live Centre-Pixel Sig</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {liveSig}
-                        </span>
-                      </div>
-                    )}
+
                     {rgbSeed && (
                       <div className="kv">
                         <span className="k">RGB seed</span>
@@ -2300,52 +2340,9 @@ const VerifierStamperInner: React.FC = () => {
                       </div>
                     )}
 
-                    {meta.kaiSignature && (
-                      <div className="kv wide">
-                        <span className="k">Metadata Σ</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {meta.kaiSignature}
-                          {contentSigMatches === true && <span className="chip ok">match</span>}
-                          {contentSigMatches === false && <span className="chip err">mismatch</span>}
-                        </span>
-                      </div>
-                    )}
-                    {contentSigExpected && (
-                      <div className="kv wide">
-                        <span className="k">Expected Σ</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {contentSigExpected}
-                        </span>
-                      </div>
-                    )}
-                    {meta.userPhiKey && (
-                      <div className="kv wide">
-                        <span className="k">Φ-Key</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {meta.userPhiKey}
-                          {phiKeyExpected && (phiKeyMatches ? <span className="chip ok">match</span> : <span className="chip err">mismatch</span>)}
-                        </span>
-                      </div>
-                    )}
 
-                    {/* Remaining Φ is the single source of truth */}
-                    <div className="kv">
-                      <span className="k">{canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance"}</span>
-                      <span className="v">Φ {remainingPhiDisplay4}</span>
-                    </div>
 
-                    {/* Parent open-link expiry info */}
-                    {canonicalContext === "parent" && (() => {
-                      const pe = getParentOpenExpiry(meta, pulseNow);
-                      return pe.expireAt ? (
-                        <div className="kv">
-                          <span className="k">Exhale expires @</span>
-                          <span className="v">{pe.expireAt}</span>
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                )}
+
 
                 {tab === "lineage" && (
                   <div className="lineage">
