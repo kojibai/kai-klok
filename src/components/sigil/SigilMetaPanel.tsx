@@ -186,27 +186,27 @@ export default function SigilMetaPanel({
           <>
             {/* ── Kai-Klok structural data ───────────────────────────── */}
             <div className="sp-meta-row">
-              <span className="lbl">Spiral Day</span>
+              <span className="lbl">Day:</span>
               <span>{chakraDay}</span>
             </div>
             <div className="sp-meta-row">
-              <span className="lbl">Beat</span>
+              <span className="lbl">Beat:</span>
               {/* Beat display remains zero-based as before */}
               <span>{pad2(payload.beat)} / 36</span>
             </div>
             <div className="sp-meta-row">
-              <span className="lbl">Step</span>
+              <span className="lbl">Step:</span>
               {/* ZERO-BASED step display, derived exactly from pulse */}
               <span>{pad2(derivedStepIndex)} / {steps}</span>
             </div>
             <div className="sp-meta-row">
-              <span className="lbl">% to Next Step</span>
+              <span className="lbl">% to Next Step:</span>
               <span>{(derivedStepPct * 100).toFixed(1)}%</span>
             </div>
 
             {/* NEW: φ-Spiral (same definition as in SigilModal) */}
             <div className="sp-meta-row">
-              <span className="lbl">Φ Spiral</span>
+              <span className="lbl">Φ Spiral:</span>
               <span>PS{phiSpiralLevel}</span>
             </div>
 
@@ -214,37 +214,37 @@ export default function SigilMetaPanel({
             {k && (
               <>
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Year</span>
+                  <span className="lbl">Year:</span>
                   <span>Y{String(k.yearIdx)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Month</span>
+                  <span className="lbl">Month:</span>
                   <span>{pad2(k.monthIdx + 1)} / {pad2(MONTHS_PER_YEAR)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Week (Year)</span>
+                  <span className="lbl">Week (Year):</span>
                   <span>{pad2(k.weekOfYear + 1)} / {pad2(DAYS_PER_YEAR / DAYS_PER_WEEK)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Week (Month)</span>
+                  <span className="lbl">Week (Month):</span>
                   <span>{pad2(k.weekOfMonth + 1)} / {pad2(WEEKS_PER_MONTH)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Day (Week)</span>
+                  <span className="lbl">Day (Week):</span>
                   <span>{pad2(k.dayOfWeek)} / {pad2(DAYS_PER_WEEK)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Day (Month)</span>
+                  <span className="lbl">Day (Month):</span>
                   <span>{pad2(k.dayInMonth)} / {pad2(DAYS_PER_MONTH)}</span>
                 </div>
 
                 <div className="sp-meta-row">
-                  <span className="lbl">Kai Day (Abs)</span>
+                  <span className="lbl">Day (Abs):</span>
                   <span>{k.absDayIdx.toLocaleString()}</span>
                 </div>
               </>
@@ -252,7 +252,7 @@ export default function SigilMetaPanel({
 
             {/* ── Live window ─────────────────────────────────────────── */}
             <div className="sp-meta-row">
-              <span className="lbl">Inhale Step</span>
+              <span className="lbl">Inhale Step:</span>
               <span>
                 {isArchived
                   ? "Arkived (transfer burned)"
@@ -268,7 +268,7 @@ export default function SigilMetaPanel({
 
             {isFutureSealed && opensInPulses !== null && opensInPulses > 0 && (
               <div className="sp-meta-row">
-                <span className="lbl">Opens In</span>
+                <span className="lbl">Opens In:</span>
                 <span>
                   {opensInPulses} Breath{opensInPulses === 1 ? "" : "s"}
                 </span>
@@ -277,13 +277,13 @@ export default function SigilMetaPanel({
 
             {!isFutureSealed && !isArchived && pulsesLeft !== null && pulsesLeft > 0 && (
               <div className="sp-meta-row">
-                <span className="lbl">Next Breath</span>
+                <span className="lbl">Next Breath:</span>
                 <span>{nextPulseSeconds}s</span>
               </div>
             )}
 
             <div className="sp-meta-row">
-              <span className="lbl">Sync</span>
+              <span className="lbl">Sync:</span>
               <span>Kai-Klok</span>
             </div>
           </>

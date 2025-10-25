@@ -4,6 +4,7 @@
    - Keeps Explorer logic/markup intact, wrapped in an accessible modal
    - Live updates via: window.__SIGIL__.registerSigilUrl, DOM events,
      BroadcastChannel, and localStorage sync — identical to page version
+   - Also listens to the SendLedger to show Φ-out totals per glyph
    - Focus trap + scroll lock + portal; ESC/✕ to close
 ────────────────────────────────────────────────────────────────────── */
 
@@ -17,16 +18,8 @@ import {
 import type { SigilSharePayloadLoose } from "../utils/sigilUrl";
 import "./SigilExplorerModal.css";
 
-/* ─────────────────────────────────────────────────────────────────────
-   Global typings for the optional hook the seal modal will call
-────────────────────────────────────────────────────────────────────── */
-declare global {
-  interface Window {
-    __SIGIL__?: {
-      registerSigilUrl?: (url: string) => void;
-    };
-  }
-}
+// SendLedger (local-first immutable sends)
+import { recordSend, getSpentScaledFor } from "../utils/sendLedger";
 
 /* ─────────────────────────────────────────────────────────────────────
  *  Types
@@ -38,6 +31,24 @@ export type SigilNode = {
 };
 type Registry = Map<string, SigilSharePayloadLoose>; // key: absolute URL
 
+type SendRecord = {
+  parentCanonical: string;
+  childCanonical: string;
+  amountPhiScaled: string; // Φ * 10^18 as string
+  senderKaiPulse: number;
+  transferNonce: string;
+  senderStamp: string;
+  previousHeadRoot: string;
+  transferLeafHashSend: string;
+};
+
+type SigilGlobal = {
+  registerSigilUrl?: (url: string) => void;
+  registerSend?: (rec: SendRecord) => void;
+};
+
+type PayloadWithCanonical = SigilSharePayloadLoose & { canonicalHash?: string };
+
 /* ─────────────────────────────────────────────────────────────────────
  *  Constants / Utilities
  *  ───────────────────────────────────────────────────────────────────── */
@@ -47,6 +58,13 @@ const BC_NAME = "kai-sigil-registry";
 
 const hasWindow = typeof window !== "undefined";
 const canStorage = hasWindow && typeof window.localStorage !== "undefined";
+
+/** Accessor that avoids global Window typing conflicts across files. */
+function getSigilGlobal(): SigilGlobal {
+  const w = window as unknown as { __SIGIL__?: SigilGlobal };
+  if (!w.__SIGIL__) w.__SIGIL__ = {};
+  return w.__SIGIL__!;
+}
 
 /** Make an absolute, normalized URL (stable key). */
 function canonicalizeUrl(url: string): string {
@@ -68,6 +86,12 @@ function parseHashFromUrl(url: string): string | undefined {
   }
 }
 
+/** Prefer payload.canonicalHash, else derive from URL path. */
+function canonicalFromPayloadOrUrl(p: SigilSharePayloadLoose, url: string): string | undefined {
+  const maybe = p as PayloadWithCanonical;
+  return maybe.canonicalHash ?? parseHashFromUrl(url);
+}
+
 /** Human shortener for long strings. */
 function short(s?: string, n = 10) {
   if (!s) return "—";
@@ -82,12 +106,24 @@ function byKaiTime(a: SigilSharePayloadLoose, b: SigilSharePayloadLoose) {
   return (a.stepIndex ?? 0) - (b.stepIndex ?? 0);
 }
 
+/** Format a SCALE=18n scaled bigint as fixed 4dp string (no rounding issues). */
+function fmtScaled4(bi: bigint): string {
+  const SCALE = 18n;
+  const keep = 4n;
+  const cut = 10n ** (SCALE - keep); // 10^(18-4) = 10^14
+  const val = bi / cut; // integer scaled to 4dp
+  const intPart = val / 10000n;
+  const frac = (val % 10000n).toString().padStart(4, "0");
+  return `${intPart}.${frac}`;
+}
+
 /* ─────────────────────────────────────────────────────────────────────
  *  Global, in-memory registry + helpers
  *  (no backend, can persist to localStorage, and sync via BroadcastChannel)
  *  ───────────────────────────────────────────────────────────────────── */
 const memoryRegistry: Registry = new Map();
-const channel = hasWindow && "BroadcastChannel" in window ? new BroadcastChannel(BC_NAME) : null;
+const channel =
+  hasWindow && "BroadcastChannel" in window ? new BroadcastChannel(BC_NAME) : null;
 
 /** Load persisted URLs (if any) into memory registry. Includes seal modal fallback list. */
 function hydrateRegistryFromStorage() {
@@ -153,8 +189,6 @@ function addUrl(url: string, includeAncestry = true, broadcast = true) {
   return changed;
 }
 
-
-
 /* ─────────────────────────────────────────────────────────────────────
  *  Tree building (pure, derived from registry)
  *  ───────────────────────────────────────────────────────────────────── */
@@ -210,7 +244,7 @@ function buildForest(reg: Registry): SigilNode[] {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
- *  UI Components (unchanged from Explorer)
+ *  UI Components
  *  ───────────────────────────────────────────────────────────────────── */
 function KaiStamp({ p }: { p: SigilSharePayloadLoose }) {
   return (
@@ -224,10 +258,33 @@ function KaiStamp({ p }: { p: SigilSharePayloadLoose }) {
   );
 }
 
+/** Read Φ out (sum of sends recorded locally) for a glyph's canonical. */
+function PhiOutPill({ canonical }: { canonical?: string }) {
+  const [value, setValue] = useState<string>("0.0000");
+
+  useEffect(() => {
+    const c = (canonical || "").toLowerCase();
+    if (!c) {
+      setValue("0.0000");
+      return;
+    }
+    const bi = getSpentScaledFor(c); // bigint
+    setValue(fmtScaled4(bi));
+  }, [canonical]);
+
+  if (!canonical) return null;
+  return (
+    <span className="pill phi-out" title="Total Φ exhaled from this glyph (local ledger)">
+      Φ out: {value}
+    </span>
+  );
+}
+
 function SigilTreeNode({ node }: { node: SigilNode }) {
   const [open, setOpen] = useState(true);
-  const hash = parseHashFromUrl(node.url);
+  const hashFromPath = parseHashFromUrl(node.url);
   const sig = node.payload.kaiSignature;
+  const canonical = canonicalFromPayloadOrUrl(node.payload, node.url);
 
   return (
     <div className="node">
@@ -242,11 +299,14 @@ function SigilTreeNode({ node }: { node: SigilNode }) {
         </button>
 
         <a className="node-link" href={node.url} target="_blank" rel="noopener" title={node.url}>
-          <span className="node-sig">{short(sig ?? hash ?? "glyph")}</span>
+          <span className="node-sig">{short(sig ?? hashFromPath ?? "glyph")}</span>
         </a>
 
         <KaiStamp p={node.payload} />
         <span className="chakra">{node.payload.chakraDay}</span>
+
+        {/* Φ out total for this glyph (from local SendLedger) */}
+        <PhiOutPill canonical={canonical} />
 
         <button
           className="node-copy"
@@ -281,6 +341,7 @@ function OriginPanel({ root }: { root: SigilNode }) {
 
   const originHash = parseHashFromUrl(root.url);
   const originSig = root.payload.kaiSignature;
+  const originCanonical = canonicalFromPayloadOrUrl(root.payload, root.url);
 
   return (
     <section className="origin">
@@ -296,6 +357,8 @@ function OriginPanel({ root }: { root: SigilNode }) {
           <span className="o-count" title="Total glyphs in this lineage">
             {count} nodes
           </span>
+          {/* Φ out total from origin (useful overview) */}
+          <PhiOutPill canonical={originCanonical} />
           <button
             className="o-copy"
             onClick={() => navigator.clipboard.writeText(root.url)}
@@ -401,7 +464,7 @@ function ExplorerToolbar({
 }
 
 /* ─────────────────────────────────────────────────────────────────────
- *  Explorer Body (same as the page, intact)
+ *  Explorer Body (same as the page, plus SendLedger wiring)
  *  ───────────────────────────────────────────────────────────────────── */
 function ExplorerBody() {
   const [, force] = useState(0);
@@ -409,7 +472,7 @@ function ExplorerBody() {
   const [lastAdded, setLastAdded] = useState<string | undefined>(undefined);
   const unmounted = useRef(false);
 
-  // Initial hydrate, global hook, event listeners
+  // Initial hydrate, global hooks, event listeners
   useEffect(() => {
     hydrateRegistryFromStorage();
 
@@ -419,20 +482,27 @@ function ExplorerBody() {
       setLastAdded(window.location.href);
     }
 
-    // (1) Expose the global hook that the seal modal will call
-    const prev = window.__SIGIL__?.registerSigilUrl;
-    if (!window.__SIGIL__) window.__SIGIL__ = {};
-    window.__SIGIL__.registerSigilUrl = (u: string) => {
+    // (1) Expose the global hook that the seal modal / verifier will call
+    const g = getSigilGlobal();
+    const prevUrlHook = g.registerSigilUrl;
+    const prevSendHook = g.registerSend;
+
+    g.registerSigilUrl = (u: string) => {
       if (addUrl(u, true, true)) {
         setLastAdded(canonicalizeUrl(u));
         refresh();
       }
     };
 
-    // (2) Listen for the seal modal’s fallback DOM event
+    g.registerSend = (rec: SendRecord) => {
+      if (!rec || !rec.parentCanonical) return;
+      void recordSend(rec).then(() => refresh());
+    };
+
+    // (2) Listen for the seal modal’s fallback DOM event (URL)
     const onUrlRegistered = (e: Event) => {
-      const any = e as CustomEvent<{ url: string }>;
-      const u = any?.detail?.url;
+      const ce = e as CustomEvent<{ url: string }>;
+      const u = ce?.detail?.url;
       if (typeof u === "string" && u.length) {
         if (addUrl(u, true, true)) {
           setLastAdded(canonicalizeUrl(u));
@@ -440,21 +510,31 @@ function ExplorerBody() {
         }
       }
     };
-    window.addEventListener("sigil:url-registered", onUrlRegistered as EventListener);
+    window.addEventListener("sigil:url-registered", onUrlRegistered);
 
-    // (3) Back-compat: still listen for sigil:minted if other parts dispatch it
+    // (3) Listen for Verifier’s local send event (immutable record)
+    const onSent = (e: Event) => {
+      const ce = e as CustomEvent<SendRecord>;
+      const rec = ce?.detail;
+      if (rec && rec.parentCanonical) {
+        void recordSend(rec).then(() => refresh());
+      }
+    };
+    window.addEventListener("sigil:sent", onSent);
+
+    // (4) Back-compat: still listen for sigil:minted if other parts dispatch it
     const onMint = (e: Event) => {
-      const any = e as CustomEvent<{ url: string }>;
-      if (any?.detail?.url) {
-        if (addUrl(any.detail.url, true, true)) {
-          setLastAdded(any.detail.url);
+      const ce = e as CustomEvent<{ url: string }>;
+      if (ce?.detail?.url) {
+        if (addUrl(ce.detail.url, true, true)) {
+          setLastAdded(ce.detail.url);
           refresh();
         }
       }
     };
-    window.addEventListener("sigil:minted", onMint as EventListener);
+    window.addEventListener("sigil:minted", onMint);
 
-    // (4) Cross-tab sync via BroadcastChannel
+    // (5) Cross-tab sync via BroadcastChannel for URL registry
     let onMsg: ((ev: MessageEvent) => void) | undefined;
     if (channel) {
       onMsg = (ev: MessageEvent) => {
@@ -468,7 +548,7 @@ function ExplorerBody() {
       channel.addEventListener("message", onMsg);
     }
 
-    // (5) Also watch storage updates to the seal modal’s fallback list
+    // (6) Also watch storage updates to the seal modal’s fallback list
     const onStorage = (ev: StorageEvent) => {
       if (ev.key === MODAL_FALLBACK_LS_KEY && ev.newValue) {
         try {
@@ -490,10 +570,14 @@ function ExplorerBody() {
     window.addEventListener("storage", onStorage);
 
     return () => {
-      // restore previous hook (if any)
-      if (window.__SIGIL__) window.__SIGIL__.registerSigilUrl = prev;
-      window.removeEventListener("sigil:url-registered", onUrlRegistered as EventListener);
-      window.removeEventListener("sigil:minted", onMint as EventListener);
+      // restore previous hooks (if any)
+      const gg = getSigilGlobal();
+      gg.registerSigilUrl = prevUrlHook;
+      gg.registerSend = prevSendHook;
+
+      window.removeEventListener("sigil:url-registered", onUrlRegistered);
+      window.removeEventListener("sigil:sent", onSent);
+      window.removeEventListener("sigil:minted", onMint);
       window.removeEventListener("storage", onStorage);
       if (channel && onMsg) channel.removeEventListener("message", onMsg);
     };
@@ -537,7 +621,7 @@ function ExplorerBody() {
         refresh();
       }
     } catch {
-      // ignore
+      // ignore invalid file
     }
   };
 
@@ -670,7 +754,7 @@ const SigilExplorerModal: React.FC<SigilExplorerModalProps> = ({
     return () => {
       document.body.style.overflow = prevOverflow;
       document.removeEventListener("keydown", onKey, true);
-      clearTimeout(t);
+      window.clearTimeout(t);
       previouslyFocusedRef.current?.focus?.();
     };
   }, [open, autoFocusClose, escToClose, onClose, trapFocus]);
@@ -712,7 +796,7 @@ const SigilExplorerModal: React.FC<SigilExplorerModalProps> = ({
           <CloseGlyph />
         </button>
 
-        {/* Keep explorer EXACT as-is */}
+        {/* Keep explorer EXACT as-is (plus Φ-out pills) */}
         <ExplorerBody />
       </div>
     </div>,
@@ -732,12 +816,7 @@ const CloseGlyph = () => (
       strokeWidth="1.25"
       opacity=".35"
     />
-    <path
-      d="M7 7l10 10M17 7L7 17"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
+    <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 

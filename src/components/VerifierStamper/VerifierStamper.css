@@ -2062,3 +2062,175 @@ img, svg, video, canvas, iframe{ max-width:100%; height:auto; display:block; -we
 @media (min-width: 960px){
   .verifier-stamper .phi-amount{ inline-size: 160px !important; }
 }
+/* ───────────────────────────────────────────────────────────────
+   TIGHTEN PACK — Keys + Footer Buttons (drop-in end-of-file override)
+   - Kai signature + Φ key: closer, never truncated, full-size, side-by-side
+   - Footer buttons: one single horizontal row on every device (scrollable)
+   - No font-size changes; only spacing/flow behavior tightened
+   - Zero horizontal page overflow preserved
+──────────────────────────────────────────────────────────────── */
+
+/* ============ HEADER KEYS — Kai Signature + Φ Key ============ */
+
+/* tighter cluster baseline */
+.header-keys{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;              /* was 10px — closer together */
+  margin-top: 6px;
+  min-width: 0;
+}
+
+/* keep the same font sizes; just a touch tighter framing */
+.header-keys .field{
+  padding: 5px 7px;          /* was 6px 8px — slightly tighter */
+  border-radius: 8px;        /* a hair crisper */
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* show values in full, never ellipsized; allow smooth horizontal scroll if needed */
+.header-keys .field .mono,
+.header-keys .field code,
+.header-keys .field [data-value]{
+  font-size: inherit;        /* do NOT change sizes */
+  white-space: nowrap;       /* never wrap across lines */
+  overflow-x: auto;          /* allow full view via horizontal scroll when needed */
+  overflow-y: hidden;
+  text-overflow: clip;       /* no ellipsis */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;     /* hide scrollbars, keep touch-scroll */
+}
+.header-keys .field .mono::-webkit-scrollbar,
+.header-keys .field code::-webkit-scrollbar,
+.header-keys .field [data-value]::-webkit-scrollbar{ display: none; }
+
+/* keep the Kai signature + Φ key adjacent and first; everyone else follows */
+.header-keys .field.kai-signature{ order: 1 }
+.header-keys .field.phikey{ order: 2 }
+.header-keys .field:not(.kai-signature):not(.phikey){ order: 3 }
+
+/* make the pair feel like a tight duo, without shrinking text */
+.header-keys .field.kai-signature,
+.header-keys .field.phikey{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;                  /* visually tighter pair */
+  margin: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+/* ensure these two are never internally clipped */
+.header-keys .field.kai-signature .mono,
+.header-keys .field.phikey .mono{
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: clip;
+}
+
+/* medium+ screens: strongly prefer them side-by-side */
+@media (min-width: 540px){
+  .header-keys .field.kai-signature,
+  .header-keys .field.phikey{
+    flex: 0 0 auto;
+  }
+}
+
+/* tiny screens: keep them tight, still full-size, allow scroll if needed */
+@media (max-width: 539.98px){
+  .header-keys{ gap: 6px 6px; }
+}
+
+/* never let keys cause global horizontal overflow */
+:where(.header-keys, .header-keys .field){ overflow-x: clip; }
+
+/* ============ FOOTER BUTTONS — Single Row, Always ============ */
+
+/* layout: status on the left, buttons block on the right */
+.modal-footer{
+  display: grid;
+  grid-template-columns: 1fr auto;  /* status | buttons */
+  align-items: center;
+  gap: 10px;
+  /* keep your existing padding/background from earlier */
+}
+
+/* let status compress gracefully; never push buttons off */
+.modal-footer .status{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a canonical class if you have one; but also cover common aliases */
+.modal-footer .button-row,
+.modal-footer .actions,
+.modal-footer .btns,
+.modal-footer .controls{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap !important;  /* no wrapping — single row only */
+  overflow-x: auto;               /* scroll horizontally if needed */
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  scrollbar-width: thin;
+}
+
+/* buttons inside the strip never shrink and stay on one line */
+.modal-footer :is(.button-row, .actions, .btns, .controls)
+  > :is(button, .button, [role="button"]){
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* if buttons are direct children (no wrapper), handle that too */
+.modal-footer:has(> :is(button, .button, [role="button"])){
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.modal-footer > :is(button, .button, [role="button"]){
+  justify-self: end;         /* keep them grouped at the right */
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: 8px;          /* mimic the gap from the strip */
+}
+
+/* subtle scrollbar styling (matches your global tone) */
+.modal-footer :is(.button-row, .actions, .btns, .controls)::--webkit-scrollbar,
+.modal-footer::--webkit-scrollbar{ height: 8px }
+.modal-footer :is(.button-row, .actions, .btns, .controls)::--webkit-scrollbar-thumb,
+.modal-footer::--webkit-scrollbar-thumb{
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 8px;
+}
+
+/* safety: never allow the footer to wrap vertically on narrow screens */
+@media (max-width: 560px){
+  .modal-footer{
+    grid-template-columns: 1fr auto; /* keep single row */
+    align-items: center;
+  }
+}
+
+/* ============ EXTRA SAFETIES (no overflow, no font shrink) ============ */
+
+/* guard against accidental ellipsis or shrink in key zones */
+.header-fields,
+.header-fields *{
+  min-width: 0;
+}
+.header-keys .field,
+.header-keys .field *{
+  text-overflow: clip !important;  /* assert: show full string, no ellipsis */
+}
+
+/* keep the overall page from horizontal overflow while allowing local scrolling */
+:where(.verifier-stamper, dialog.glass-modal, .modal-viewport, .modal-body, .modal-footer){
+  overflow-x: clip;
+}

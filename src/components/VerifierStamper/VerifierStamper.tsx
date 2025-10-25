@@ -1,31 +1,117 @@
+// src/components/verifier/VerifierStamper.tsx
 /* ────────────────────────────────────────────────────────────────
    VerifierStamper.tsx · Divine Sovereign Transfer Gate (mobile-first)
-   v14.4 — Sovereign hardening++++ (ECDSA + optional ZK bind)
-   (modularized, unchanged behavior) — NOTE bridge + NotePrinter wired
-   + Live USD/Φ switcher, icon buttons, lineage amount display
-   + HARD CAP on exhale (cannot send more Φ than available on sigil)
-   + Balance persists across segmentations (branchBasePhi/branchSpentPhi)
+   v23.1 — CONTINUOUS FLOW (no archival on segmentation)
+   SEND/RECEIVE RULES (KKS v1 exact expiry)
+   - Parent (original glyph):
+     • Can SEND.
+     • Can SEGMENT freely. Segmentation rolls the current head window
+       into a segment file and resets the head window, BUT DOES NOT
+       retire or archive the parent. The glyph keeps breathing.
+     • Each SEND deducts from Remaining Φ on the parent.
+   - Child file (the one that is *sent*; filename contains “sigil_send”):
+     • May only RECEIVE, and only for 11 steps (11 pulses/step → +121 pulses).
+     • After expiry: RECEIVE is permanently disabled (“archived” conceptually),
+       but segmentation is still forbidden on these child SEND files.
+     • IMPORTANT: A file whose name contains “sigil_send” can NEVER SEGMENT. Ever.
+     • Once RECEIVED (closed), the saved file (downloaded as “sigil_receive…svg”)
+       is promoted to a normal parent: it can SEND, SEGMENT, grow, and its Remaining Φ
+       starts at the received balance.
+   - One-time send lock on child links is enforced.
+   - Expiry: all sends expire after 11 steps (11 pulses/step → +121 pulses).
+
+   NOTE: Segmentation no longer implies archival. The head keeps operating.
 ────────────────────────────────────────────────────────────────── */
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import "./VerifierStamper.css";
 
-/* ── Explorer + Seal modals ─────────────────────────────────── */
-import SealMomentModal from "../SealMomentModal";
+/* Error boundary prevents the whole app from crashing if VerifierStamper throws */
+class VerifierErrorBoundary extends React.Component<
+  { children: React.ReactNode; onReset?: () => void },
+  { hasError: boolean; error?: unknown }
+> {
+  constructor(props: { children: React.ReactNode; onReset?: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: undefined };
+  }
+  static getDerivedStateFromError(error: unknown) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    // eslint-disable-next-line no-console
+    console.error("[VerifierStamper] crashed", error, info);
+    try {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("kk:error", {
+            detail: { where: "VerifierStamper", error: error instanceof Error ? error.message : String(error) },
+          })
+        );
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[VerifierStamper] failed to dispatch kk:error", e);
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      const msg = this.state.error instanceof Error ? this.state.error.message : String(this.state.error ?? "Unknown error");
+      const stack = this.state.error instanceof Error ? this.state.error.stack : undefined;
+      return (
+        <div role="alert" style={{ padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <strong>Verifier crashed</strong>
+            <button
+              className="secondary"
+              onClick={() => {
+                this.setState({ hasError: false, error: undefined });
+                this.props.onReset?.();
+              }}
+              title="Reset Verifier"
+              aria-label="Reset Verifier"
+            >
+              Reset
+            </button>
+          </div>
+          <div style={{ fontSize: 14, color: "var(--dim, #999)" }}>{msg}</div>
+          {stack && (
+            <details style={{ marginTop: 8 }}>
+              <summary>Stack</summary>
+              <pre style={{ whiteSpace: "pre-wrap" }}>{stack}</pre>
+            </details>
+          )}
+        </div>
+      );
+    }
+    return <>{this.props.children}</>;
+  }
+}
+
+/* Explorer + Seal + Valuation (kept; they’re used in flows) */
+import SealMomentModal from "../SealMomentModalTransfer";
 import SigilExplorer from "../SigilExplorer";
 import ValuationModal from "../ValuationModal";
-import { buildValueSeal, attachValuation, type SigilMetadataLite, type ValueSeal } from "../../utils/valuation";
-// NEW — Note Exhaler (preview + print only)
+import {
+  buildValueSeal,
+  attachValuation,
+  type SigilMetadataLite,
+  type ValueSeal,
+} from "../../utils/valuation";
+
+/* Note (kept) */
 import NotePrinter from "../ExhaleNote";
-import type {
-  VerifierBridge,
-  BanknoteInputs as NoteBanknoteInputs,
-} from "../exhale-note/types";
+import type { VerifierBridge, BanknoteInputs as NoteBanknoteInputs } from "../exhale-note/types";
 
-/* Project utils (types + URL helper) */
-import { makeSigilUrl, type SigilSharePayloadLoose, encodeSigilHistory, type SigilTransferLite } from "../../utils/sigilUrl";
+/* URL helpers */
+import {
+  makeSigilUrl,
+  type SigilSharePayloadLoose,
+  encodeSigilHistory,
+  type SigilTransferLite,
+} from "../../utils/sigilUrl";
 
-/* Local modular imports */
+/* Local imports */
 import { kaiPulseNow, SIGIL_CTX, SIGIL_TYPE, SEGMENT_SIZE } from "./constants";
 import type {
   SigilMetadata,
@@ -57,9 +143,19 @@ import { sealCurrentWindowIntoSegment } from "./segments";
 import { verifyHistorical } from "./verifyHistorical";
 import { verifyZkOnHead } from "./zk";
 
-/* ⭐ New: lightweight header valuation helpers */
+/* Valuation model (still used for USD conversion only) */
 import { DEFAULT_ISSUANCE_POLICY, quotePhiForUsd } from "../../utils/phi-issuance";
 import { BREATH_MS } from "../valuation/constants";
+
+/* Local send ledger */
+import { recordSend, getSpentScaledFor, markConfirmedByLeaf } from "../../utils/sendLedger";
+
+/* ────────────────────────────────────────────────────────────────
+   CHILD CONTEXT + ONE-TIME SEND + EXPIRY
+────────────────────────────────────────────────────────────────── */
+const PULSES_PER_STEP = 11; // Kai canon: 11 pulses/step
+const CLAIM_STEPS = 11;     // all sends expire after 11 steps
+const CLAIM_PULSES = CLAIM_STEPS * PULSES_PER_STEP;
 
 /* Helper type: optional fields that may exist in metadata */
 type SigilMetadataWithOptionals = SigilMetadata & {
@@ -68,12 +164,37 @@ type SigilMetadataWithOptionals = SigilMetadata & {
   transfersWindowRootV14?: string;
   zkVerifyingKey?: unknown;
   creatorPublicKey?: string;
-  /* NEW: persist branch balance across segmentations */
-  branchBasePhi?: string;  // decimal string (up to 18dp)
-  branchSpentPhi?: string; // decimal string (up to 18dp)
+
+  /* Persist branch balance across segmentations (decimal strings, up to 18dp) */
+  branchBasePhi?: string;
+  branchSpentPhi?: string;
+
+  /* Persisted CHILD context (set on SEND file) */
+  childOfHash?: string;               // parent canonical hash
+  childAllocationPhi?: string;        // fixed allocation for this child
+  childIssuedPulse?: number;          // pulse when child was minted
+  childClaim?: {
+    steps: number;                    // always 11
+    expireAtPulse: number;            // issued + 121
+  };
+  sendLock?: {
+    nonce: string;
+    used?: boolean;                   // flips true on receive
+    usedPulse?: number;
+  };
 };
 
-/* Determine UI state from facts */
+/* ────────────────────────────────────────────────────────────────
+   UI state helper (SEND-SIGIL MODE)
+   - Child SEND file: receive-only before expiry; cannot segment ever.
+   - After expiry: child is effectively archived for RECEIVE, but
+     it can still later be promoted (once received) and behave like
+     a parent. Segmentation is still forbidden while it's a SEND file.
+   - After receive (closed), the saved file can send/segment like a parent.
+   - IMPORTANT: A closed RECEIVE (downloaded as “sigil_receive*.svg”) is
+     promoted — uploading that should allow SEND.
+   - NOTE: segmentation never archives; parent stays active.
+────────────────────────────────────────────────────────────────── */
 function deriveState(params: {
   contextOk: boolean;
   typeOk: boolean;
@@ -81,32 +202,56 @@ function deriveState(params: {
   contentSigMatches: boolean | null;
   isOwner: boolean | null;
   hasTransfers: boolean;
-  lastOpen: boolean; // last transfer exists and receiverSignature missing
+  lastOpen: boolean;
+  lastClosed: boolean;
   isUnsigned: boolean;
+  childUsed: boolean;
+  childExpired: boolean;
+  parentOpenExpired: boolean;
+  isChildContext: boolean;
 }): UiState {
-  const { contextOk, typeOk, hasCore, contentSigMatches, isOwner, hasTransfers, lastOpen, isUnsigned } = params;
+  const {
+    contextOk, typeOk, hasCore, contentSigMatches, isOwner, hasTransfers, lastOpen, lastClosed,
+    isUnsigned, childUsed, childExpired, parentOpenExpired, isChildContext
+  } = params;
 
   if (!contextOk || !typeOk) return "invalid";
   if (!hasCore) return "structMismatch";
   if (contentSigMatches === false) return "sigMismatch";
   if (isOwner === false) return "notOwner";
   if (isUnsigned) return "unsigned";
-  if (!hasTransfers) return "readySend";
-  if (lastOpen) return "readyReceive";
-  return "complete";
+
+  // If a transfer is open…
+  if (lastOpen) {
+    // CHILD expired or PARENT expired = can't receive anymore, treat as complete receipt
+    if (childExpired || parentOpenExpired) return "complete";
+    return "readyReceive";
+  }
+
+  // No open transfer:
+  if (isChildContext) {
+    // Promotion rule: once received (closed) OR explicit one-time lock used -> can send
+    if (childUsed || (hasTransfers && lastClosed)) return "readySend";
+    // Unused child (still a SEND file) cannot send yet
+    return "complete";
+  }
+
+  // Parent context and not expired -> can SEND
+  return "readySend";
 }
 
-/** Append ?p= (and ?t= if provided) to a base URL; optionally add &h= */
+/** Append p/t/h params to base URL */
 function rewriteUrlPayload(
   baseUrl: string,
-  enriched: SigilSharePayloadLoose & {
-    canonicalHash?: string;
-    transferNonce?: string;
-  },
+  enriched: SigilSharePayloadLoose & { canonicalHash?: string; transferNonce?: string },
   token?: string,
   historyParam?: string
 ): string {
-  const u = new URL(baseUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+  const origin =
+    typeof window !== "undefined" && typeof window.location?.origin === "string"
+      ? window.location.origin
+      : "http://localhost";
+  const u = new URL(baseUrl, origin);
   u.searchParams.set("p", base64urlJson(enriched));
   if (token) u.searchParams.set("t", token);
   if (historyParam && historyParam.length > 0) u.searchParams.set("h", historyParam);
@@ -114,13 +259,13 @@ function rewriteUrlPayload(
 }
 
 /* ────────────────────────────────────────────────────────────────
-   NOTE bridge types + helpers (for ExhaleNote)
+   Note bridge helpers
 ────────────────────────────────────────────────────────────────── */
-
 declare global {
   interface Window {
     KKVerifier?: VerifierBridge | undefined;
     SIGIL_ZK_VKEY?: unknown;
+    /* KEEP IDENTICAL to earliest declaration across app to avoid TS2717 */
     SIGIL_ZK?: {
       provideSendProof?: (args: {
         meta: SigilMetadata;
@@ -135,34 +280,38 @@ declare global {
         linkSig: string;
       }) => Promise<{ proof: unknown; publicSignals: unknown; vkey?: unknown } | null>;
     };
+    __SIGIL__?: { registerSigilUrl?: (url: string) => void } | undefined;
   }
 }
 
 /* ────────────────────────────────────────────────────────────────
-   Small utilities (logging + UTF-8 base64 helpers)
+   Utils (logging + b64 UTF-8)
 ────────────────────────────────────────────────────────────────── */
-
 function logError(where: string, err: unknown) {
   // eslint-disable-next-line no-console
   console.error(`[VerifierStamper] ${where}`, err);
   try {
     window.dispatchEvent(
       new CustomEvent("kk:error", {
-        detail: { where, error: err instanceof Error ? err.message : String(err) },
+        detail: {
+          where,
+          error: err instanceof Error ? err.message : String(err),
+        },
       })
     );
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn(`[VerifierStamper] Error dispatching kk:error from ${where}`, e);
+    console.error(`[VerifierStamper] kk:error dispatch failed in ${where}`, e);
   }
 }
 
 function base64EncodeUtf8(str: string): string {
   try {
     const bytes = new TextEncoder().encode(str);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+    if (typeof btoa === "function") return btoa(bin);
+    throw new Error("btoa is not available in this environment");
   } catch (err) {
     logError("base64EncodeUtf8", err);
     return "";
@@ -171,10 +320,10 @@ function base64EncodeUtf8(str: string): string {
 
 function base64DecodeUtf8(b64: string): string {
   try {
-    const binary = atob(b64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    if (typeof atob !== "function") throw new Error("atob is not available in this environment");
+    const bin: string = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder().decode(bytes);
   } catch (err) {
     logError("base64DecodeUtf8", err);
@@ -182,6 +331,24 @@ function base64DecodeUtf8(b64: string): string {
   }
 }
 
+/* Safe readers */
+function readStrObj(o: unknown, k: string, fb = ""): string {
+  if (typeof o === "object" && o !== null) {
+    const v = (o as Record<string, unknown>)[k];
+    if (typeof v === "string") return v;
+  }
+  return fb;
+}
+
+function readNumObj(o: unknown, k: string): number | undefined {
+  if (typeof o === "object" && o !== null) {
+    const v = (o as Record<string, unknown>)[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+  }
+  return undefined;
+}
+
+/* Build printable Note payload */
 function buildNotePayload(opts: {
   meta: SigilMetadata | null;
   sigilSvgRaw: string | null;
@@ -191,203 +358,209 @@ function buildNotePayload(opts: {
   const { meta: m, sigilSvgRaw, verifyUrl, pulseNow } = opts;
   if (!m) return { nowPulse: String(pulseNow) };
 
-  const readStr = (obj: unknown, key: string, fallback = ""): string => {
-    const rec = obj as Record<string, unknown>;
-    const v = rec?.[key];
-    return typeof v === "string" ? v : fallback;
-  };
+  const valuation = (m.valuation ?? null) as {
+    valuePhi?: number;
+    premiumPhi?: number;
+    algorithm?: string | number;
+    stamp?: string | number;
+  } | null;
 
-  const valuation = (m.valuation ?? null) as
-    | {
-        valuePhi?: number;
-        premiumPhi?: number;
-        algorithm?: string | number;
-        stamp?: string | number;
-      }
-    | null;
+  const safeBeat = readNumObj(m as unknown, "beat") ?? m.beat ?? 0;
+  const safeStepIndex = readNumObj(m as unknown, "stepIndex") ?? m.stepIndex ?? 0;
+  const safePulse = readNumObj(m as unknown, "pulse") ?? m.pulse ?? 0;
 
-  const extra = m as unknown as {
-    sigmaCanon?: string;
-    shaHex?: string;
-    phiDerived?: string;
-    zk?: { scheme?: string; poseidon?: string };
-  };
+  const prov = (m.transfers ?? []).map((t) => ({
+    action: t.receiverSignature ? ("receive" as const) : ("send" as const),
+    pulse: t.senderKaiPulse,
+    beat: safeBeat,
+    stepIndex: safeStepIndex,
+    ownerPhiKey: (m as SigilMetadataWithOptionals).userPhiKey,
+  }));
 
-  const prov =
-    (m.transfers ?? []).map((t) => ({
-      action: t.receiverSignature ? "receive" : "send",
-      pulse: t.senderKaiPulse,
-      beat: m.beat,
-      stepIndex: m.stepIndex,
-      ownerPhiKey: m.userPhiKey,
-    })) ?? [];
+  const extraObj = m as Record<string, unknown>;
+  const maybeZk = extraObj.zk as unknown;
+  let zkField: { scheme?: string; poseidon?: string } | undefined;
+  if (typeof maybeZk === "object" && maybeZk !== null) {
+    const zkMap = maybeZk as Record<string, unknown>;
+    const scheme = typeof zkMap.scheme === "string" ? zkMap.scheme : undefined;
+    const poseidonVal = typeof zkMap.poseidon === "string" ? zkMap.poseidon : undefined;
+    zkField = scheme ? { scheme, poseidon: poseidonVal } : undefined;
+  }
 
   return {
-    purpose: readStr(m, "purpose"),
-    to: readStr(m, "to"),
-    from: readStr(m, "from"),
-    location: readStr(m, "location"),
-    witnesses: readStr(m, "witnesses"),
-    reference: readStr(m, "reference"),
-    remark: readStr(m, "remark", "In Yahuah We Trust — Secured by Φ, not man-made law"),
-    valuePhi: valuation?.valuePhi != null ? String(valuation.valuePhi) : "",
-    premiumPhi: valuation?.premiumPhi != null ? String(valuation.premiumPhi) : "",
-    computedPulse: typeof m.pulse === "number" ? String(m.pulse) : "",
+    purpose: readStrObj(m, "purpose"),
+    to: readStrObj(m, "to"),
+    from: readStrObj(m, "from"),
+    location: readStrObj(m, "location"),
+    witnesses: readStrObj(m, "witnesses"),
+    reference: readStrObj(m, "reference"),
+    remark: readStrObj(m, "remark", "In Yahuah We Trust — Secured by Φ, not man-made law"),
+    valuePhi: typeof valuation?.valuePhi === "number" ? String(valuation.valuePhi) : "",
+    premiumPhi: typeof valuation?.premiumPhi === "number" ? String(valuation.premiumPhi) : "",
+    computedPulse: typeof safePulse === "number" ? String(safePulse) : "",
     nowPulse: String(pulseNow),
-    kaiSignature: m.kaiSignature ?? "",
-    userPhiKey: m.userPhiKey ?? "",
-    sigmaCanon: extra.sigmaCanon ?? "",
-    shaHex: extra.shaHex ?? "",
-    phiDerived: extra.phiDerived ?? "",
+    kaiSignature: typeof (m as SigilMetadataWithOptionals).kaiSignature === "string" ? (m as SigilMetadataWithOptionals).kaiSignature : "",
+    userPhiKey: typeof (m as SigilMetadataWithOptionals).userPhiKey === "string" ? (m as SigilMetadataWithOptionals).userPhiKey : "",
+    sigmaCanon: readStrObj(extraObj, "sigmaCanon"),
+    shaHex: readStrObj(extraObj, "shaHex"),
+    phiDerived: readStrObj(extraObj, "phiDerived"),
     valuationAlg: valuation?.algorithm != null ? String(valuation.algorithm) : "",
     valuationStamp: valuation?.stamp != null ? String(valuation.stamp) : "",
     provenance: prov.slice(-7),
-    zk: extra.zk ? { scheme: extra.zk.scheme, poseidon: extra.zk.poseidon } : undefined,
+    zk: zkField,
     sigilSvg: sigilSvgRaw ?? "",
     verifyUrl: verifyUrl || "",
   };
 }
 
 /* ────────────────────────────────────────────────────────────────
-   Modal helpers (fix native <dialog> stacking)
+   Decimal toolkit (Φ uses SCALE=18)
 ────────────────────────────────────────────────────────────────── */
-function safeShowDialog(d: HTMLDialogElement | null | undefined) {
-  if (!d) return;
-  try {
-    if (!d.open) d.showModal();
-  } catch (err) {
-    logError("safeShowDialog.showModal", err);
-    try {
-      d.show?.();
-    } catch (err2) {
-      logError("safeShowDialog.show", err2);
-    }
-  }
-  d.setAttribute("data-open", "true");
-}
-function switchModal(current: HTMLDialogElement | null | undefined, openNext: () => void) {
-  if (!current || !current.open) {
-    window.setTimeout(openNext, 0);
-    return;
-  }
-  const onClosed = () => {
-    current.removeEventListener("close", onClosed);
-    window.setTimeout(openNext, 0);
-  };
-  current.addEventListener("close", onClosed, { once: true });
-  current.close();
-}
-
-/* ────────────────────────────────────────────────────────────────
-   Tiny decimal toolkit (no rounding for Φ; we truncate for math)
-   + display helpers (rounded output for UX)
-────────────────────────────────────────────────────────────────── */
-const SCALE = 18n; // 18 decimal places for Φ precision
-
+const SCALE = 18n;
 function pow10(n: bigint): bigint {
   let r = 1n;
-  for (let i = 0n; i < n; i++) r *= 10n;
+  for (let i = 0n; i < n; i += 1n) r *= 10n;
   return r;
 }
 const TEN_S = pow10(SCALE);
-
-/** Convert a decimal string to scaled BigInt (SCALE places). Accepts "", ".", etc. */
 function toScaledBig(s: string): bigint {
   const t = (s || "").trim();
   if (!t) return 0n;
   const sign = t.startsWith("-") ? -1n : 1n;
   const clean = t.replace(/[^0-9.]/g, "").replace(/^\.*/, (m) => (m ? "0." : ""));
-  const [intPartRaw, fracRaw = ""] = clean.split(".");
-  const intPart = intPartRaw.replace(/^0+(?=\d)/, "") || "0";
-  const fracPart = (fracRaw + "0".repeat(Number(SCALE))).slice(0, Number(SCALE));
-  const whole = BigInt(intPart) * TEN_S + BigInt(fracPart || "0");
+  const [iRaw, fRaw = ""] = clean.split(".");
+  const i = iRaw.replace(/^0+(?=\d)/, "") || "0";
+  const f = (fRaw + "0".repeat(Number(SCALE))).slice(0, Number(SCALE));
+  const whole = BigInt(i) * TEN_S + BigInt(f || "0");
   return sign * whole;
 }
-
-/** Scaled BigInt -> decimal string, trimming trailing zeros (no rounding). */
 function fromScaledBig(bi: bigint): string {
   const sign = bi < 0n ? "-" : "";
   const v = bi < 0n ? -bi : bi;
   const intPart = v / TEN_S;
   let frac = (v % TEN_S).toString().padStart(Number(SCALE), "0");
-  // trim trailing zeros
   frac = frac.replace(/0+$/, "");
-  return frac.length ? `${sign}${intPart.toString()}.${frac}` : `${sign}${intPart.toString()}`;
+  return frac.length ? `${sign}${intPart}.${frac}` : `${sign}${intPart}`;
 }
-
-/** (a * b) / 10^S, truncated */
 function mulScaled(a: bigint, b: bigint): bigint {
   return (a * b) / TEN_S;
 }
-/** (a * 10^S) / b, truncated */
 function divScaled(a: bigint, b: bigint): bigint {
   if (b === 0n) return 0n;
   return (a * TEN_S) / b;
 }
-
-/** Round a SCALE-scaled bigint to a fixed number of decimal places for display. */
 function roundScaledToDecimals(bi: bigint, decimals: number): bigint {
-  const d = Math.max(0, Math.min(Number(SCALE), decimals)) as number;
+  const d = Math.max(0, Math.min(Number(SCALE), decimals));
   const factor = pow10(SCALE - BigInt(d));
   const half = factor / 2n;
-  if (bi >= 0n) return ((bi + half) / factor) * factor;
-  return ((bi - half) / factor) * factor;
+  return bi >= 0n ? ((bi + half) / factor) * factor : ((bi - half) / factor) * factor;
 }
-
-/** Format a SCALE-scaled bigint with a fixed number of decimals (e.g., 4) */
 function fromScaledBigFixed(bi: bigint, decimals: number): string {
   const d = Math.max(0, Math.min(Number(SCALE), decimals));
   const sign = bi < 0n ? "-" : "";
   const v = bi < 0n ? -bi : bi;
   const cut = pow10(SCALE - BigInt(d));
-  const val = v / cut; // integer now scaled by 10^d
+  const val = v / cut;
   const tenD = pow10(BigInt(d));
   const intPart = val / tenD;
-  const fracPart = (val % tenD).toString().padStart(d, "0");
-  return `${sign}${intPart.toString()}.${fracPart}`;
+  const frac = (val % tenD).toString().padStart(d, "0");
+  return `${sign}${intPart}.${frac}`;
 }
-
-/** Convenience: format a decimal string (Φ) to exactly 4 places for display */
 function fmtPhiFixed4(phiStr: string): string {
   const scaled = toScaledBig(phiStr);
   const rounded = roundScaledToDecimals(scaled, 4);
   return fromScaledBigFixed(rounded, 4);
 }
 
-/* ────────────────────────────────────────────────────────────────
-   Exhale helpers (sum Φ exhaled from lineage payloads)
-   NOTE: counts all open/closed transfers to prevent double-spend.
-────────────────────────────────────────────────────────────────── */
+/* Extract exhaled amount from a transfer (scaled Φ bigint) */
 function exhalePhiFromTransferScaled(t: SigilTransfer | undefined): bigint {
-  if (!t || !t.payload) return 0n;
-  const pmime = t.payload.mime || "";
-  if (!pmime.startsWith("application/vnd.kairos-exhale")) return 0n;
+  if (!t?.payload) return 0n;
+  if (!t.payload.mime?.startsWith("application/vnd.kairos-exhale")) return 0n;
   try {
     const raw = base64DecodeUtf8(t.payload.encoded);
-    const obj = JSON.parse(raw);
-    if (obj?.kind === "exhale" && typeof obj.amountPhi === "string") {
-      return toScaledBig(obj.amountPhi);
-    }
+    const obj = JSON.parse(raw) as { kind?: string; amountPhi?: string } | null;
+    if (obj?.kind === "exhale" && typeof obj.amountPhi === "string") return toScaledBig(obj.amountPhi);
   } catch (err) {
     logError("exhalePhiFromTransferScaled", err);
   }
   return 0n;
 }
 
+/* ────────────────────────────────────────────────────────────────
+   Rotation bus (unchanged)
+────────────────────────────────────────────────────────────────── */
+const ROTATE_CH = "sigil-xfer-v1";
+const rotationKey = (h: string) => `sigil:rotated:${h}`;
+type RotationMsg = { type: "rotated"; canonical: string; token: string };
+const publishRotation = (keys: string[], token: string): void => {
+  const uniq = Array.from(
+    new Set(
+      (keys ?? [])
+        .map((k) => String(k || "").toLowerCase())
+        .filter((v) => v.length > 0)
+    )
+  );
+  for (const canonical of uniq) {
+    try {
+      localStorage.setItem(rotationKey(canonical), `${token}@${Date.now()}`);
+    } catch (err) {
+      logError("publishRotation.localStorage", err);
+    }
+    try {
+      const bc = new BroadcastChannel(ROTATE_CH);
+      const msg: RotationMsg = { type: "rotated", canonical, token };
+      bc.postMessage(msg);
+      bc.close();
+    } catch (err) {
+      logError("publishRotation.bc", err);
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("sigil:transfer-rotated", { detail: { canonical, token } }));
+    } catch (err) {
+      logError("publishRotation.dispatch", err);
+    }
+  }
+};
+
+/* __SIGIL__ compat */
+type SendRecord = {
+  parentCanonical: string;
+  childCanonical: string;
+  amountPhiScaled: string;
+  senderKaiPulse: number;
+  transferNonce: string;
+  senderStamp: string;
+  previousHeadRoot: string;
+  transferLeafHashSend: string;
+};
+type SigilGlobal = {
+  registerSigilUrl?: (url: string) => void;
+  registerSend?: (rec: SendRecord) => void;
+};
+function getSigilGlobal(): SigilGlobal {
+  const anyWin = window as unknown as { __SIGIL__?: Record<string, unknown> };
+  if (!anyWin.__SIGIL__) anyWin.__SIGIL__ = {};
+  const base = anyWin.__SIGIL__ as Record<string, unknown>;
+  const regUrl = typeof base.registerSigilUrl === "function" ? (base.registerSigilUrl as (url: string) => void) : undefined;
+  const regSend = typeof base.registerSend === "function" ? (base.registerSend as (rec: SendRecord) => void) : undefined;
+  return { registerSigilUrl: regUrl, registerSend: regSend };
+}
+
 /* ═════════════ COMPONENT ═════════════ */
-const VerifierStamper: React.FC = () => {
+const VerifierStamperInner: React.FC = () => {
   const svgInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const dlgRef = useRef<HTMLDialogElement>(null);
   const explorerDlgRef = useRef<HTMLDialogElement>(null);
 
-  const [pulseNow, setPulseNow] = useState(kaiPulseNow());
+  const [pulseNow, setPulseNow] = useState<number>(kaiPulseNow());
   useEffect(() => {
     const id = window.setInterval(() => setPulseNow(kaiPulseNow()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
   const [svgURL, setSvgURL] = useState<string | null>(null);
+  const [sourceFilename, setSourceFilename] = useState<string | null>(null); // keep original file name
   const [rawMeta, setRawMeta] = useState<string | null>(null);
   const [meta, setMeta] = useState<SigilMetadata | null>(null);
 
@@ -399,10 +572,8 @@ const VerifierStamper: React.FC = () => {
   const [liveSig, setLiveSig] = useState<string | null>(null);
   const [rgbSeed, setRgbSeed] = useState<[number, number, number] | null>(null);
 
-  // explicit union so setPayload(null) is valid
   const [payload, setPayload] = useState<SigilPayload | null>(null);
 
-  // NEW — amount entry (toggle USD/Φ)
   const [amountMode, setAmountMode] = useState<"USD" | "PHI">("PHI");
   const [phiInput, setPhiInput] = useState<string>("");
   const [usdInput, setUsdInput] = useState<string>("");
@@ -410,26 +581,30 @@ const VerifierStamper: React.FC = () => {
   const [uiState, setUiState] = useState<UiState>("idle");
   const [tab, setTab] = useState<TabKey>("summary");
   const [error, setError] = useState<string | null>(null);
-  const [viewRaw, setViewRaw] = useState(false);
+  const [viewRaw, setViewRaw] = useState<boolean>(false);
 
-  /* On-device head-proof status */
   const [headProof, setHeadProof] = useState<{ ok: boolean; index: number; root: string } | null>(null);
 
-  /* ── Modals ──────────────── */
-  const [sealOpen, setSealOpen] = useState(false);
-  const [sealUrl, setSealUrl] = useState("");
-  const [sealHash, setSealHash] = useState("");
-  const [explorerOpen, setExplorerOpen] = useState(false);
-  const [valuationOpen, setValuationOpen] = useState(false);
+  const [sealOpen, setSealOpen] = useState<boolean>(false);
+  const [sealUrl, setSealUrl] = useState<string>("");
+  const [sealHash, setSealHash] = useState<string>("");
+  const [explorerOpen, setExplorerOpen] = useState<boolean>(false);
+  const [valuationOpen, setValuationOpen] = useState<boolean>(false);
 
-  // Note Exhaler
   const noteDlgRef = useRef<HTMLDialogElement>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState<boolean>(false);
 
-  // raw SVG for NotePrinter
   const [sigilSvgRaw, setSigilSvgRaw] = useState<string | null>(null);
 
-  /* v14 key (silent) */
+  const [rotateOut, setRotateOut] = useState<boolean>(false);
+  useEffect(() => {
+    const d = dlgRef.current;
+    if (!d) return;
+    if (rotateOut) d.setAttribute("data-rotate", "true");
+    else d.removeAttribute("data-rotate");
+  }, [rotateOut]);
+
+  /* Device key */
   const [me, setMe] = useState<Keypair | null>(null);
   useEffect(() => {
     (async () => {
@@ -441,7 +616,7 @@ const VerifierStamper: React.FC = () => {
     })();
   }, []);
 
-  /* Auto-load verifying key */
+  /* Load verifying key (best-effort) */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -450,7 +625,7 @@ const VerifierStamper: React.FC = () => {
         if (!res.ok) return;
         const vkey: unknown = await res.json();
         if (!alive) return;
-        (window as Window).SIGIL_ZK_VKEY = vkey;
+        window.SIGIL_ZK_VKEY = vkey;
       } catch (err) {
         logError("fetch(/verification_key.json)", err);
       }
@@ -460,21 +635,25 @@ const VerifierStamper: React.FC = () => {
     };
   }, []);
 
+  /* Canonical (parent or child) + context flag */
+  const [canonical, setCanonical] = useState<string | null>(null);
+  const [canonicalContext, setCanonicalContext] = useState<"parent" | "child" | null>(null);
+
+  /* Modal open/close helpers */
   const openVerifier = () => {
     const d = dlgRef.current;
-    if (!d) return;
-    safeShowDialog(d);
+    if (d) safeShowDialog(d);
   };
   const closeVerifier = () => {
     dlgRef.current?.close();
     dlgRef.current?.setAttribute("data-open", "false");
   };
-
   const openExplorer = () => {
     const d = explorerDlgRef.current;
-    if (!d) return;
-    safeShowDialog(d);
-    setExplorerOpen(true);
+    if (d) {
+      safeShowDialog(d);
+      setExplorerOpen(true);
+    }
   };
   const closeExplorer = () => {
     explorerDlgRef.current?.close();
@@ -482,9 +661,31 @@ const VerifierStamper: React.FC = () => {
     setExplorerOpen(false);
   };
 
-  /* ──────────────────────────────────────────────────────────────
-     NOTE bridge hydration
-  ────────────────────────────────────────────────────────────── */
+  function safeShowDialog(d: HTMLDialogElement | null | undefined) {
+    if (!d) return;
+    try {
+      if (!d.open) d.showModal();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[VerifierStamper] showModal failed; falling back to show()", e);
+      d.show?.();
+    }
+    d.setAttribute("data-open", "true");
+  }
+  function switchModal(current: HTMLDialogElement | null | undefined, openNext: () => void) {
+    if (!current || !current.open) {
+      window.setTimeout(openNext, 0);
+      return;
+    }
+    const onClosed = () => {
+      current.removeEventListener("close", onClosed);
+      window.setTimeout(openNext, 0);
+    };
+    current.addEventListener("close", onClosed, { once: true });
+    current.close();
+  }
+
+  /* Note hydration */
   const noteInitial = useMemo<NoteBanknoteInputs>(() => {
     return buildNotePayload({
       meta,
@@ -504,18 +705,18 @@ const VerifierStamper: React.FC = () => {
         verifyUrl: sealUrl || (typeof window !== "undefined" ? window.location.href : ""),
         pulseNow,
       });
-      (window as Window).KKVerifier = { getNoteData: async () => p };
+      const bridge: VerifierBridge = { getNoteData: async () => p };
+      window.KKVerifier = bridge;
       try {
         window.dispatchEvent(new CustomEvent<NoteBanknoteInputs>("kk:note-data", { detail: p }));
       } catch (err) {
-        logError("dispatchEvent(kk:note-data)", err);
+        logError("dispatch(kk:note-data)", err);
       }
       safeShowDialog(d);
       setNoteOpen(true);
     };
     switchModal(dlgRef.current, openNext);
   };
-
   const closeNote = () => {
     const d = noteDlgRef.current;
     d?.close();
@@ -523,7 +724,6 @@ const VerifierStamper: React.FC = () => {
     setNoteOpen(false);
   };
 
-  /* Valuation modal */
   const openValuation = () => {
     switchModal(dlgRef.current, () => setValuationOpen(true));
   };
@@ -542,7 +742,7 @@ const VerifierStamper: React.FC = () => {
     setValuationOpen(false);
   };
 
-  /* Head window recompute + verify */
+  /* Recompute + verify head window (merkle root, zk, proof) */
   const refreshHeadWindow = useCallback(async (m: SigilMetadata) => {
     const transfers = m.transfers ?? [];
     const root = await computeHeadWindowRoot(transfers);
@@ -553,17 +753,12 @@ const VerifierStamper: React.FC = () => {
       const index = leaves.length - 1;
       const proof = await merkleProof(leaves, index);
       const okDirect = await verifyProof(root, proof);
-      const okBundle = await verifyHistorical(m, {
-        kind: "head",
-        windowMerkleRoot: root,
-        transferProof: proof,
-      });
+      const okBundle = await verifyHistorical(m, { kind: "head", windowMerkleRoot: root, transferProof: proof });
       setHeadProof({ ok: okDirect && okBundle, index, root });
     } else {
       setHeadProof(null);
     }
 
-    // v14 hardened window root
     try {
       const v14Leaves = await Promise.all(
         (m.hardenedTransfers ?? []).map(async (t) => {
@@ -590,10 +785,8 @@ const VerifierStamper: React.FC = () => {
     }
 
     try {
-      void (async () => {
-        await verifyZkOnHead(m);
-        setMeta({ ...m });
-      })();
+      await verifyZkOnHead(m);
+      setMeta({ ...m });
     } catch (err) {
       logError("refreshHeadWindow.verifyZkOnHead", err);
     }
@@ -601,7 +794,97 @@ const VerifierStamper: React.FC = () => {
     return m;
   }, []);
 
-  /* SVG upload */
+  /* Determine if a file is a persisted CHILD glyph */
+  const isPersistedChild = useCallback(
+    async (m: SigilMetadata): Promise<boolean> => {
+      const parentCanonical =
+        (m.canonicalHash as string | undefined)?.toLowerCase() ||
+        (await sha256Hex(`${m.pulse}|${m.beat}|${m.stepIndex}|${m.chakraDay}`)).toLowerCase();
+
+      const explicitChildOf = (m as SigilMetadataWithOptionals).childOfHash?.toLowerCase();
+      if (explicitChildOf && (m.canonicalHash?.toLowerCase() ?? "") !== parentCanonical) return true;
+
+      // If canonicalHash exists and differs from computed parent canonical, treat as child
+      if ((m.canonicalHash?.toLowerCase() ?? "") !== parentCanonical) return true;
+
+      return false;
+    },
+    []
+  );
+
+  /* Compute effective canonical (parent or child) */
+  const computeEffectiveCanonical = useCallback(async (m: SigilMetadata) => {
+    const parentCanonical =
+      (m.canonicalHash as string | undefined)?.toLowerCase() ||
+      (await sha256Hex(`${m.pulse}|${m.beat}|${m.stepIndex}|${m.chakraDay}`)).toLowerCase();
+
+    // Persisted CHILD?
+    if (await isPersistedChild(m)) {
+      const childCanon = (m.canonicalHash as string).toLowerCase();
+
+      const used = !!(m as SigilMetadataWithOptionals).sendLock?.used;
+      const lastClosed = !!((m.transfers ?? []).slice(-1)[0]?.receiverSignature);
+
+      // PROMOTION: treat as parent if one-time lock used OR last transfer is closed
+      if (used || lastClosed) {
+        return { canonical: childCanon, context: "parent" as const };
+      }
+      return { canonical: childCanon, context: "child" as const };
+    }
+
+    // Ephemeral CHILD (open transfer)
+    const last = (m.transfers ?? []).slice(-1)[0];
+    const hardenedLast = (m.hardenedTransfers ?? []).slice(-1)[0];
+    const isChildOpen = !!last && !last.receiverSignature;
+    if (!isChildOpen) return { canonical: parentCanonical, context: "parent" as const };
+
+    const sendLeaf = last ? await hashTransferSenderSide(last) : "";
+    const prevHead =
+      hardenedLast?.previousHeadRoot ||
+      (m as SigilMetadataWithOptionals).transfersWindowRootV14 ||
+      (m as SigilMetadataWithOptionals).transfersWindowRoot ||
+      "";
+    const seed = stableStringify({
+      parent: parentCanonical,
+      nonce: m.transferNonce || "",
+      senderStamp: last?.senderStamp || "",
+      senderKaiPulse: last?.senderKaiPulse || 0,
+      prevHead,
+      leafSend: sendLeaf,
+    });
+    const childCanonical = (await sha256Hex(seed)).toLowerCase();
+    return { canonical: childCanonical, context: "child" as const };
+  }, [isPersistedChild]);
+
+  /* Child lock/expiry inspection */
+  function getChildLockInfo(m: SigilMetadata | null, nowPulse: number): { used: boolean; expired: boolean; expireAt?: number } {
+    const mm = m as SigilMetadataWithOptionals | null;
+    if (!mm) return { used: false, expired: false };
+    const used = !!mm.sendLock?.used;
+
+    let expireAt = mm.childClaim?.expireAtPulse;
+    if (typeof expireAt !== "number" || !Number.isFinite(expireAt)) {
+      const last = mm.transfers?.slice(-1)[0];
+      const issued = last?.senderKaiPulse;
+      if (typeof issued === "number") expireAt = issued + CLAIM_PULSES;
+    }
+    const expired = typeof expireAt === "number" ? nowPulse > expireAt : false;
+    return { used, expired, expireAt };
+  }
+
+  /* Parent (ephemeral) open-link expiry */
+  function getParentOpenExpiry(m: SigilMetadata | null, nowPulse: number): { expired: boolean; expireAt?: number } {
+    if (!m) return { expired: false };
+    const last = m.transfers?.slice(-1)[0];
+    const open = !!last && !last.receiverSignature;
+    if (!open) return { expired: false };
+    const issued = last?.senderKaiPulse;
+    if (typeof issued !== "number") return { expired: false };
+    const expireAt = issued + CLAIM_PULSES;
+    return { expired: nowPulse > expireAt, expireAt };
+  }
+
+  /* File upload handler (main sigil SVG) */
   const handleSvg = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -612,6 +895,8 @@ const VerifierStamper: React.FC = () => {
       logError("handleSvg.readFile", err);
       setSigilSvgRaw(null);
     }
+
+    setSourceFilename(f.name || null);
 
     setError(null);
     setPayload(null);
@@ -625,9 +910,7 @@ const VerifierStamper: React.FC = () => {
 
     m.segmentSize ??= SEGMENT_SIZE;
     const segCount = (m.segments ?? []).reduce((a, s) => a + (s.count || 0), 0);
-    if (typeof m.cumulativeTransfers !== "number") {
-      m.cumulativeTransfers = segCount + (m.transfers?.length ?? 0);
-    }
+    if (typeof m.cumulativeTransfers !== "number") m.cumulativeTransfers = segCount + (m.transfers?.length ?? 0);
     if ((m.segments?.length ?? 0) > 0 && !m.segmentsMerkleRoot) {
       const roots = (m.segments ?? []).map((s) => s.root);
       m.segmentsMerkleRoot = await buildMerkleRoot(roots);
@@ -665,48 +948,57 @@ const VerifierStamper: React.FC = () => {
     }
 
     const hasCore =
-      typeof m.pulse === "number" &&
-      typeof m.beat === "number" &&
-      typeof m.stepIndex === "number" &&
-      typeof m.chakraDay === "string";
-
+      typeof m.pulse === "number" && typeof m.beat === "number" && typeof m.stepIndex === "number" && typeof m.chakraDay === "string";
     const last = m.transfers?.slice(-1)[0];
     const lastParty = last?.receiverSignature || last?.senderSignature || null;
     const isOwner = lastParty && sig ? lastParty === sig : null;
-
     const hasTransfers = !!(m.transfers && m.transfers.length > 0);
     const lastOpen = !!(last && !last.receiverSignature);
+    const lastClosed = !!(last && !!last.receiverSignature);
     const isUnsigned = !m.kaiSignature;
 
-    const next = deriveState({
-      contextOk,
-      typeOk,
-      hasCore,
-      contentSigMatches: cMatch,
-      isOwner,
-      hasTransfers,
-      lastOpen,
-      isUnsigned,
-    });
-
-    const verified =
-      next !== "invalid" &&
-      next !== "structMismatch" &&
-      next !== "sigMismatch" &&
-      next !== "notOwner" &&
-      !lastOpen &&
-      (cMatch === true || isUnsigned || !!m.kaiSignature);
-
     const m2 = await refreshHeadWindow(m);
+
+    // Effective canonical (parent or child)
+    let effCtx: "parent" | "child" | null = null;
+    try {
+      const eff = await computeEffectiveCanonical(m2);
+      setCanonical(eff.canonical);
+      setCanonicalContext(eff.context);
+      effCtx = eff.context;
+    } catch (err) {
+      logError("computeEffectiveCanonical", err);
+      setCanonical(null);
+      setCanonicalContext(null);
+    }
+
+    // Locks/expiry info
+    const { used: childUsed, expired: childExpired } = getChildLockInfo(m2, kaiPulseNow());
+    const { expired: parentOpenExpired } = getParentOpenExpiry(m2, kaiPulseNow());
+
     setMeta(m2);
     setRawMeta(JSON.stringify(m2, null, 2));
-    setUiState(verified ? "verified" : next);
+    setUiState(
+      deriveState({
+        contextOk,
+        typeOk,
+        hasCore,
+        contentSigMatches: cMatch,
+        isOwner,
+        hasTransfers,
+        lastOpen,
+        lastClosed,
+        isUnsigned,
+        childUsed,
+        childExpired,
+        parentOpenExpired,
+        isChildContext: effCtx === "child",
+      })
+    );
 
-    // reset amount inputs on fresh file
     setAmountMode("PHI");
     setPhiInput("");
     setUsdInput("");
-
     openVerifier();
   };
 
@@ -716,12 +1008,11 @@ const VerifierStamper: React.FC = () => {
     setPayload(await fileToPayload(f));
   };
 
-  /* Seal unsigned */
+  /* Seal unsigned (Kai signature + Phi key) */
   const sealUnsigned = async () => {
     if (!meta || !svgURL) return;
     const m = { ...meta };
     const nowPulse = kaiPulseNow();
-
     if (!m.kaiSignature) {
       const sig = await computeKaiSignature(m);
       if (!sig) {
@@ -730,20 +1021,17 @@ const VerifierStamper: React.FC = () => {
       }
       m.kaiSignature = sig;
     }
-    if (!m.userPhiKey && m.kaiSignature) {
-      m.userPhiKey = await derivePhiKeyFromSig(m.kaiSignature);
-    }
+    if (!m.userPhiKey && m.kaiSignature) m.userPhiKey = await derivePhiKeyFromSig(m.kaiSignature);
     if (typeof m.kaiPulse !== "number") m.kaiPulse = nowPulse;
 
     try {
       if (!(m as SigilMetadataWithOptionals).creatorPublicKey && me) (m as SigilMetadataWithOptionals).creatorPublicKey = me.spkiB64u;
     } catch (err) {
-      logError("sealUnsigned.setCreatorPublicKey", err);
+      logError("sealUnsigned.creatorPublicKey", err);
     }
 
     const durl = await embedMetadata(svgURL, m);
     download(durl, `${safeFilename("sigil_sealed", nowPulse)}.svg`);
-
     const m2 = await refreshHeadWindow(m);
     setMeta(m2);
     setRawMeta(JSON.stringify(m2, null, 2));
@@ -751,11 +1039,51 @@ const VerifierStamper: React.FC = () => {
     setError(null);
   };
 
-  /* Share link */
+  /* Build a persistent CHILD file snapshot for download/share */
+  async function buildChildMetaForDownload(updated: SigilMetadata, args: {
+    parentCanonical: string;
+    childCanonical: string;
+    allocationPhiStr: string;
+    issuedPulse: number;
+  }): Promise<SigilMetadata> {
+    const m = JSON.parse(JSON.stringify(updated)) as SigilMetadataWithOptionals;
+    m.canonicalHash = args.childCanonical;            // persist CHILD canonical
+    m.childOfHash = args.parentCanonical;
+    m.childAllocationPhi = args.allocationPhiStr;     // fixed allocation for this child
+    m.childIssuedPulse = args.issuedPulse;
+    m.childClaim = { steps: CLAIM_STEPS, expireAtPulse: args.issuedPulse + CLAIM_PULSES };
+    m.sendLock = { nonce: updated.transferNonce!, used: false };
+
+    // For child branch accounting, set base=allocation, spent=0 (child local)
+    m.branchBasePhi = args.allocationPhiStr;
+    m.branchSpentPhi = "0";
+
+    return m;
+  }
+
+  /* Share link modal + rotation broadcast */
   const shareTransferLink = useCallback(async (m: SigilMetadata) => {
-    const canonical =
+    const parentCanonical =
       (m.canonicalHash as string | undefined)?.toLowerCase() ||
       (await sha256Hex(`${m.pulse}|${m.beat}|${m.stepIndex}|${m.chakraDay}`)).toLowerCase();
+
+    const last = (m.transfers ?? []).slice(-1)[0];
+    const hardenedLast = (m.hardenedTransfers ?? []).slice(-1)[0];
+
+    const sendLeaf = last ? await hashTransferSenderSide(last) : "";
+    const childSeed = stableStringify({
+      parent: parentCanonical,
+      nonce: m.transferNonce || "",
+      senderStamp: last?.senderStamp || "",
+      senderKaiPulse: last?.senderKaiPulse || 0,
+      prevHead:
+        hardenedLast?.previousHeadRoot ||
+        (m as SigilMetadataWithOptionals).transfersWindowRootV14 ||
+        (m as SigilMetadataWithOptionals).transfersWindowRoot ||
+        "",
+      leafSend: sendLeaf,
+    });
+    const childHash = (await sha256Hex(childSeed)).toLowerCase();
 
     const token = m.transferNonce || genNonce();
     const chakraDay: ChakraDay = normalizeChakraDay(m.chakraDay) ?? "Root";
@@ -769,15 +1097,46 @@ const VerifierStamper: React.FC = () => {
       userPhiKey: m.userPhiKey,
     };
 
-    const enriched = { ...sharePayload, canonicalHash: canonical, transferNonce: token };
+    const startPulse = last?.senderKaiPulse ?? kaiPulseNow();
+    const claim = {
+      steps: CLAIM_STEPS,
+      expireAtPulse: startPulse + CLAIM_PULSES,
+      stepsPerBeat: (m as SigilMetadataWithOptionals).stepsPerBeat ?? 12,
+    };
+
+    let preview:
+      | {
+          unit?: "USD" | "PHI";
+          amountPhi?: string;
+          amountUsd?: string;
+          usdPerPhi?: number;
+        }
+      | undefined;
+
+    try {
+      if (last?.payload?.mime?.startsWith("application/vnd.kairos-exhale")) {
+        const obj = JSON.parse(base64DecodeUtf8(last.payload.encoded)) as {
+          kind?: string;
+          unit?: "USD" | "PHI";
+          amountPhi?: string;
+          amountUsd?: string;
+          usdPerPhi?: number;
+        } | null;
+        if (obj?.kind === "exhale") preview = { unit: obj.unit, amountPhi: obj.amountPhi, amountUsd: obj.amountUsd, usdPerPhi: obj.usdPerPhi };
+      }
+    } catch (err) {
+      logError("shareTransferLink.previewDecode", err);
+    }
+
+    const enriched = { ...sharePayload, canonicalHash: childHash, parentHash: parentCanonical, transferNonce: token, claim, preview };
 
     let base = "";
     try {
-      base = makeSigilUrl(canonical, sharePayload);
+      base = makeSigilUrl(childHash, sharePayload);
     } catch (err) {
       logError("shareTransferLink.makeSigilUrl", err);
       const u = new URL(typeof window !== "undefined" ? window.location.href : "http://localhost");
-      u.pathname = `/s/${canonical}`;
+      u.pathname = `/s/${childHash}`;
       base = u.toString();
     }
 
@@ -785,55 +1144,127 @@ const VerifierStamper: React.FC = () => {
     try {
       const lite: SigilTransferLite[] = [];
       for (const t of m.transfers ?? []) {
-        if (!t || typeof t.senderSignature !== "string" || typeof t.senderKaiPulse !== "number") continue;
-        const entry: SigilTransferLite = { s: t.senderSignature, p: t.senderKaiPulse };
-        if (typeof t.receiverSignature === "string" && t.receiverSignature) entry.r = t.receiverSignature;
+        if (!t?.senderSignature || typeof t.senderKaiPulse !== "number") continue;
+        const entry = (typeof t.receiverSignature === "string" && typeof t.receiverKaiPulse === "number"
+          ? { s: t.senderSignature, p: t.senderKaiPulse, r: t.receiverSignature }
+          : { s: t.senderSignature, p: t.senderKaiPulse }) as SigilTransferLite;
         lite.push(entry);
       }
-      if (lite.length > 0) {
-        const enc = encodeSigilHistory(lite); // "h:<b64url>"
-        historyParam = enc.startsWith("h:") ? enc.slice(2) : enc;
-      }
+      const enc = encodeSigilHistory(lite);
+      historyParam = enc.startsWith("h:") ? enc.slice(2) : enc;
     } catch (err) {
       logError("shareTransferLink.encodeSigilHistory", err);
     }
 
     const url = rewriteUrlPayload(base, enriched, token, historyParam);
     setSealUrl(url);
-    setSealHash(canonical);
-    setSealOpen(true);
+    setSealHash(childHash);
+
+    setRotateOut(true);
+    switchModal(dlgRef.current, () => setSealOpen(true));
+
+    try {
+      publishRotation([parentCanonical], token);
+    } catch (err) {
+      logError("shareTransferLink.publishRotation", err);
+    }
   }, []);
 
-  /* ──────────────────────────────────────────────────────────────
-     QUOTES / FORMATTING
-  ────────────────────────────────────────────────────────────── */
+  /* syncMetaAndUi
+     After any mutation (send, receive, segmentation),
+     refresh canonical/context and uiState, but DO NOT "retire" heads
+     just because we segmented. Continuous breathing. */
+  const syncMetaAndUi = useCallback(
+    async (mNew: SigilMetadata) => {
+      // persist
+      setMeta(mNew);
+      setRawMeta(JSON.stringify(mNew, null, 2));
+
+      // core presence
+      const hasCore =
+        typeof mNew.pulse === "number" &&
+        typeof mNew.beat === "number" &&
+        typeof mNew.stepIndex === "number" &&
+        typeof mNew.chakraDay === "string";
+
+      // ownership check
+      const lastTx = mNew.transfers?.slice(-1)[0];
+      const lastParty = lastTx?.receiverSignature || lastTx?.senderSignature || null;
+      const isOwner = lastParty && liveSig ? lastParty === liveSig : null;
+
+      const hasTransfers = !!(mNew.transfers && mNew.transfers.length > 0);
+      const lastOpen = !!(lastTx && !lastTx.receiverSignature);
+      const lastClosed = !!(lastTx && !!lastTx.receiverSignature);
+      const isUnsigned = !mNew.kaiSignature;
+
+      // effective canonical / context
+      let effCtx: "parent" | "child" | null = null;
+      try {
+        const eff = await computeEffectiveCanonical(mNew);
+        setCanonical(eff.canonical);
+        setCanonicalContext(eff.context);
+        effCtx = eff.context;
+      } catch (err) {
+        logError("syncMetaAndUi.computeEffectiveCanonical", err);
+        setCanonical(null);
+        setCanonicalContext(null);
+      }
+
+      // lock+expiry
+      const { used: childUsed, expired: childExpired } = getChildLockInfo(mNew, kaiPulseNow());
+      const { expired: parentOpenExpired } = getParentOpenExpiry(mNew, kaiPulseNow());
+
+      // content sig match: compare to latest expected if we have one
+      let cMatch: boolean | null = null;
+      if (contentSigExpected && mNew.kaiSignature) {
+        cMatch = contentSigExpected.toLowerCase() === mNew.kaiSignature.toLowerCase();
+      }
+
+      // post-mutation ui state (no "retired" branch)
+      setUiState(
+        deriveState({
+          contextOk: true,
+          typeOk: true,
+          hasCore,
+          contentSigMatches: cMatch,
+          isOwner,
+          hasTransfers,
+          lastOpen,
+          lastClosed,
+          isUnsigned,
+          childUsed,
+          childExpired,
+          parentOpenExpired,
+          isChildContext: effCtx === "child",
+        })
+      );
+    },
+    [
+      liveSig,
+      computeEffectiveCanonical,
+      contentSigExpected,
+    ]
+  );
+
+  /* Formatting helpers */
   const fmtPhiCompact = useCallback((s: string) => {
-    // keep user-entered precision; just strip leading zeros if any
     let t = (s || "").trim();
     if (!t) return "0";
     if (t.startsWith(".")) t = "0" + t;
-    // remove trailing decimal dot
     t = t.replace(/\.?$/, (m) => (/\.\d/.test(t) ? m : ""));
     return t;
   }, []);
   const fmtUsdNoSym = useCallback((v: number) => {
-    return new Intl.NumberFormat(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      useGrouping: true,
-    }).format(Math.max(0, v || 0));
+    return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }).format(Math.max(0, v || 0));
   }, []);
-
   const canShare = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    const nav = navigator as Navigator & {
-      share?: (data: ShareData) => Promise<void>;
-      canShare?: (data: ShareData) => boolean;
-    };
-    return typeof nav.share === "function";
+    const hasShare =
+      typeof navigator !== "undefined" &&
+      "share" in navigator &&
+      typeof (navigator as Navigator & { share?: (data?: ShareData) => Promise<void> }).share === "function";
+    return hasShare;
   }, []);
 
-  /* Revoke object URLs to avoid leaks */
   useEffect(() => {
     return () => {
       if (svgURL && svgURL.startsWith("blob:")) {
@@ -846,21 +1277,13 @@ const VerifierStamper: React.FC = () => {
     };
   }, [svgURL]);
 
-  const metaLite = useMemo(() => (meta ? (meta as unknown as SigilMetadataLite) : null), [meta]);
-
   const metaLiteForNote = useMemo<SigilMetadataLite | null>(() => {
     if (!meta) return null;
     const mOpt = meta as SigilMetadataWithOptionals;
     const day = normalizeChakraDay(meta.chakraDay) ?? "Root";
     const steps = mOpt.stepsPerBeat ?? 12;
     const twr = mOpt.transfersWindowRoot ?? mOpt.transfersWindowRootV14;
-    const obj: Partial<SigilMetadataLite> & {
-      pulse: number;
-      beat: number;
-      stepIndex: number;
-      stepsPerBeat: number;
-      chakraDay: ChakraDay;
-    } = {
+    const obj: SigilMetadataLite = {
       pulse: meta.pulse as number,
       beat: meta.beat as number,
       stepIndex: meta.stepIndex as number,
@@ -870,55 +1293,51 @@ const VerifierStamper: React.FC = () => {
       userPhiKey: meta.userPhiKey ?? "",
       transfersWindowRoot: twr,
     };
-    return obj as SigilMetadataLite;
+    return obj;
   }, [meta]);
 
-  /* Seed Valuation */
+  /* Initial glyph valuation baseline for Remaining Φ math and USD conversion */
   type InitialGlyph = { hash: string; value: number; pulseCreated: number; meta: SigilMetadataLite };
   const [initialGlyph, setInitialGlyph] = useState<InitialGlyph | null>(null);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!metaLite) {
+      if (!metaLiteForNote) {
         setInitialGlyph(null);
         return;
       }
-      const canonical =
+      const canonicalHash =
         (meta?.canonicalHash as string | undefined)?.toLowerCase() ||
-        (await sha256Hex(`${metaLite.pulse}|${metaLite.beat}|${metaLite.stepIndex}|${metaLite.chakraDay}`)).toLowerCase();
+        (await sha256Hex(`${metaLiteForNote.pulse}|${metaLiteForNote.beat}|${metaLiteForNote.stepIndex}|${metaLiteForNote.chakraDay}`)).toLowerCase();
 
       try {
         const headHash =
-          (meta as SigilMetadataWithOptionals)?.transfersWindowRoot ??
+          (meta as SigilMetadataWithOptionals)?.transfersWindowRoot ||
           (meta as SigilMetadataWithOptionals)?.transfersWindowRootV14;
-        const { seal } = await buildValueSeal(metaLite, pulseNow, sha256Hex, headHash);
-        if (!cancelled) {
+        const { seal } = await buildValueSeal(metaLiteForNote, pulseNow, sha256Hex, headHash);
+        if (!cancelled)
           setInitialGlyph({
-            hash: canonical,
+            hash: canonicalHash,
             value: seal.valuePhi ?? 0,
-            pulseCreated: metaLite.pulse ?? pulseNow,
-            meta: metaLite,
+            pulseCreated: metaLiteForNote.pulse ?? pulseNow,
+            meta: metaLiteForNote,
           });
-        }
       } catch (err) {
         logError("buildValueSeal", err);
-        if (!cancelled) {
+        if (!cancelled)
           setInitialGlyph({
-            hash: canonical,
+            hash: canonicalHash,
             value: 0,
-            pulseCreated: metaLite.pulse ?? pulseNow,
-            meta: metaLite,
+            pulseCreated: metaLiteForNote.pulse ?? pulseNow,
+            meta: metaLiteForNote,
           });
-        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [metaLite, meta, pulseNow]);
+  }, [metaLiteForNote, meta, pulseNow]);
 
-  // ensure raw SVG for Note
   useEffect(() => {
     if (!noteOpen || sigilSvgRaw || !svgURL) return;
     (async () => {
@@ -931,225 +1350,194 @@ const VerifierStamper: React.FC = () => {
     })();
   }, [noteOpen, sigilSvgRaw, svgURL]);
 
-  /* ──────────────────────────────────────────────────────────────
-     Header valuation (Φ + USD ticker)
-     (UPDATED to persist balance across segmentations)
-  ────────────────────────────────────────────────────────────── */
+  /* USD/Φ rate quote for live conversion */
+  const issuancePolicy = DEFAULT_ISSUANCE_POLICY;
+  const { usdPerPhi } = useMemo(() => {
+    try {
+      const nowKai = pulseNow;
+      const metaLiteSafe: SigilMetadataLite = metaLiteForNote ?? {
+        pulse: 0,
+        beat: 0,
+        stepIndex: 0,
+        stepsPerBeat: 12,
+        chakraDay: "Root",
+        kaiSignature: "",
+        userPhiKey: "",
+        transfersWindowRoot: "",
+      };
+      const q = quotePhiForUsd({ meta: metaLiteSafe, nowPulse: nowKai, usd: 100, currentStreakDays: 0, lifetimeUsdSoFar: 0 }, issuancePolicy);
+      return { usdPerPhi: q.usdPerPhi ?? 0 };
+    } catch (err) {
+      logError("quotePhiForUsd", err);
+      return { usdPerPhi: 0 };
+    }
+  }, [metaLiteForNote, pulseNow, issuancePolicy]);
 
-  // ── NEW: read persisted branch base & spent (if any)
-  const persistedBaseScaled = useMemo(
-    () => toScaledBig(((meta as SigilMetadataWithOptionals | null)?.branchBasePhi ?? "")),
-    [meta]
-  );
-  const persistedSpentScaled = useMemo(
-    () => toScaledBig(((meta as SigilMetadataWithOptionals | null)?.branchSpentPhi ?? "0")),
-    [meta]
-  );
+  /* Remaining Φ math (branch-aware, persists across segmentation) */
+  const persistedBaseScaled = useMemo(() => toScaledBig(((meta as SigilMetadataWithOptionals | null)?.branchBasePhi ?? "")), [meta]);
+  const persistedSpentScaled = useMemo(() => toScaledBig(((meta as SigilMetadataWithOptionals | null)?.branchSpentPhi ?? "0")), [meta]);
 
-  // ── pivot logic within CURRENT head window only (post-seg)
   const pivotIndex = useMemo(() => {
     const trs = meta?.transfers ?? [];
-    // last sealed receive (becomes our branch root). If none, use last open send.
-    for (let i = trs.length - 1; i >= 0; i--) {
-      if (trs[i]?.receiverSignature) return i;
-    }
+    for (let i = trs.length - 1; i >= 0; i -= 1) if (trs[i]?.receiverSignature) return i;
     return trs.length > 0 ? trs.length - 1 : -1;
   }, [meta?.transfers]);
+  const prevPivotIndex = useMemo(() => {
+    const trs = meta?.transfers ?? [];
+    let seen = 0;
+    for (let i = trs.length - 1; i >= 0; i -= 1) {
+      if (trs[i]?.receiverSignature) {
+        seen += 1;
+        if (seen === 2) return i;
+      }
+    }
+    return -1;
+  }, [meta?.transfers]);
 
-  // Base Φ: prefer persisted branchBasePhi; else parent's sent at pivot; else initial valuation
+  const lastTransfer = useMemo(() => (meta?.transfers ?? []).slice(-1)[0], [meta?.transfers]);
+  const isChildContext = useMemo(() => canonicalContext === "child", [canonicalContext]);
+
   const basePhiScaled = useMemo(() => {
+    if (isChildContext) {
+      const childAllocStr = (meta as SigilMetadataWithOptionals | null)?.childAllocationPhi;
+      if (childAllocStr) {
+        const ex = toScaledBig(childAllocStr);
+        if (ex > 0n) return ex;
+      }
+      const exOpen = toScaledBig(fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)));
+      if (exOpen > 0n) return exOpen;
+      return 0n;
+    }
     if (persistedBaseScaled > 0n) return persistedBaseScaled;
     if (pivotIndex >= 0 && meta?.transfers) {
       const v = exhalePhiFromTransferScaled(meta.transfers[pivotIndex]);
       return v > 0n ? v : 0n;
     }
-    return toScaledBig(((initialGlyph?.value ?? 0) as number).toString());
-  }, [persistedBaseScaled, pivotIndex, meta?.transfers, initialGlyph]);
+    const initialValStr = String(initialGlyph?.value ?? 0);
+    return toScaledBig(initialValStr || "0");
+  }, [isChildContext, meta, lastTransfer, persistedBaseScaled, pivotIndex, initialGlyph]);
 
-  // Spent AFTER pivot within CURRENT head window (not yet sealed)
   const currentWindowSpentScaled = useMemo(() => {
     let sum = 0n;
     try {
       const trs = meta?.transfers ?? [];
-      for (let i = Math.max(0, pivotIndex + 1); i < trs.length; i++) {
-        sum += exhalePhiFromTransferScaled(trs[i]);
-      }
+      for (let i = Math.max(0, pivotIndex + 1); i < trs.length; i += 1) sum += exhalePhiFromTransferScaled(trs[i]);
     } catch (err) {
       logError("remainingPhiScaled.sumAfterPivot", err);
     }
     return sum;
   }, [meta?.transfers, pivotIndex]);
 
-  // Total spent across branch = persisted (sealed) + current window (unsealed)
-  const totalSpentScaled = useMemo(() => persistedSpentScaled + currentWindowSpentScaled, [persistedSpentScaled, currentWindowSpentScaled]);
+  const priorWindowSpentScaled = useMemo(() => {
+    try {
+      const trs = meta?.transfers ?? [];
+      if (pivotIndex <= 0) return 0n;
+      const start = Math.max(0, prevPivotIndex + 1);
+      const end = Math.max(start, pivotIndex);
+      let sum = 0n;
+      for (let i = start; i < end; i += 1) sum += exhalePhiFromTransferScaled(trs[i]);
+      return sum;
+    } catch (err) {
+      logError("priorWindowSpentScaled", err);
+      return 0n;
+    }
+  }, [meta?.transfers, pivotIndex, prevPivotIndex]);
 
-  // Remaining Φ available on this glyph (exact, matches send hard-cap)
-  const remainingPhiScaled = useMemo(() => {
-    return basePhiScaled > totalSpentScaled ? basePhiScaled - totalSpentScaled : 0n;
-  }, [basePhiScaled, totalSpentScaled]);
+  const ledgerSpentScaled = useMemo(() => {
+    if (!canonical) return 0n;
+    try {
+      return getSpentScaledFor(canonical);
+    } catch (err) {
+      logError("ledgerSpentScaled", err);
+      return 0n;
+    }
+  }, [canonical]);
 
-  const remainingPhiNumber = useMemo(() => Number(fromScaledBig(remainingPhiScaled)), [remainingPhiScaled]);
+  const effectivePersistedSpentScaled = useMemo(
+    () => (persistedSpentScaled > priorWindowSpentScaled ? persistedSpentScaled : priorWindowSpentScaled),
+    [persistedSpentScaled, priorWindowSpentScaled]
+  );
 
-  /* Header ticker state */
-  const [headerPhi, setHeaderPhi] = useState<number | null>(null);
+  const metaSpentScaled = useMemo(() => {
+    if (isChildContext) return 0n; // child branch spent tracked locally
+    return effectivePersistedSpentScaled + currentWindowSpentScaled;
+  }, [isChildContext, effectivePersistedSpentScaled, currentWindowSpentScaled]);
+
+  const totalSpentScaled = useMemo(
+    () => (ledgerSpentScaled > metaSpentScaled ? ledgerSpentScaled : metaSpentScaled),
+    [ledgerSpentScaled, metaSpentScaled]
+  );
+
+  const remainingPhiScaled = useMemo(
+    () => (basePhiScaled > totalSpentScaled ? basePhiScaled - totalSpentScaled : 0n),
+    [basePhiScaled, totalSpentScaled]
+  );
+
+  const remainingPhiDisplay4 = useMemo(
+    () => fromScaledBigFixed(roundScaledToDecimals(remainingPhiScaled, 4), 4),
+    [remainingPhiScaled]
+  );
+
+  /* Header view uses Remaining Φ (continuous, never retired by segmentation) */
+  const headerPhi = useMemo(() => {
+    const rounded = roundScaledToDecimals(remainingPhiScaled, 4);
+    return Number(fromScaledBig(rounded));
+  }, [remainingPhiScaled]);
+
+  const usdPerPhiRateScaled = useMemo(() => toScaledBig((usdPerPhi || 0).toFixed(18)), [usdPerPhi]);
+  const headerUsd = useMemo(() => {
+    const usdScaled = mulScaled(remainingPhiScaled, usdPerPhiRateScaled);
+    return Number(fromScaledBig(usdScaled)) || 0;
+  }, [remainingPhiScaled, usdPerPhiRateScaled]);
+
+  // header trend flash (visual)
   const [headerFlash, setHeaderFlash] = useState<"up" | "down" | null>(null);
   const [headerTrend, setHeaderTrend] = useState<"up" | "down" | "flat">("flat");
-
-  // Seed header with exact remaining Φ (no drift)
+  const [lastHeaderPhi, setLastHeaderPhi] = useState<number>(headerPhi);
   useEffect(() => {
-    if (initialGlyph) {
-      setHeaderPhi(remainingPhiNumber);
-      setHeaderTrend("flat");
-    }
-  }, [initialGlyph, remainingPhiNumber]);
-
-  const issuancePolicy = DEFAULT_ISSUANCE_POLICY;
-  const headerQuote = useMemo(() => {
-    try {
-      if (!metaLiteForNote) return { usdPerPhi: 0, phiPerUsd: 0 };
-      return quotePhiForUsd(
-        {
-          meta: metaLiteForNote,
-          nowPulse: pulseNow,
-          usd: 100,
-          currentStreakDays: 0,
-          lifetimeUsdSoFar: 0,
-        },
-        issuancePolicy
-      );
-    } catch (err) {
-      logError("quotePhiForUsd", err);
-      return { usdPerPhi: 0, phiPerUsd: 0 };
-    }
-  }, [metaLiteForNote, pulseNow, issuancePolicy]);
-
-  const headerUsd = (headerPhi ?? 0) * (headerQuote.usdPerPhi || 0);
-
-  // Snap header to remaining Φ; keep trend flash for UX, but no noise
-  useEffect(() => {
-    if (!initialGlyph) return;
-    let timer: number | undefined;
     const tick = () => {
-      setHeaderPhi((last) => {
-        const target = remainingPhiNumber;
-        const prev = last ?? target;
-        const next = target; // snap exactly so it always matches available
-        const trend: "up" | "down" | "flat" = next > prev ? "up" : next < prev ? "down" : "flat";
-        setHeaderTrend(trend);
-        setHeaderFlash(trend === "flat" ? null : trend);
-        window.setTimeout(() => setHeaderFlash(null), 420);
-        return next;
-      });
-      timer = window.setTimeout(tick, BREATH_MS);
+      setHeaderTrend(headerPhi > lastHeaderPhi ? "up" : headerPhi < lastHeaderPhi ? "down" : "flat");
+      setHeaderFlash(headerPhi !== lastHeaderPhi ? (headerPhi > lastHeaderPhi ? "up" : "down") : null);
+      window.setTimeout(() => setHeaderFlash(null), 420);
+      setLastHeaderPhi(headerPhi);
     };
-    timer = window.setTimeout(tick, BREATH_MS);
-    return () => {
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [initialGlyph, remainingPhiNumber]);
+    const id = window.setInterval(tick, BREATH_MS);
+    return () => window.clearInterval(id);
+  }, [headerPhi, lastHeaderPhi]);
 
-  /* Live conversion for the input UI
-     - Φ math remains exact (scaled bigint, truncated ops)
-     - USD→Φ display (only) gets rounded to 4dp for readability
-  */
-  const usdPerPhiRateScaled = useMemo(() => {
-    const rate = headerQuote?.usdPerPhi || 0;
-    // toFixed prepares a normalized decimal string for scaling
-    return toScaledBig(rate.toFixed(18));
-  }, [headerQuote]);
-
+  /* Live conversion block */
   const conv = useMemo(() => {
-    const mode = amountMode;
-    if (mode === "PHI") {
-      // normalize the user-entered string (keep precision, strip leading zeros / dangling dot)
+    if (amountMode === "PHI") {
       const phiNormalized = fmtPhiCompact(phiInput);
       const phiScaled = toScaledBig(phiNormalized);
       const usdScaled = mulScaled(phiScaled, usdPerPhiRateScaled);
-      const usdNumber = Number(fromScaledBig(usdScaled)); // display convenience
+      const usdNumber = Number(fromScaledBig(usdScaled));
       return {
         displayLeftLabel: "Φ",
         displayRight: Number.isFinite(usdNumber) ? `$ ${fmtUsdNoSym(usdNumber)}` : "$ 0.00",
-        // preserve entered precision for the send payload
         phiStringToSend: phiNormalized,
         usdNumberAtSend: Number.isFinite(usdNumber) ? usdNumber : 0,
       };
     } else {
       const usdScaled = toScaledBig(usdInput);
-      const phiScaled = divScaled(usdScaled, usdPerPhiRateScaled); // TRUNCATE => no rounding (math)
+      const phiScaled = divScaled(usdScaled, usdPerPhiRateScaled);
       const phiStrExact = fromScaledBig(phiScaled);
-      // Display: round to 4dp for readability only
       const phiDisplay4 = fromScaledBigFixed(roundScaledToDecimals(phiScaled, 4), 4);
       return {
         displayLeftLabel: "$",
         displayRight: `≈ Φ ${phiDisplay4}`,
-        phiStringToSend: phiStrExact, // computed phi (full precision string, truncated math)
+        phiStringToSend: phiStrExact,
         usdNumberAtSend: Number(fromScaledBig(usdScaled)) || 0,
       };
     }
   }, [amountMode, phiInput, usdInput, usdPerPhiRateScaled, fmtUsdNoSym, fmtPhiCompact]);
 
-  /* ---------- Icon primitives ---------- */
-  type IconKind = "ok" | "warn" | "err" | "info";
+  const canExhale = useMemo(() => {
+    const req = toScaledBig(conv.phiStringToSend || "0");
+    return req > 0n && req <= remainingPhiScaled;
+  }, [conv.phiStringToSend, remainingPhiScaled]);
 
-  const IconCircle: React.FC<{
-    title: string;
-    kind?: IconKind;
-    children: React.ReactNode;
-    badge?: number | null;
-  }> = ({ title, kind = "info", children, badge = null }) => (
-    <span
-      className={`chip icon ${kind}`}
-      role="img"
-      aria-label={title}
-      title={title}
-      {...(badge != null ? { "data-badge": String(badge) } : {})}
-    >
-      {children}
-    </span>
-  );
-
-  const Svg: React.FC<{
-    path:
-      | "check"
-      | "x"
-      | "warn"
-      | "shield"
-      | "sigma"
-      | "phi"
-      | "send"
-      | "recv"
-      | "done"
-      | "stack"
-      | "hash"
-      | "zk"
-      | "paperclip";
-    label?: string;
-  }> = ({ path, label }) => {
-    const p: Record<string, string> = {
-      check: "M5 13l4 4L19 7",
-      x: "M6 6l12 12M6 18L18 6",
-      warn: "M12 9v4m0 4h.01M12 3l9 16H3z",
-      shield: "M12 3l7 4v6l-7 4-7-4V7l7-4z",
-      sigma: "M18 6H9l5 6-5 6h9M6 6h2M6 18h2",
-      phi: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 0v16",
-      send: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
-      recv: "M2 22l11-11M2 22l20-7-9-4-4-9-7 20z",
-      done: "M12 21c4.97 0 9-4.03 9-9S16.97 3 12 3 3 7.03 3 12s4.03 9 9 9zm-1-6l6-6M8 12l3 3",
-      stack: "M12 3l9 4-9 4-9-4 9-4zm-9 8l9 4 9-4M3 19l9 4 9-4",
-      hash: "M10 3L8 21M16 3l-2 18M3 8h18M3 16h18",
-      zk: "M12 3l7 4v6l-7 4-7-4V7l7-4zM9 12h6",
-      paperclip:
-        "M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.2a2 2 0 01-2.83-2.83l8.49-8.49",
-    };
-    return (
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="ico">
-        {label ? <title>{label}</title> : null}
-        <path d={p[path]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </svg>
-    );
-  };
-
-  /* JSON tree (compact, collapsible) */
+  /* Compact JSON tree viewer */
   const JsonTree: React.FC<{ data: unknown }> = ({ data }) => {
     if (typeof data !== "object" || data === null) return <span className="json-primitive">{String(data)}</span>;
     const isArr = Array.isArray(data);
@@ -1168,32 +1556,7 @@ const VerifierStamper: React.FC = () => {
     );
   };
 
-  /* Header chip status */
-  const statusChips = () => {
-    const chips: React.ReactNode[] = [];
-    if (uiState === "invalid") chips.push(<IconCircle key="inv" kind="err" title="Invalid"><Svg path="x" /></IconCircle>);
-    if (uiState === "structMismatch") chips.push(<IconCircle key="struct" kind="err" title="Structure mismatch"><Svg path="warn" /></IconCircle>);
-    if (uiState === "sigMismatch") chips.push(<IconCircle key="sigm" kind="err" title="Signature mismatch"><Svg path="x" /></IconCircle>);
-    if (uiState === "notOwner") chips.push(<IconCircle key="owner" kind="warn" title="Not owner"><Svg path="shield" /></IconCircle>);
-    if (uiState === "unsigned") chips.push(<IconCircle key="unsigned" kind="warn" title="Unsigned"><Svg path="hash" /></IconCircle>);
-    if (uiState === "readySend") chips.push(<IconCircle key="send" kind="info" title="Ready to send"><Svg path="send" /></IconCircle>);
-    if (uiState === "readyReceive") chips.push(<IconCircle key="recv" kind="info" title="Ready to receive"><Svg path="recv" /></IconCircle>);
-    if (uiState === "complete") chips.push(<IconCircle key="done" kind="ok" title="Lineage sealed"><Svg path="done" /></IconCircle>);
-    if (uiState === "verified") chips.push(<IconCircle key="ver" kind="ok" title="Verified"><Svg path="check" /></IconCircle>);
-    if (contentSigMatches === true) chips.push(<IconCircle key="sigok" kind="ok" title="Content Σ match"><Svg path="sigma" /></IconCircle>);
-    if (contentSigMatches === false) chips.push(<IconCircle key="sigerr" kind="err" title="Content Σ mismatch"><Svg path="sigma" /></IconCircle>);
-    if (phiKeyMatches === true) chips.push(<IconCircle key="phiok" kind="ok" title="Φ-Key match"><Svg path="phi" /></IconCircle>);
-    if (phiKeyMatches === false) chips.push(<IconCircle key="phierr" kind="err" title="Φ-Key mismatch"><Svg path="phi" /></IconCircle>);
-    if (meta?.cumulativeTransfers != null) chips.push(<IconCircle key="cum" kind="info" title="Cumulative transfers" badge={meta.cumulativeTransfers}><Svg path="hash" /></IconCircle>);
-    if ((meta?.segments?.length ?? 0) > 0) chips.push(<IconCircle key="segs" kind="info" title="Segments" badge={meta?.segments?.length ?? 0}><Svg path="stack" /></IconCircle>);
-    if (headProof) chips.push(<IconCircle key="headproof" kind={headProof.ok ? "ok" : "err"} title={headProof.ok ? "Head proof verified" : "Head proof failed"}><Svg path="shield" /></IconCircle>);
-    if ((meta as SigilMetadataWithOptionals | null)?.transfersWindowRootV14) chips.push(<IconCircle key="v14root" kind="info" title="v14 head root present"><Svg path="hash" /></IconCircle>);
-    const anyZkVerified = (meta?.hardenedTransfers ?? []).some((ht) => ht.zkSend?.verified || ht.zkReceive?.verified);
-    if (anyZkVerified) chips.push(<IconCircle key="zk" kind="ok" title="Zero-knowledge proof verified"><Svg path="zk" /></IconCircle>);
-    return chips;
-  };
-
-  /* Export ZIP */
+  /* Export ZIP bundle (svg + png preview) */
   const downloadZip = useCallback(async () => {
     if (!meta || !svgURL) return;
     const svgDataUrl = await embedMetadata(svgURL, meta);
@@ -1204,8 +1567,8 @@ const VerifierStamper: React.FC = () => {
     } catch (err) {
       logError("pngBlobFromSvgDataUrl", err);
     }
-    const JSZipModule = await import("jszip");
-    const zip = new JSZipModule.default();
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
     const sigilPulse = meta.pulse ?? 0;
     const last = meta.transfers?.slice(-1)[0];
     const sendPulse = last?.senderKaiPulse ?? meta.kaiPulse ?? kaiPulseNow();
@@ -1216,7 +1579,13 @@ const VerifierStamper: React.FC = () => {
     download(zipBlob, `${base}.zip`);
   }, [meta, svgURL]);
 
-  /* Send flow */
+  /* Detect SEND filename (child that was just minted for someone else) */
+  const isSendFilename = useMemo(() => {
+    const name = (sourceFilename || "").toLowerCase();
+    return name.includes("sigil_send");
+  }, [sourceFilename]);
+
+  /* SEND / Exhale */
   const send = async () => {
     if (!meta || !svgURL || !liveSig) return;
 
@@ -1241,81 +1610,33 @@ const VerifierStamper: React.FC = () => {
     const nowPulse = kaiPulseNow();
     const stamp = await sha256Hex(`${liveSig}-${m.pulse ?? 0}-${nowPulse}`);
 
-    // Payload from amount input (optional)
     let chosenPayload: SigilPayload | undefined = undefined;
-    const rawPhiStr = conv.phiStringToSend; // either entered (Φ mode) or computed (USD mode)
+    const rawPhiStr = conv.phiStringToSend;
     const usdNum = conv.usdNumberAtSend;
 
-    // normalize with fmtPhiCompact (keeps precision, strips leading zeros)
     const normalizedPhi = fmtPhiCompact(rawPhiStr);
     const validPhi = normalizedPhi && /^(\d+(\.\d+)?|\.\d+)$/.test(normalizedPhi) ? normalizedPhi.replace(/^0+(?=\d)/, "") : "";
     const hasPhi = !!validPhi && Number(validPhi) > 0;
-
-    /* ─────────────────────────────────────────────
-       HARD CAP ENFORCEMENT (branch-aware, persists across seals)
-       - base = persisted branchBasePhi if present, else parent's sent Φ at pivot,
-               otherwise initial glyph valuation
-       - spentSoFar = persisted branchSpentPhi (sealed) + Σ(exhale after pivot in CURRENT window)
-       - remaining = base − spentSoFar
-       - if requested > remaining => block
-    ───────────────────────────────────────────── */
-    const trs = m.transfers ?? [];
-    let pivotIdx = -1;
-    for (let i = trs.length - 1; i >= 0; i--) {
-      if (trs[i]?.receiverSignature) {
-        pivotIdx = i;
-        break;
-      }
-    }
-    if (pivotIdx === -1 && trs.length > 0) pivotIdx = trs.length - 1; // last open send (pre-receive)
-
-    const persistedBase = toScaledBig(((m as SigilMetadataWithOptionals).branchBasePhi ?? ""));
-    const baseScaled =
-      persistedBase > 0n
-        ? persistedBase
-        : (pivotIdx >= 0
-            ? exhalePhiFromTransferScaled(trs[pivotIdx])
-            : toScaledBig(((initialGlyph?.value ?? 0) as number).toString()));
-
-    const prevSpentScaled = toScaledBig(((m as SigilMetadataWithOptionals).branchSpentPhi ?? "0"));
-
-    let currentWindowSpent = 0n;
-    try {
-      for (let i = Math.max(0, pivotIdx + 1); i < trs.length; i++) {
-        currentWindowSpent += exhalePhiFromTransferScaled(trs[i]);
-      }
-    } catch (err) {
-      logError("send.sumExhaledAfterPivot", err);
-    }
-
-    const spentSoFar = prevSpentScaled + currentWindowSpent;
-    const remainingNowScaled = baseScaled > spentSoFar ? baseScaled - spentSoFar : 0n;
 
     const reqScaled = toScaledBig(validPhi || "0");
     if (!hasPhi || reqScaled <= 0n) {
       setError("Enter a Φ amount greater than zero.");
       return;
     }
-    if (reqScaled > remainingNowScaled) {
-      setError(
-        `Exhale exceeds remaining Φ — requested Φ ${fromScaledBigFixed(reqScaled, 4)} but only Φ ${fromScaledBigFixed(
-          remainingNowScaled,
-          4
-        )} remains on this glyph.`
-      );
+    if (reqScaled > remainingPhiScaled) {
+      setError(`Exhale exceeds remaining Φ — requested Φ ${fromScaledBigFixed(reqScaled, 4)} but only Φ ${remainingPhiDisplay4} remains on this glyph.`);
       return;
     }
-    /* ───────────────────────────────────────────── */
 
     const cleanUsd = Number.isFinite(usdNum) ? Math.max(0, usdNum) : 0;
 
     if (hasPhi) {
       const body = {
-        kind: "exhale",
-        unit: amountMode, // "PHI" or "USD" (what the user chose)
-        amountPhi: validPhi, // exact decimal string (no rounding)
-        amountUsd: cleanUsd.toFixed(2), // user-friendly snapshot
-        usdPerPhi: headerQuote?.usdPerPhi || 0,
+        kind: "exhale" as const,
+        unit: amountMode,
+        amountPhi: validPhi,
+        amountUsd: cleanUsd.toFixed(2),
+        usdPerPhi: usdPerPhi || 0,
         atPulse: nowPulse,
         kaiSignature: m.kaiSignature || "",
         userPhiKey: m.userPhiKey || "",
@@ -1330,7 +1651,6 @@ const VerifierStamper: React.FC = () => {
       };
     }
 
-    // Fallback to any attached payload if no amount provided
     if (!chosenPayload && payload) chosenPayload = payload;
 
     const transfer: SigilTransfer = {
@@ -1350,17 +1670,37 @@ const VerifierStamper: React.FC = () => {
       segmentSize: m.segmentSize ?? SEGMENT_SIZE,
     };
 
-    /* v14 hardened + optional ZK SEND */
+    // persist branch progress (parent branch accounting)
     try {
+      const prevSpent = toScaledBig((meta as SigilMetadataWithOptionals)?.branchSpentPhi ?? "0");
+      const newSpentScaled = prevSpent + reqScaled;
+      (updated as SigilMetadataWithOptionals).branchBasePhi =
+        (meta as SigilMetadataWithOptionals)?.branchBasePhi ?? fromScaledBig(basePhiScaled);
+      (updated as SigilMetadataWithOptionals).branchSpentPhi = fromScaledBig(newSpentScaled);
+    } catch (err) {
+      logError("send.persistBranchProgress", err);
+    }
+
+    // Hardened record + optional ZK + local ledger
+    let parentCanonical = "";
+    let childCanonical = "";
+    let transferLeafHashSend = "";
+    let prevHeadV14 = "";
+
+    try {
+      parentCanonical =
+        (updated.canonicalHash as string | undefined)?.toLowerCase() ||
+        (await sha256Hex(`${updated.pulse}|${updated.beat}|${updated.stepIndex}|${updated.chakraDay}`)).toLowerCase();
+
       if (me) {
         (updated as SigilMetadataWithOptionals).creatorPublicKey ??= me.spkiB64u;
         const indexV14 = updated.hardenedTransfers?.length ?? 0;
-        const prevHeadV14 = await expectedPrevHeadRootV14(updated, indexV14);
+        prevHeadV14 = await expectedPrevHeadRootV14(updated, indexV14);
         const nonce = updated.transferNonce!;
-        const transferLeafHashSend = await hashTransferSenderSide(transfer);
+        transferLeafHashSend = await hashTransferSenderSide(transfer);
 
-        const { buildSendMessageV14, hashAny } = await import("./sigilUtils");
-        const msg = buildSendMessageV14(updated, {
+        const mod = (await import("./sigilUtils")) as typeof import("./sigilUtils");
+        const msg = mod.buildSendMessageV14(updated, {
           previousHeadRoot: prevHeadV14,
           senderKaiPulse: nowPulse,
           senderPubKey: (updated as SigilMetadataWithOptionals).creatorPublicKey!,
@@ -1378,9 +1718,9 @@ const VerifierStamper: React.FC = () => {
           transferLeafHashSend,
         };
 
-        if ((window as Window).SIGIL_ZK?.provideSendProof) {
+        if (window.SIGIL_ZK?.provideSendProof) {
           try {
-            const proofObj = await (window as Window).SIGIL_ZK!.provideSendProof!({
+            const proofObj = await window.SIGIL_ZK.provideSendProof({
               meta: updated,
               leafHash: transferLeafHashSend,
               previousHeadRoot: prevHeadV14,
@@ -1394,20 +1734,11 @@ const VerifierStamper: React.FC = () => {
                 publicSignals: proofObj.publicSignals,
                 vkey: proofObj.vkey,
               };
-              const publicHash = await hashAny(proofObj.publicSignals);
-              const proofHash = await hashAny(proofObj.proof);
-              const vkey =
-                proofObj.vkey ??
-                (updated as SigilMetadataWithOptionals).zkVerifyingKey ??
-                (window as Window).SIGIL_ZK_VKEY;
-              const vkeyHash = vkey ? await hashAny(vkey) : undefined;
-              hardened.zkSend = {
-                scheme: "groth16",
-                curve: "BLS12-381",
-                publicHash,
-                proofHash,
-                vkeyHash,
-              };
+              const publicHash = await mod.hashAny(proofObj.publicSignals);
+              const proofHash = await mod.hashAny(proofObj.proof);
+              const vkey = proofObj.vkey ?? (updated as SigilMetadataWithOptionals).zkVerifyingKey ?? window.SIGIL_ZK_VKEY;
+              const vkeyHash = vkey ? await mod.hashAny(vkey) : undefined;
+              hardened.zkSend = { scheme: "groth16", curve: "BLS12-381", publicHash, proofHash, vkeyHash };
             }
           } catch (err) {
             logError("provideSendProof", err);
@@ -1416,15 +1747,67 @@ const VerifierStamper: React.FC = () => {
 
         updated.hardenedTransfers = [...(updated.hardenedTransfers ?? []), hardened];
       }
+
+      // Child canonical hash (deterministic for the send link)
+      const childSeed = stableStringify({
+        parent: parentCanonical,
+        nonce: updated.transferNonce || "",
+        senderStamp: transfer.senderStamp || "",
+        senderKaiPulse: transfer.senderKaiPulse || 0,
+        prevHead:
+          prevHeadV14 ||
+          (updated as SigilMetadataWithOptionals).transfersWindowRootV14 ||
+          (updated as SigilMetadataWithOptionals).transfersWindowRoot ||
+          "",
+        leafSend: transferLeafHashSend,
+      });
+      childCanonical = (await sha256Hex(childSeed)).toLowerCase();
+
+      // Local ledger
+      const rec: SendRecord = {
+        parentCanonical,
+        childCanonical,
+        amountPhiScaled: reqScaled.toString(),
+        senderKaiPulse: nowPulse,
+        transferNonce: updated.transferNonce!,
+        senderStamp: stamp,
+        previousHeadRoot: prevHeadV14,
+        transferLeafHashSend,
+      };
+      try {
+        await recordSend(rec);
+      } catch (err) {
+        logError("recordSend", err);
+      }
+      try {
+        getSigilGlobal().registerSend?.(rec);
+      } catch (err) {
+        logError("__SIGIL__.registerSend", err);
+      }
+      try {
+        window.dispatchEvent(new CustomEvent<SendRecord>("sigil:sent", { detail: rec }));
+      } catch (err) {
+        logError("dispatchEvent(sigil:sent)", err);
+      }
     } catch (err) {
-      logError("send.hardenedBuild", err);
+      logError("send.hardenedBuild/ledger", err);
     }
 
-    const durl = await embedMetadata(svgURL, updated);
-    const sigilPulse = updated.pulse ?? 0;
-    download(durl, `${pulseFilename("sigil_send", sigilPulse, nowPulse)}.svg`);
+    // Build CHILD file for download/share
+    const childMeta = await buildChildMetaForDownload(updated, {
+      parentCanonical,
+      childCanonical,
+      allocationPhiStr: validPhi,
+      issuedPulse: nowPulse,
+    });
 
-    // shard if needed
+    // Download that child file (sigil_send_*.svg) – this link can be received
+    const childDataUrl = await embedMetadata(svgURL, childMeta);
+    const sigilPulse = updated.pulse ?? 0;
+    download(childDataUrl, `${pulseFilename("sigil_send", sigilPulse, nowPulse)}.svg`);
+
+    // If we've reached the segment size on the parent, roll the window.
+    // IMPORTANT: segmentation is continuous now. It does NOT retire the parent.
     const windowSize = (updated.transfers ?? []).length;
     const cap = updated.segmentSize ?? SEGMENT_SIZE;
 
@@ -1434,25 +1817,28 @@ const VerifierStamper: React.FC = () => {
         const segIdx = (rolled.segments?.length ?? 1) - 1;
         download(segmentFileBlob, `sigil_segment_${rolled.pulse ?? 0}_${String(segIdx).padStart(6, "0")}.json`);
       }
-      if (svgURL) {
-        const durl2 = await embedMetadata(svgURL, rolled);
-        download(durl2, `${pulseFilename("sigil_head_after_seal", rolled.pulse ?? 0, nowPulse)}.svg`);
-      }
+      const durl2 = await embedMetadata(svgURL, rolled);
+      download(durl2, `${pulseFilename("sigil_head_after_seal", rolled.pulse ?? 0, nowPulse)}.svg`);
+
       const rolled2 = await refreshHeadWindow(rolled);
-      setMeta(rolled2);
-      setRawMeta(JSON.stringify(rolled2, null, 2));
-      setUiState("readyReceive");
+
+      // CONTINUOUS FLOW: after segmentation, glyph is still live, still SEND-capable,
+      // and this newest send is still open for RECEIVE.
+      await syncMetaAndUi(rolled2);
+
       setError(null);
       setPhiInput("");
       setUsdInput("");
+
       await shareTransferLink(rolled2);
       return;
     }
 
     const updated2 = await refreshHeadWindow(updated);
-    setMeta(updated2);
-    setRawMeta(JSON.stringify(updated2, null, 2));
-    setUiState("readyReceive");
+
+    // Normal flow after SEND (no auto-segmentation):
+    await syncMetaAndUi(updated2);
+
     setError(null);
     setPhiInput("");
     setUsdInput("");
@@ -1460,9 +1846,32 @@ const VerifierStamper: React.FC = () => {
     await shareTransferLink(updated2);
   };
 
-  /* Receive */
+  /* RECEIVE / Inhale */
   const receive = async () => {
     if (!meta || !svgURL || !liveSig) return;
+
+    // Parent-side RECEIVE is allowed only if not expired.
+    if (canonicalContext === "parent") {
+      const { expired: parentExpired } = getParentOpenExpiry(meta, kaiPulseNow());
+      if (parentExpired) {
+        setError("This open send has expired.");
+        return;
+      }
+    }
+
+    // Child guard: one-time lock/expiry
+    const { used, expired } = getChildLockInfo(meta, kaiPulseNow());
+    if (used) {
+      setError("This transfer link has already been used.");
+      return;
+    }
+    if (expired) {
+      // It's expired; child RECEIVE disabled.
+      setError("This transfer link has expired.");
+      setUiState("complete");
+      return;
+    }
+
     const last = meta.transfers?.slice(-1)[0];
     if (!last || last.receiverSignature) return;
 
@@ -1474,8 +1883,8 @@ const VerifierStamper: React.FC = () => {
       receiverKaiPulse: nowPulse,
     };
 
-    const updated: SigilMetadata = {
-      ...meta,
+    const updated: SigilMetadataWithOptionals = {
+      ...(meta as SigilMetadataWithOptionals),
       transfers: [...(meta.transfers ?? []).slice(0, -1), updatedLast],
     };
 
@@ -1485,8 +1894,8 @@ const VerifierStamper: React.FC = () => {
         if (!hLast.receiverSig) {
           (updated as SigilMetadataWithOptionals).creatorPublicKey ??= me.spkiB64u;
           const transferLeafHashReceive = await hashTransfer(updatedLast);
-          const { buildReceiveMessageV14, hashAny } = await import("./sigilUtils");
-          const msgR = buildReceiveMessageV14({
+          const mod = (await import("./sigilUtils")) as typeof import("./sigilUtils");
+          const msgR = mod.buildReceiveMessageV14({
             previousHeadRoot: hLast.previousHeadRoot,
             senderSig: hLast.senderSig,
             receiverKaiPulse: nowPulse,
@@ -1504,9 +1913,9 @@ const VerifierStamper: React.FC = () => {
             zkReceiveBundle: hLast.zkReceiveBundle,
           };
 
-          if ((window as Window).SIGIL_ZK?.provideReceiveProof) {
+          if (window.SIGIL_ZK?.provideReceiveProof) {
             try {
-              const proofObj = await (window as Window).SIGIL_ZK!.provideReceiveProof!({
+              const proofObj = await window.SIGIL_ZK.provideReceiveProof({
                 meta: updated,
                 leafHash: transferLeafHashReceive,
                 previousHeadRoot: hLast.previousHeadRoot,
@@ -1520,20 +1929,11 @@ const VerifierStamper: React.FC = () => {
                   publicSignals: proofObj.publicSignals,
                   vkey: proofObj.vkey,
                 };
-                const publicHash = await hashAny(proofObj.publicSignals);
-                const proofHash = await hashAny(proofObj.proof);
-                const vkey =
-                  proofObj.vkey ??
-                  (updated as SigilMetadataWithOptionals).zkVerifyingKey ??
-                  (window as Window).SIGIL_ZK_VKEY;
-                const vkeyHash = vkey ? await hashAny(vkey) : undefined;
-                newHLast.zkReceive = {
-                  scheme: "groth16",
-                  curve: "BLS12-381",
-                  publicHash,
-                  proofHash,
-                  vkeyHash,
-                };
+                const publicHash = await mod.hashAny(proofObj.publicSignals);
+                const proofHash = await mod.hashAny(proofObj.proof);
+                const vkey = proofObj.vkey ?? (updated as SigilMetadataWithOptionals).zkVerifyingKey ?? window.SIGIL_ZK_VKEY;
+                const vkeyHash = vkey ? await mod.hashAny(vkey) : undefined;
+                newHLast.zkReceive = { scheme: "groth16", curve: "BLS12-381", publicHash, proofHash, vkeyHash };
               }
             } catch (err) {
               logError("provideReceiveProof", err);
@@ -1541,42 +1941,60 @@ const VerifierStamper: React.FC = () => {
           }
 
           updated.hardenedTransfers = [...updated.hardenedTransfers!.slice(0, -1), newHLast];
+
+          // mark confirmed in local ledger, keyed by parent hash
+          try {
+            const parentCanon =
+              (updated.childOfHash as string | undefined)?.toLowerCase() ||
+              (await sha256Hex(`${updated.pulse}|${updated.beat}|${updated.stepIndex}|${updated.chakraDay}`)).toLowerCase();
+            if (hLast.transferLeafHashSend) markConfirmedByLeaf(parentCanon, hLast.transferLeafHashSend);
+          } catch (err) {
+            logError("ledger.markConfirmedByLeaf", err);
+          }
         }
       }
     } catch (err) {
       logError("receive.hardenedSeal", err);
     }
 
-    if (svgURL) {
-      const durl = await embedMetadata(svgURL, updated);
-      const sigilPulse = updated.pulse ?? 0;
-      download(durl, `${pulseFilename("sigil_receive", sigilPulse, nowPulse)}.svg`);
-    }
-
-    const updated2 = await refreshHeadWindow(updated);
-    setMeta(updated2);
-    setRawMeta(JSON.stringify(updated2, null, 2));
-    setUiState("complete");
-    setError(null);
-
-    if (updatedLast.payload) {
-      const pmime = updatedLast.payload.mime || "";
-      if (!pmime.startsWith("application/vnd.kairos-exhale")) {
-        try {
-          const bin = Uint8Array.from(atob(updatedLast.payload.encoded), (c) => c.charCodeAt(0));
-          const blobURL = URL.createObjectURL(new Blob([bin], { type: updatedLast.payload.mime }));
-          download(blobURL, updatedLast.payload.name);
-        } catch (err) {
-          logError("receive.downloadPayload", err);
-        }
+    // Flip one-time lock to used on CHILD files so it promotes
+    try {
+      if (await isPersistedChild(updated)) {
+        updated.sendLock = { ...(updated.sendLock ?? { nonce: updated.transferNonce! }), used: true, usedPulse: nowPulse };
       }
+    } catch (err) {
+      logError("receive.setUsedLock", err);
     }
+
+    // Persist closed RECEIVE file (promotes to normal parent going forward)
+    const durl = await embedMetadata(svgURL, updated);
+    const sigilPulse = updated.pulse ?? 0;
+    download(durl, `${pulseFilename("sigil_receive", sigilPulse, nowPulse)}.svg`);
+
+    // Recompute head and UI (now behaves like parent, can send/segment)
+    const updated2 = await refreshHeadWindow(updated);
+    await syncMetaAndUi(updated2);
+
+    setError(null);
   };
 
-  /* Manual segment seal */
+  /* Manual segmentation
+     - Allowed when there are transfers in head.
+     - Forbidden if the loaded file name is a SEND file ("sigil_send...svg"),
+       because SEND links may never segment.
+     - Rolls current window into a segment and emits:
+       * segment JSON
+       * updated head SVG
+     - DOES NOT retire/archive/disable future send/segment. Continuous.
+  */
   const sealSegmentNow = useCallback(async () => {
     if (!meta) return;
     if (!meta.transfers || meta.transfers.length === 0) return;
+
+    if (isSendFilename) {
+      setError("Segmentation is disabled on SEND sigils.");
+      return;
+    }
 
     const { meta: rolled, segmentFileBlob } = await sealCurrentWindowIntoSegment(meta);
     if (segmentFileBlob) {
@@ -1588,13 +2006,96 @@ const VerifierStamper: React.FC = () => {
       download(durl, `${pulseFilename("sigil_head_after_seal", rolled.pulse ?? 0, kaiPulseNow())}.svg`);
     }
     const rolled2 = await refreshHeadWindow(rolled);
-    setMeta(rolled2);
-    setRawMeta(JSON.stringify(rolled2, null, 2));
-  }, [meta, svgURL, refreshHeadWindow]);
+
+    // Continuous breathing: after segmentation, still active.
+    await syncMetaAndUi(rolled2);
+
+    setError(null);
+  }, [meta, svgURL, isSendFilename, refreshHeadWindow, syncMetaAndUi]);
+
+  /* Status chips */
+  type IconKind = "ok" | "warn" | "err" | "info";
+  const IconCircle: React.FC<{ title: string; kind?: IconKind; children: React.ReactNode; badge?: number | null }> = ({
+    title,
+    kind = "info",
+    children,
+    badge = null,
+  }) => (
+    <span className={`chip icon ${kind}`} role="img" aria-label={title} title={title} {...(badge != null ? { "data-badge": String(badge) } : {})}>
+      {children}
+    </span>
+  );
+  const Svg: React.FC<{
+    path: "check" | "x" | "warn" | "shield" | "sigma" | "phi" | "send" | "recv" | "done" | "stack" | "hash" | "zk" | "paperclip" | "lock" | "timer" | "ban";
+    label?: string;
+  }> = ({ path, label }) => {
+    const p: Record<string, string> = {
+      check: "M5 13l4 4L19 7",
+      x: "M6 6l12 12M6 18L18 6",
+      warn: "M12 9v4m0 4h.01M12 3l9 16H3z",
+      shield: "M12 3l7 4v6l-7 4-7-4V7l7-4z",
+      sigma: "M18 6H9l5 6-5 6h9M6 6h2M6 18h2",
+      phi: "M12 4a8 8 0 100 16 8 8 0 000-16zm0 0v16",
+      send: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
+      recv: "M2 22l11-11M2 22l20-7-9-4-4-9-7 20z",
+      done: "M12 21c4.97 0 9-4.03 9-9S16.97 3 12 3 3 7.03 3 12s4.03 9 9 9zm-1-6l6-6M8 12l3 3",
+      stack: "M12 3l9 4-9 4-9-4 9-4zm-9 8l9 4 9-4M3 19l9 4 9-4",
+      hash: "M10 3L8 21M16 3l-2 18M3 8h18M3 16h18",
+      zk: "M12 3l7 4v6l-7 4-7-4V7l7-4zM9 12h6",
+      paperclip: "M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.2a2 2 0 01-2.83-2.83l8.49-8.49",
+      lock: "M7 10V7a5 5 0 0110 0v3h1a2 2 0 012 2v7a2 2 0 01-2 2H6a2 2 0 01-2-2v-7a2 2 0 012-2h1zm3 0h4V7a3 3 0 00-6 0v3z",
+      timer: "M12 8v5l3 3M12 2a10 10 0 100 20 10 10 0 000-20",
+      ban: "M4.93 4.93l14.14 14.14M12 2a10 10 0 110 20 10 10 0 010-20",
+    };
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="ico">
+        <path d={p[path]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <title>{label}</title>
+      </svg>
+    );
+  };
+
+  const { used: childUsed, expired: childExpired } = useMemo(() => getChildLockInfo(meta, pulseNow), [meta, pulseNow]);
+  const parentOpenExp = useMemo(() => getParentOpenExpiry(meta, pulseNow).expired, [meta, pulseNow]);
+
+  const statusChips = () => {
+    const chips: React.ReactNode[] = [];
+    const push = (n: React.ReactNode) => chips.push(n);
+    const m = meta as SigilMetadataWithOptionals | null;
+
+    if (uiState === "invalid") push(<IconCircle key="inv" kind="err" title="Invalid"><Svg path="x" /></IconCircle>);
+    if (uiState === "structMismatch") push(<IconCircle key="struct" kind="err" title="Structure mismatch"><Svg path="warn" /></IconCircle>);
+    if (uiState === "sigMismatch") push(<IconCircle key="sigm" kind="err" title="Signature mismatch"><Svg path="x" /></IconCircle>);
+    if (uiState === "notOwner") push(<IconCircle key="owner" kind="warn" title="Not owner"><Svg path="shield" /></IconCircle>);
+    if (uiState === "unsigned") push(<IconCircle key="unsigned" kind="warn" title="Unsigned"><Svg path="hash" /></IconCircle>);
+    if (uiState === "readySend") push(<IconCircle key="send" kind="info" title="Ready to send"><Svg path="send" /></IconCircle>);
+    if (uiState === "readyReceive") push(<IconCircle key="recv" kind="info" title="Ready to receive"><Svg path="recv" /></IconCircle>);
+    if (uiState === "complete") push(<IconCircle key="done" kind="ok" title="Receipt"><Svg path="done" /></IconCircle>);
+    if (uiState === "verified") push(<IconCircle key="ver" kind="ok" title="Verified"><Svg path="check" /></IconCircle>);
+
+    if (contentSigMatches === true) push(<IconCircle key="sigok" kind="ok" title="Content Σ match"><Svg path="sigma" /></IconCircle>);
+    if (contentSigMatches === false) push(<IconCircle key="sigerr" kind="err" title="Content Σ mismatch"><Svg path="sigma" /></IconCircle>);
+    if (phiKeyMatches === true) push(<IconCircle key="phiok" kind="ok" title="Φ-Key match"><Svg path="phi" /></IconCircle>);
+    if (phiKeyMatches === false) push(<IconCircle key="phierr" kind="err" title="Φ-Key mismatch"><Svg path="phi" /></IconCircle>);
+
+    if (m?.cumulativeTransfers != null) push(<IconCircle key="cum" kind="info" title="Cumulative transfers" badge={m.cumulativeTransfers}><Svg path="hash" /></IconCircle>);
+    if ((m?.segments?.length ?? 0) > 0) push(<IconCircle key="segs" kind="info" title="Segments" badge={m?.segments?.length ?? 0}><Svg path="stack" /></IconCircle>);
+    if (headProof) push(<IconCircle key="headproof" kind={headProof.ok ? "ok" : "err"} title={headProof.ok ? "Head proof verified" : "Head proof failed"}><Svg path="shield" /></IconCircle>);
+    if (m?.transfersWindowRootV14) push(<IconCircle key="v14root" kind="info" title="v14 head root present"><Svg path="hash" /></IconCircle>);
+    const anyZkVerified = (meta?.hardenedTransfers ?? []).some((ht) => !!(ht.zkSend?.verified || ht.zkReceive?.verified));
+    if (anyZkVerified) push(<IconCircle key="zk" kind="ok" title="Zero-knowledge proof verified"><Svg path="zk" /></IconCircle>);
+
+    const isChildContextLocal = canonicalContext === "child";
+    if (isChildContextLocal && childUsed) push(<IconCircle key="used" kind="warn" title="Transfer link used"><Svg path="lock" /></IconCircle>);
+    if (isChildContextLocal && childExpired) push(<IconCircle key="expired" kind="warn" title="Transfer link expired"><Svg path="timer" /></IconCircle>);
+    if (canonicalContext === "parent" && parentOpenExp) push(<IconCircle key="pexp" kind="warn" title="Send expired"><Svg path="timer" /></IconCircle>);
+    if (isSendFilename) push(<IconCircle key="nosg" kind="warn" title="SEND file: segmentation disabled"><Svg path="ban" /></IconCircle>);
+    return chips;
+  };
 
   return (
     <div className="verifier-stamper" role="application" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
-      {/* Top toolbar (compact on mobile) */}
+      {/* Top toolbar */}
       <div className="toolbar">
         <div className="brand-lockup">
           <span className="glyph" aria-hidden />
@@ -1617,7 +2118,7 @@ const VerifierStamper: React.FC = () => {
 
       <input ref={svgInput} type="file" accept=".svg" hidden onChange={handleSvg} />
 
-      {/* ───── Verifier Modal (mobile-first full-screen) ───── */}
+      {/* Verifier Modal */}
       <dialog
         ref={dlgRef}
         className="glass-modal fullscreen"
@@ -1627,9 +2128,10 @@ const VerifierStamper: React.FC = () => {
         style={{ width: "100vw", maxWidth: "100vw", height: "100dvh", maxHeight: "100dvh", margin: 0, padding: 0, overflow: "hidden" }}
       >
         <div className="modal-viewport" style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", maxWidth: "100vw", overflow: "hidden" }}>
-          {/* Close on RIGHT, status on the left */}
           <div className="modal-topbar" style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
-            <div className="status-strip" aria-live="polite" style={{ overflowX: "auto", whiteSpace: "nowrap" }}>{statusChips()}</div>
+            <div className="status-strip" aria-live="polite" style={{ overflowX: "auto", whiteSpace: "nowrap" }}>
+              {statusChips()}
+            </div>
             <button className="close-btn holo" data-aurora="true" aria-label="Close" title="Close" onClick={closeVerifier} style={{ justifySelf: "end", marginRight: 8 }}>
               ×
             </button>
@@ -1648,16 +2150,24 @@ const VerifierStamper: React.FC = () => {
                     Beat <span>{meta.beat ?? "—"}</span> · Step <span>{meta.stepIndex ?? "—"}</span> · Day: <span>{normalizeChakraDay(meta.chakraDay) ?? meta.chakraDay ?? "—"}</span>
                   </p>
 
-                  {/* Φ + USD live row */}
+                  {/* Φ + USD live row — Remaining Φ drives this */}
                   <div className="value-strip" aria-live="polite">
-                    <div className={`value-chip phi ${headerTrend}${headerFlash ? " flash" : ""}`} data-trend={headerTrend} title="Current Φ valuation">
-                      <span className="amount" aria-label="Phi value">
+                    <div
+                      className={`value-chip phi ${headerTrend}${headerFlash ? " flash" : ""}`}
+                      data-trend={headerTrend}
+                      title={
+                        canonicalContext === "child"
+                          ? "Remaining Φ for this child link"
+                          : "Remaining Φ on this glyph"
+                      }
+                    >
+                      <span className="amount">
                         <span className="sym">Φ</span>
-                        {headerPhi != null ? headerPhi.toString() : "0"}
+                        {headerPhi.toString()}
                       </span>
                     </div>
                     <div className={`value-chip usd ${headerTrend}${headerFlash ? " flash" : ""}`} data-trend={headerTrend} title="Indicative USD (issuance model)">
-                      <span className="amount" aria-label="USD value">
+                      <span className="amount">
                         <span className="sym">$</span>
                         {fmtUsdNoSym(headerUsd)}
                       </span>
@@ -1665,27 +2175,45 @@ const VerifierStamper: React.FC = () => {
                   </div>
 
                   <div className="header-keys" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {meta.kaiSignature ? (
-                      <span className="field">Σ <code>{meta.kaiSignature.slice(0, 16)}…</code></span>
-                    ) : (
-                      <span className="field warn">Unsigned</span>
-                    )}
+                    {meta.kaiSignature ? <span className="field">Σ <code>{meta.kaiSignature.slice(0, 16)}…</code></span> : <span className="field warn">Unsigned</span>}
                     {meta.userPhiKey && (
                       <span className="field">
                         Φ <code style={{ wordBreak: "break-all" }}>{meta.userPhiKey}</code>
                       </span>
                     )}
                   </div>
+
+                  {/* Mode banners */}
+                  {isSendFilename && (
+                    <div className="child-banner" style={{ fontSize: 12, opacity: 0.9, marginTop: 6 }}>
+                     <strong>11 Steps (121 Breaths) From Last Exhale</strong> to <strong>INHALE</strong>   
+                    </div>
+                  )}
+                  {canonicalContext === "child" && !isSendFilename && (
+                    <div className="child-banner" style={{ fontSize: 12, opacity: 0.9, marginTop: 6 }}>
+                      Child link view: Remaining Φ equals the Φ exhaled into this link.
+                    </div>
+                  )}
                 </div>
               </header>
 
               {/* Tabs */}
               <nav className="tabs" role="tablist" aria-label="Views" style={{ position: "sticky", top: 48, zIndex: 2 }}>
-                <button role="tab" aria-selected={tab === "summary"} className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>Summary</button>
-                <button role="tab" aria-selected={tab === "lineage"} className={tab === "lineage" ? "active" : ""} onClick={() => setTab("lineage")}>Lineage</button>
-                <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>Data</button>
-                <button className="secondary" onClick={openValuation} disabled={!meta}>Φ Value</button>
-                <button className="secondary" onClick={openNote} disabled={!svgURL}>Note</button>
+                <button role="tab" aria-selected={tab === "summary"} className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>
+                  Summary
+                </button>
+                <button role="tab" aria-selected={tab === "lineage"} className={tab === "lineage" ? "active" : ""} onClick={() => setTab("lineage")}>
+                  Lineage
+                </button>
+                <button role="tab" aria-selected={tab === "data"} className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>
+                  Data
+                </button>
+                <button className="secondary" onClick={openValuation} disabled={!meta}>
+                  Φ Value
+                </button>
+                <button className="secondary" onClick={openNote} disabled={!svgURL}>
+                  Note
+                </button>
               </nav>
 
               {/* Body */}
@@ -1697,14 +2225,6 @@ const VerifierStamper: React.FC = () => {
                       <span className="v">{pulseNow}</span>
                     </div>
                     <div className="kv">
-                      <span className="k">frequency (Hz)</span>
-                      <span className="v" style={{ marginLeft: "4rem" }}>{meta.frequencyHz ?? "—"}</span>
-                    </div>
-                    <div className="kv">
-                      <span className="k">Spiral</span>
-                      <span className="v" style={{ marginLeft: "4rem" }}>{meta.chakraGate ?? "—"}</span>
-                    </div>
-                    <div className="kv">
                       <span className="k">Segments</span>
                       <span className="v">{meta.segments?.length ?? 0}</span>
                     </div>
@@ -1712,16 +2232,13 @@ const VerifierStamper: React.FC = () => {
                       <span className="k">Cumulative</span>
                       <span className="v">{meta.cumulativeTransfers ?? 0}</span>
                     </div>
-                    {meta.segmentsMerkleRoot && (
-                      <div className="kv wide">
-                        <span className="k">Segments Root</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.segmentsMerkleRoot}</span>
-                      </div>
-                    )}
+
                     {(meta as SigilMetadataWithOptionals).transfersWindowRoot && (
                       <div className="kv wide">
                         <span className="k">Head Breath Root</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals).transfersWindowRoot}</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {(meta as SigilMetadataWithOptionals).transfersWindowRoot}
+                        </span>
                       </div>
                     )}
                     {headProof && (
@@ -1733,7 +2250,9 @@ const VerifierStamper: React.FC = () => {
                     {liveSig && (
                       <div className="kv wide">
                         <span className="k">Live Centre-Pixel Sig</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{liveSig}</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {liveSig}
+                        </span>
                       </div>
                     )}
                     {rgbSeed && (
@@ -1742,6 +2261,7 @@ const VerifierStamper: React.FC = () => {
                         <span className="v">{rgbSeed.join(", ")}</span>
                       </div>
                     )}
+
                     {meta.kaiSignature && (
                       <div className="kv wide">
                         <span className="k">Metadata Σ</span>
@@ -1755,7 +2275,9 @@ const VerifierStamper: React.FC = () => {
                     {contentSigExpected && (
                       <div className="kv wide">
                         <span className="k">Expected Σ</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{contentSigExpected}</span>
+                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                          {contentSigExpected}
+                        </span>
                       </div>
                     )}
                     {meta.userPhiKey && (
@@ -1767,6 +2289,62 @@ const VerifierStamper: React.FC = () => {
                         </span>
                       </div>
                     )}
+
+                    {/* Remaining Φ is the single source of truth */}
+                    <div className="kv">
+                      <span className="k">{canonicalContext === "child" ? "Child Remaining Φ" : "Remaining Φ"}</span>
+                      <span className="v">Φ {remainingPhiDisplay4}</span>
+                    </div>
+
+                    {/* If child, show the fixed allocation clearly */}
+                    {canonicalContext === "child" && (
+                      <div className="kv">
+                        <span className="k">Allocation (this child)</span>
+                        <span className="v">
+                          Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
+                          {" · $"}
+                          {fmtUsdNoSym(
+                            Number(
+                              fromScaledBig(
+                                mulScaled(
+                                  toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
+                                  usdPerPhiRateScaled
+                                )
+                              )
+                            )
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Child lock/expiry info */}
+                    {canonicalContext === "child" && (
+                      <>
+                        {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
+                          <div className="kv">
+                            <span className="k">One-time lock</span>
+                            <span className="v">Used</span>
+                          </div>
+                        )}
+                        {getChildLockInfo(meta, pulseNow).expireAt && (
+                          <div className="kv">
+                            <span className="k">Expires @ pulse</span>
+                            <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Parent open-link expiry info */}
+                    {canonicalContext === "parent" && (() => {
+                      const pe = getParentOpenExpiry(meta, pulseNow);
+                      return pe.expireAt ? (
+                        <div className="kv">
+                          <span className="k">Send expires @</span>
+                          <span className="v">{pe.expireAt}</span>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 )}
 
@@ -1777,8 +2355,6 @@ const VerifierStamper: React.FC = () => {
                         {meta.transfers.map((t, i) => {
                           const open = !t.receiverSignature;
                           const hardened = meta.hardenedTransfers?.[i];
-
-                          // Decode Exhale payload to show Φ + USD snapshot
                           let exhaleInfo:
                             | {
                                 unit?: "USD" | "PHI";
@@ -1789,37 +2365,29 @@ const VerifierStamper: React.FC = () => {
                             | null = null;
                           try {
                             if (t.payload?.mime?.startsWith("application/vnd.kairos-exhale")) {
-                              const raw = base64DecodeUtf8(t.payload.encoded);
-                              const obj = JSON.parse(raw);
-                              if (obj?.kind === "exhale") {
-                                exhaleInfo = {
-                                  unit: obj.unit,
-                                  amountPhi: typeof obj.amountPhi === "string" ? obj.amountPhi : undefined,
-                                  amountUsd: typeof obj.amountUsd === "string" ? obj.amountUsd : undefined,
-                                  usdPerPhi: typeof obj.usdPerPhi === "number" ? obj.usdPerPhi : undefined,
-                                };
-                              }
+                              const obj = JSON.parse(base64DecodeUtf8(t.payload.encoded)) as {
+                                kind?: string;
+                                unit?: "USD" | "PHI";
+                                amountPhi?: string;
+                                amountUsd?: string;
+                                usdPerPhi?: number;
+                              } | null;
+                              if (obj?.kind === "exhale") exhaleInfo = { unit: obj.unit, amountPhi: obj.amountPhi, amountUsd: obj.amountUsd, usdPerPhi: obj.usdPerPhi };
                             }
                           } catch (err) {
                             logError("lineage.decodeExhalePayload", err);
                           }
 
-                          // Display helpers for lineage row (always show both Φ and USD)
                           let lineagePhi = "";
                           let lineageUsd = "";
                           try {
                             if (exhaleInfo?.amountPhi) {
                               lineagePhi = fmtPhiFixed4(exhaleInfo.amountPhi);
-                              if (typeof exhaleInfo.amountUsd === "string" && exhaleInfo.amountUsd) {
-                                // use stored snapshot if present
-                                lineageUsd = exhaleInfo.amountUsd;
-                              } else if (typeof exhaleInfo.usdPerPhi === "number" && Number.isFinite(exhaleInfo.usdPerPhi)) {
+                              if (typeof exhaleInfo.amountUsd === "string" && exhaleInfo.amountUsd) lineageUsd = exhaleInfo.amountUsd;
+                              else if (typeof exhaleInfo.usdPerPhi === "number" && Number.isFinite(exhaleInfo.usdPerPhi)) {
                                 const phiNum = Number(exhaleInfo.amountPhi);
-                                const usdVal = Number.isFinite(phiNum) ? phiNum * exhaleInfo.usdPerPhi : 0;
-                                lineageUsd = fmtUsdNoSym(usdVal);
-                              } else {
-                                lineageUsd = "0.00";
-                              }
+                                lineageUsd = fmtUsdNoSym((Number.isFinite(phiNum) ? phiNum : 0) * exhaleInfo.usdPerPhi);
+                              } else lineageUsd = "0.00";
                             }
                           } catch (err) {
                             logError("lineage.computeDisplay", err);
@@ -1831,12 +2399,23 @@ const VerifierStamper: React.FC = () => {
                                 <span className="index">#{i + 1}</span>
                                 <span className={`state ${open ? "open" : "closed"}`}>{open ? "Pending receive" : "Sealed"}</span>
                               </header>
+                              <div className="row">
+                                <span className="k">Sender Σ</span>
+                                <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                  {t.senderSignature}
+                                </span>
+                              </div>
+                              <div className="row">
+                                <span className="k">Sender Stamp</span>
+                                <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                  {t.senderStamp}
+                                </span>
+                              </div>
+                              <div className="row">
+                                <span className="k">Sender Pulse</span>
+                                <span className="v">{t.senderKaiPulse}</span>
+                              </div>
 
-                              <div className="row"><span className="k">Sender Σ</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{t.senderSignature}</span></div>
-                              <div className="row"><span className="k">Sender Stamp</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{t.senderStamp}</span></div>
-                              <div className="row"><span className="k">Sender Pulse</span><span className="v">{t.senderKaiPulse}</span></div>
-
-                              {/* Amount snapshot at exhale time — always Φ (4dp) and USD (2dp) */}
                               {exhaleInfo?.amountPhi && (
                                 <div className="row">
                                   <span className="k">Exhaled</span>
@@ -1848,40 +2427,93 @@ const VerifierStamper: React.FC = () => {
 
                               {hardened && (
                                 <>
-                                  <div className="row"><span className="k">Prev-Head</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{hardened.previousHeadRoot}</span></div>
-                                  <div className="row"><span className="k">SEND leaf</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{hardened.transferLeafHashSend}</span></div>
+                                  <div className="row">
+                                    <span className="k">Prev-Head</span>
+                                    <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                      {hardened.previousHeadRoot}
+                                    </span>
+                                  </div>
+                                  <div className="row">
+                                    <span className="k">SEND leaf</span>
+                                    <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                      {hardened.transferLeafHashSend}
+                                    </span>
+                                  </div>
                                   {hardened.transferLeafHashReceive && (
-                                    <div className="row"><span className="k">RECV leaf</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{hardened.transferLeafHashReceive}</span></div>
+                                    <div className="row">
+                                      <span className="k">RECV leaf</span>
+                                      <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                        {hardened.transferLeafHashReceive}
+                                      </span>
+                                    </div>
                                   )}
                                   {hardened.zkSend && (
-                                    <div className="row"><span className="k">ZK SEND</span><span className="v">{hardened.zkSend.verified ? "✓" : "•"} {hardened.zkSend.scheme}</span></div>
+                                    <div className="row">
+                                      <span className="k">ZK SEND</span>
+                                      <span className="v">{hardened.zkSend.verified ? "✓" : "•"} {hardened.zkSend.scheme}</span>
+                                    </div>
                                   )}
                                   {hardened.zkSendBundle && (
-                                    <div className="row"><span className="k">ZK SEND hash</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{hardened.zkSend?.proofHash}</span></div>
+                                    <div className="row">
+                                      <span className="k">ZK SEND hash</span>
+                                      <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                        {hardened.zkSend?.proofHash}
+                                      </span>
+                                    </div>
                                   )}
                                   {hardened.zkReceive && (
-                                    <div className="row"><span className="k">ZK RECV</span><span className="v">{hardened.zkReceive.verified ? "✓" : "•"} {hardened.zkReceive.scheme}</span></div>
+                                    <div className="row">
+                                      <span className="k">ZK RECV</span>
+                                      <span className="v">{hardened.zkReceive.verified ? "✓" : "•"} {hardened.zkReceive.scheme}</span>
+                                    </div>
                                   )}
                                   {hardened.zkReceiveBundle && (
-                                    <div className="row"><span className="k">ZK RECV hash</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{hardened.zkReceive?.proofHash}</span></div>
+                                    <div className="row">
+                                      <span className="k">ZK RECV hash</span>
+                                      <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                        {hardened.zkReceive?.proofHash}
+                                      </span>
+                                    </div>
                                   )}
                                 </>
                               )}
 
                               {t.receiverSignature && (
                                 <>
-                                  <div className="row"><span className="k">Receiver Σ</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{t.receiverSignature}</span></div>
-                                  <div className="row"><span className="k">Receiver Stamp</span><span className="v mono" style={{ overflowWrap: "anywhere" }}>{t.receiverStamp}</span></div>
-                                  <div className="row"><span className="k">Receiver Pulse</span><span className="v">{t.receiverKaiPulse}</span></div>
+                                  <div className="row">
+                                    <span className="k">Receiver Σ</span>
+                                    <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                      {t.receiverSignature}
+                                    </span>
+                                  </div>
+                                  <div className="row">
+                                    <span className="k">Receiver Stamp</span>
+                                    <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+                                      {t.receiverStamp}
+                                    </span>
+                                  </div>
+                                  <div className="row">
+                                    <span className="k">Receiver Pulse</span>
+                                    <span className="v">{t.receiverKaiPulse}</span>
+                                  </div>
                                 </>
                               )}
 
                               {t.payload && (
                                 <details className="payload" open>
                                   <summary>Payload</summary>
-                                  <div className="row"><span className="k">Name</span><span className="v">{t.payload.name}</span></div>
-                                  <div className="row"><span className="k">MIME</span><span className="v">{t.payload.mime}</span></div>
-                                  <div className="row"><span className="k">Size</span><span className="v">{t.payload.size} bytes</span></div>
+                                  <div className="row">
+                                    <span className="k">Name</span>
+                                    <span className="v">{t.payload.name}</span>
+                                  </div>
+                                  <div className="row">
+                                    <span className="k">MIME</span>
+                                    <span className="v">{t.payload.mime}</span>
+                                  </div>
+                                  <div className="row">
+                                    <span className="k">Size</span>
+                                    <span className="v">{t.payload.size} bytes</span>
+                                  </div>
                                 </details>
                               )}
                             </li>
@@ -1902,7 +2534,9 @@ const VerifierStamper: React.FC = () => {
                       </label>
                     </div>
                     {viewRaw ? (
-                      <pre className="raw-json" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{rawMeta}</pre>
+                      <pre className="raw-json" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                        {rawMeta}
+                      </pre>
                     ) : (
                       <div className="json-tree-wrap" style={{ overflowX: "hidden" }}>
                         <JsonTree data={meta} />
@@ -1914,16 +2548,21 @@ const VerifierStamper: React.FC = () => {
 
               {/* Footer */}
               <footer className="modal-footer" style={{ position: "sticky", bottom: 0 }}>
-                {error && <p className="status error" style={{ overflowWrap: "anywhere" }}>{error}</p>}
+                {error && (
+                  <p className="status error" style={{ overflowWrap: "anywhere" }}>
+                    {error}
+                  </p>
+                )}
 
                 <div className="footer-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {uiState === "unsigned" && (
-                    <button className="secondary" onClick={sealUnsigned}>Seal content (Σ + Φ)</button>
+                    <button className="secondary" onClick={sealUnsigned}>
+                      Seal content (Σ + Φ)
+                    </button>
                   )}
 
                   {(uiState === "readySend" || uiState === "verified") && (
                     <>
-                      {/* Attach (icon only) */}
                       <button
                         className="secondary"
                         onClick={() => fileInput.current?.click()}
@@ -1937,7 +2576,6 @@ const VerifierStamper: React.FC = () => {
 
                       {/* Amount switcher + input */}
                       <div className="send-amount" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {/* Segmented toggle */}
                         <div
                           role="tablist"
                           aria-label="Amount unit"
@@ -1972,7 +2610,6 @@ const VerifierStamper: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Amount input */}
                         <input
                           className="phi-amount"
                           inputMode="decimal"
@@ -1983,7 +2620,7 @@ const VerifierStamper: React.FC = () => {
                             const v = e.target.value;
                             if (/^\d*\.?\d*$/.test(v)) {
                               if (amountMode === "USD") setUsdInput(v);
-                              else setPhiInput(fmtPhiCompact(v)); // ← use fmtPhiCompact while typing
+                              else setPhiInput(fmtPhiCompact(v));
                             }
                           }}
                           style={{
@@ -1997,23 +2634,23 @@ const VerifierStamper: React.FC = () => {
                           }}
                         />
 
-                        {/* Live conversion readout */}
-                        <div
-                          className="convert-readout"
-                          aria-live="polite"
-                          style={{ fontSize: 12, opacity: 0.9, minWidth: 90, textAlign: "left" }}
-                          title={amountMode === "USD" ? "Converted to Φ at current model" : "Converted to USD at current model"}
-                        >
+                        {/* Live conversion */}
+                        <div className="convert-readout" aria-live="polite" style={{ fontSize: 12, opacity: 0.9, minWidth: 90, textAlign: "left" }}>
                           {conv.displayRight}
+                        </div>
+
+                        {/* Remaining readout */}
+                        <div className="remaining-readout" aria-live="polite" style={{ fontSize: 12, opacity: 0.9, minWidth: 140, textAlign: "left" }} title="Remaining Φ available to exhale">
+                          {canonicalContext === "child" ? "Child Rem:" : "Rem:"} Φ {remainingPhiDisplay4}
                         </div>
                       </div>
 
-                      {/* Exhale (icon only) */}
                       <button
                         className="primary"
                         onClick={send}
                         aria-label="Exhale (send)"
                         title={canShare ? "Exhale (seal & share)" : "Exhale (seal & copy link)"}
+                        disabled={!canExhale}
                         style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, padding: 0 }}
                       >
                         <Svg path="send" label="Exhale" />
@@ -2021,24 +2658,47 @@ const VerifierStamper: React.FC = () => {
                     </>
                   )}
 
+                  {/* RECEIVE:
+                      - Enabled for CHILD open links within expiry.
+                      - Disabled when expired or already used.
+                      - Parent RECEIVE also allowed if not expired.
+                    */}
                   {uiState === "readyReceive" && (
                     <button
                       className="primary"
                       onClick={receive}
                       aria-label="Inhale (receive)"
-                      title="Inhale"
+                      title={
+                        canonicalContext === "child"
+                          ? childExpired
+                            ? "Link expired"
+                            : childUsed
+                            ? "Link already used"
+                            : "Inhale"
+                          : parentOpenExp
+                          ? "Send expired"
+                          : "Inhale"
+                      }
+                      disabled={
+                        (canonicalContext === "child" && (childExpired || childUsed)) ||
+                        (canonicalContext === "parent" && parentOpenExp)
+                      }
                       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, padding: 0 }}
                     >
                       <Svg path="recv" label="Inhale" />
                     </button>
                   )}
 
-                  {(meta?.transfers?.length ?? 0) > 0 && (
+                  {/* Segment button:
+                      - Available if there are head-window transfers AND NOT a SEND filename child.
+                      - Segmentation no longer archives or retires; it's continuous.
+                    */}
+                  {(meta?.transfers?.length ?? 0) > 0 && !isSendFilename && (
                     <button
                       className="secondary"
                       onClick={sealSegmentNow}
                       aria-label="Segment head window"
-                      title="Roll current head-window into a segment"
+                      title="Roll current head-window into a segment (continuous)"
                       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, padding: 0 }}
                     >
                       <Svg path="stack" label="Segment" />
@@ -2051,22 +2711,32 @@ const VerifierStamper: React.FC = () => {
         </div>
       </dialog>
 
-      {/* 🔗 Post-seal modal */}
-      <SealMomentModal open={sealOpen} url={sealUrl} hash={sealHash} onClose={() => setSealOpen(false)} onDownloadZip={downloadZip} />
+      {/* Seal moment dialog (share link after SEND) */}
+      <SealMomentModal
+        open={sealOpen}
+        url={sealUrl}
+        hash={sealHash}
+        onClose={() => {
+          setSealOpen(false);
+          setRotateOut(false);
+          openVerifier();
+        }}
+        onDownloadZip={downloadZip}
+      />
 
-      {/* Φ Valuation modal */}
-      {meta && (
+      {/* Valuation */}
+      {meta && metaLiteForNote && (
         <ValuationModal
           open={valuationOpen}
           onClose={closeValuation}
-          meta={metaLite ?? (meta as unknown as SigilMetadataLite)}
+          meta={metaLiteForNote}
           nowPulse={pulseNow}
           initialGlyph={initialGlyph ?? undefined}
           onAttach={uiState === "verified" ? onAttachValuation : undefined}
         />
       )}
 
-      {/* 🖨️ Note Exhaler */}
+      {/* Note printer */}
       <dialog
         ref={noteDlgRef}
         className="glass-modal fullscreen"
@@ -2082,7 +2752,6 @@ const VerifierStamper: React.FC = () => {
               ×
             </button>
           </div>
-
           <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
             {sigilSvgRaw && metaLiteForNote ? (
               <NotePrinter meta={metaLiteForNote} initial={noteInitial} />
@@ -2095,14 +2764,14 @@ const VerifierStamper: React.FC = () => {
         </div>
       </dialog>
 
-      {/* 🌲 Explorer dialog */}
+      {/* Explorer */}
       <dialog
         ref={explorerDlgRef}
         className="explorer-dialog"
         id="explorer-dialog"
         aria-label="Sigil Explorer"
         data-open={explorerOpen ? "true" : "false"}
-        style={{ width: "100vw", maxWidth: "100vw", height: "100dvh", maxHeight: "100dvh", margin: 0, padding: 0, overflow: "hidden" }}
+        style={{ width: "100vw", height: "100dvh", margin: 0, padding: 0, overflow: "hidden" }}
       >
         <div className="explorer-chrome" style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: "100vw" }}>
           <div className="explorer-topbar" style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
@@ -2113,11 +2782,20 @@ const VerifierStamper: React.FC = () => {
           </div>
           <div className="explorer-body" style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             <SigilExplorer />
-          </div>
+          </div> 
         </div>
       </dialog>
     </div>
   );
 };
 
-export default VerifierStamper;
+/* Wrapped export with ErrorBoundary + Suspense */
+export default function VerifierStamper() {
+  return (
+    <VerifierErrorBoundary onReset={() => { /* optional: clear local state or reload */ }}>
+      <React.Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+        <VerifierStamperInner />
+      </React.Suspense>
+    </VerifierErrorBoundary>
+  );
+}

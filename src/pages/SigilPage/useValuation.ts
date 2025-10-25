@@ -49,9 +49,14 @@ export function useValuation({ payload, urlSearchParams, currentPulse }: Args) {
   const [valSeal, setValSeal] = useState<any>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [priceFlash, setPriceFlash] = useState<PriceFlash>(null);
+
   const prevPriceRef = useRef<number | null>(null);
+  const lastStampRef = useRef<string | null>(null); // ensures idempotent updates
 
   const hasher = useStableSha256();
+
+  // Only the *value* we care about — not the whole, unstable URLSearchParams object
+  const vpolKey: string = urlSearchParams?.get("vpol") ?? "";
 
   // Build the canonical valuation (ValueSeal)
   useEffect(() => {
@@ -60,14 +65,16 @@ export function useValuation({ payload, urlSearchParams, currentPulse }: Args) {
     (async () => {
       if (!payload || !Number.isFinite(currentPulse ?? NaN)) {
         if (!alive) return;
-        setValSeal(null);
-        setLivePrice(null);
-        setPriceFlash(null);
+
+        // Idempotent clears (no-op if already null)
+        setValSeal((prev) => (prev === null ? prev : null));
+        setLivePrice((prev) => (prev === null ? prev : null));
+        setPriceFlash((prev) => (prev === null ? prev : null));
         prevPriceRef.current = null;
+        lastStampRef.current = null;
         return;
       }
 
-      // Accept extended fields without tightening types (no strict lints)
       const p: any = payload || {};
 
       // Deterministic, typed-enough metadata for valuation
@@ -106,32 +113,38 @@ export function useValuation({ payload, urlSearchParams, currentPulse }: Args) {
         kaiSignature: p.kaiSignature,
         userPhiKey: p.userPhiKey,
 
-        // policy pin
-        valuationPolicyId: urlSearchParams.get("vpol") ?? undefined,
+        // policy pin — use stable string only
+        valuationPolicyId: vpolKey || undefined,
       };
 
       const { seal } = await buildValueSeal(meta, currentPulse as number, hasher);
-
       if (!alive) return;
+
+      // Avoid redundant sets: only update when the stamp actually changes
+      if (lastStampRef.current !== seal.stamp) {
+        setValSeal((prev) => (prev && prev.stamp === seal.stamp ? prev : seal));
+        lastStampRef.current = seal.stamp;
+      }
 
       const newPrice = seal.valuePhi;
       const prev = prevPriceRef.current;
 
-      setValSeal(seal);
-      setLivePrice(newPrice);
-
-      if (prev != null && Math.abs(newPrice - prev) > 1e-9) {
-        setPriceFlash(newPrice > prev ? "up" : "down");
-      } else {
-        setPriceFlash(null);
+      if (prev !== newPrice) {
+        setLivePrice((prevLive) => (prevLive === newPrice ? prevLive : newPrice));
+        if (prev != null && Math.abs(newPrice - prev) > 1e-9) {
+          setPriceFlash((prevFlash) => (prevFlash === "up" && newPrice > prev ? prevFlash : newPrice > prev ? "up" : "down"));
+        } else {
+          setPriceFlash((prevFlash) => (prevFlash === null ? prevFlash : null));
+        }
+        prevPriceRef.current = newPrice;
       }
-      prevPriceRef.current = newPrice;
     })();
 
     return () => {
       alive = false;
     };
-  }, [payload, currentPulse, urlSearchParams, hasher]);
+    // Critical: depend on vpolKey (stable string), not the URLSearchParams object.
+  }, [payload, currentPulse, vpolKey, hasher]);
 
   // Convenience: claim pulse
   const claimPulse = useMemo(() => (payload as any)?.pulse, [payload]);

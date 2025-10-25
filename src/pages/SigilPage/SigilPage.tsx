@@ -673,18 +673,28 @@ useEffect(() => {
     routeHash,
   });
 
-  useEffect(() => {
-    const raw = urlQs.get("h");
-    if (!raw) {
-      setHistoryLite(null);
-      return;
-    }
-    try {
-      setHistoryLite(decodeSigilHistory(ensureHPrefixLocal(raw.trim())));
-    } catch {
-      setHistoryLite(null);
-    }
-  }, [urlQs]);
+const histKey = urlQs.get("h") ?? "";
+useEffect(() => {
+  if (!histKey) {
+    setHistoryLite((prev) => (prev === null ? prev : null));
+    return;
+  }
+  try {
+    const next = decodeSigilHistory(ensureHPrefixLocal(histKey.trim()));
+    setHistoryLite((prev) => {
+      // avoid churn on equal arrays
+      const same =
+        Array.isArray(prev) &&
+        Array.isArray(next) &&
+        prev.length === next.length &&
+        prev.every((v, i) => v === next[i]);
+      return same ? prev : next;
+    });
+  } catch {
+    setHistoryLite((prev) => (prev === null ? prev : null));
+  }
+}, [histKey]);
+
 
   const sameMoment = useCallback((a: SigilPayload, b: SigilPayload) => {
     const stepsA: number = (a.stepsPerBeat ?? STEPS_PER_BEAT) as number;
@@ -735,34 +745,34 @@ useEffect(() => {
     } catch {}
   }, [absUrl, copy]);
 
-  /* Authenticity vs route — legacy aware */
-  useEffect(() => {
-    const now = Date.now();
-    const route = (routeHash || "").toLowerCase();
+useEffect(() => {
+  const now = Date.now();
+  const route = (routeHash || "").toLowerCase();
 
-  // Preserve current badges during short write/rotate/sync windows or boot
-if (suppressAuthUntil > now) return;
-if (!route) return;
-if (expectedCanonCandidates.length === 0) return;
+  if (suppressAuthUntil > now) return;
+  if (!route) return;
+  if (expectedCanonCandidates.length === 0) return;
 
+  const ok = expectedCanonCandidates.includes(route);
 
-    const ok = expectedCanonCandidates.includes(route);
+  let nextGlyph: typeof glyphAuth = glyphAuth;
+  let nextVerified: typeof verified = verified;
 
-    if (!ok && localHash && route !== localHash && !legacyInfo) {
-      setVerified(prev => prev); // keep whatever deep-check decided
-
-      setGlyphAuth("authentic");
-      return;
+  if (!ok && localHash && route !== localHash && !legacyInfo) {
+    // keep deep-check result for `verified`, but glyph is authentic
+    nextGlyph = "authentic";
+  } else if (!ok && (legacyInfo || linkStatus === "archived")) {
+    nextGlyph = "authentic";
+  } else {
+    nextGlyph = ok ? "authentic" : "forged";
+    if (verified !== "verified") {
+      nextVerified = ok ? "ok" : "mismatch";
     }
-    if (!ok && (legacyInfo || linkStatus === "archived")) {
-      setVerified(prev => prev); // glyphAuth only; deep-check will set 'verified'
+  }
 
-      setGlyphAuth("authentic");
-      return;
-    }
-    setVerified(prev => (prev === "verified" ? "verified" : (ok ? "ok" : "mismatch")));
-    setGlyphAuth(ok ? "authentic" : "forged");
-  }, [expectedCanonCandidates, routeHash, linkStatus, suppressAuthUntil, legacyInfo, localHash]);
+  if (nextGlyph !== glyphAuth) setGlyphAuth(nextGlyph);
+  if (nextVerified !== verified) setVerified(nextVerified);
+}, [expectedCanonCandidates, routeHash, linkStatus, suppressAuthUntil, legacyInfo, localHash, glyphAuth, verified]);
 
   /* SEO / Sharing text */
   const [ogImgUrl, setOgImgUrl] = useState<string | null>(null);
@@ -1351,8 +1361,13 @@ try {
   if (currentD) u.searchParams.set("d", currentD);
   finalUrl = u.toString();                 // keep origin+protocol
 } catch {}
-setSealUrl(toAbsUrl(finalUrl));            // defensive
 
+const u = new URL(finalUrl, window.location.origin);
+u.pathname = `/s/${canonical}`;
+const current = new URL(window.location.href);
+current.searchParams.forEach((v, k) => {
+  if (k !== "d") u.searchParams.set(k, u.searchParams.get(k) ?? v);
+});
 
       const extracted = canonicalFromUrl(finalUrl);
       const sealCanonical = extracted || canonical;
@@ -1568,15 +1583,15 @@ setSealUrl(toAbsUrl(finalUrl));            // defensive
       STEPS_PER_BEAT,
     });
   });
-
-  // onReady from KaiSigil — record live hash
-  const onReady = useCallback(
-    (hOrInfo: { hash?: string } | string | null | undefined) => {
-      const h = typeof hOrInfo === "string" ? hOrInfo : hOrInfo?.hash;
-      if (h) setLocalHash(h.toLowerCase());
-    },
-    []
-  );
+const onReady = useCallback(
+  (hOrInfo: { hash?: string } | string | null | undefined) => {
+    const h = typeof hOrInfo === "string" ? hOrInfo : hOrInfo?.hash;
+    if (!h) return;
+    const lc = h.toLowerCase();
+    setLocalHash((prev) => (prev === lc ? prev : lc));
+  },
+  []
+);
 
   /* Render guards */
   const showSkeleton = loading && !payload;
@@ -1656,66 +1671,58 @@ if (!cancelled && sigmaOk && phiOk && verified !== "verified") {
 }, [payload, glyphAuth, verified, linkStatus]);
 
 
-  /* Link status — prefer an open claim window, then do legacy/rotation checks */
-  useEffect(() => {
-    const route = (routeHash || "").toLowerCase();
+useEffect(() => {
+  const route = (routeHash || "").toLowerCase();
 
-    const urlTok = transferToken || null;
-    const payTok = payload?.transferNonce || null;
+  const urlTok = transferToken || null;
+  const payTok = payload?.transferNonce || null;
 
-    const windowOpen =
-      !!urlTok &&
-      !!payTok &&
-      urlTok === payTok &&
-      (expiresPulse == null || currentPulse == null || currentPulse < expiresPulse);
+  const windowOpen =
+    !!urlTok &&
+    !!payTok &&
+    urlTok === payTok &&
+    (expiresPulse == null || currentPulse == null || currentPulse < expiresPulse);
 
-    if (windowOpen) {
-      setLinkStatus("active");
-      return;
-    }
+  let next: typeof linkStatus = linkStatus;
 
+  if (windowOpen) {
+    next = "active";
+  } else {
     const haveCanon = Boolean(localHash || payload?.canonicalHash || legacyInfo?.matchedHash);
     if (!haveCanon) {
-      setLinkStatus("checking");
-      return;
+      next = "checking";
+    } else {
+      const candidates = expectedCanonCandidates;
+      if (
+        (route && candidates.length && candidates.includes(route)) ||
+        (route && localHash && route !== localHash && !legacyInfo)
+      ) {
+        next = "active";
+      } else if (!payTok) {
+        next = legacyInfo ? "archived" : "active";
+      } else if (!urlTok) {
+        next = "archived";
+      } else if (rotatedToken && rotatedToken !== urlTok) {
+        next = "archived";
+      } else {
+        next = urlTok === payTok ? "active" : "archived";
+      }
     }
+  }
 
-    const candidates = expectedCanonCandidates;
-    if (route && candidates.length && candidates.includes(route)) {
-      setLinkStatus("active");
-      return;
-    }
-
-    if (route && localHash && route !== localHash && !legacyInfo) {
-      setLinkStatus("active");
-      return;
-    }
-
-    if (!payTok) {
-      setLinkStatus(legacyInfo ? "archived" : "active");
-      return;
-    }
-    if (!urlTok) {
-      setLinkStatus("archived");
-      return;
-    }
-    if (rotatedToken && rotatedToken !== urlTok) {
-      setLinkStatus("archived");
-      return;
-    }
-
-    setLinkStatus(urlTok === payTok ? "active" : "archived");
-  }, [
-    routeHash,
-    expectedCanonCandidates,
-    localHash,
-    payload?.transferNonce,
-    transferToken,
-    rotatedToken,
-    expiresPulse,
-    currentPulse,
-    legacyInfo,
-  ]);
+  if (next !== linkStatus) setLinkStatus(next);
+}, [
+  routeHash,
+  expectedCanonCandidates,
+  localHash,
+  payload?.transferNonce,
+  transferToken,
+  rotatedToken,
+  expiresPulse,
+  currentPulse,
+  legacyInfo,
+  linkStatus,
+]);
 
   // derive IDs (deterministic preview)
   const [derivedOwnerPhiKey, setDerivedOwnerPhiKey] = useState<string>("");
@@ -1762,13 +1769,13 @@ if (!cancelled && sigmaOk && phiOk && verified !== "verified") {
       const d = await deriveMomentKeys(payload, canon, nowPulseVal, nowBeatIdx, nowStepIdx);
       setNewOwner(d.ownerPhiKey);
       setNewKaiSig(d.kaiSig);
-      setTimeout(() => {
-        try {
-          sealAndSend();
-          // ...after nextMeta.kaiSignature / nextMeta.userPhiKey are set:
-setVerified(prev => (prev === "verified" ? "verified" : "verified"));
-        } catch {}
-      }, 0);
+// after
+setTimeout(() => {
+  try {
+    sealAndSend();
+    // let the deep verifier effect promote to "verified"
+  } catch {}
+}, 0);
     },
     [payload, localHash, isFutureSealed, isArchived]
   );
@@ -1794,6 +1801,21 @@ setVerified(prev => (prev === "verified" ? "verified" : "verified"));
     }
   }, []);
 
+const sealClass =
+  "authority-seal " +
+  (verified === "verified"
+    ? "is-verified"
+    : glyphAuth === "authentic"
+    ? "is-authentic"
+    : "is-failed");
+
+<button
+  type="button"
+  className={sealClass}
+  {...toggleProofPress}
+>
+  …
+</button>
 
   // Seal & Send — immediate archive + rotation + modal with fresh link
   const sealAndSend = useCallback(() => {
@@ -1870,28 +1892,24 @@ setVerified(prev => (prev === "verified" ? "verified" : "verified"));
       setLinkStatus("archived");
       setSuppressAuthUntil(Date.now() + 250);
 
-      putMetadata(svg, nextMeta);
-      putMetadata(svg, nextMeta);
+putMetadata(svg, nextMeta);
+ensureCanonicalMetadataFirst(svg);
 
+setPayload(nextMeta);
+setUploadedMeta(nextMeta as unknown as SigilMetaLoose);
+signal(setToast, "Sealed & archived");
 
-      ensureCanonicalMetadataFirst(svg);
+// Build & sign exactly once, then open modal
+let url = openShareTransferModal(nextMeta, freshNonce) || `/s/${canonical}`;
+url = await signAndAttach(nextMeta, canonical, freshNonce, url, svg);
 
-      setPayload(nextMeta);
-      setUploadedMeta(nextMeta as unknown as SigilMetaLoose);
-      signal(setToast, "Sealed & archived");
+setSealUrl(toAbsUrl(url));
 
-      const url = openShareTransferModal(nextMeta, freshNonce);
+if (nextMeta.canonicalHash) {
+  publishRotation([nextMeta.canonicalHash.toLowerCase()], freshNonce);
+}
+setTimeout(() => setSuppressAuthUntil(0), 0);
 
-// add this:
-let attestedUrl = url || `/s/${canonical}`;
-attestedUrl = await signAndAttach(nextMeta, canonical, freshNonce, attestedUrl, svg);
-setSealUrl(toAbsUrl(attestedUrl));
-
-      if (nextMeta.canonicalHash) {
-        publishRotation([nextMeta.canonicalHash.toLowerCase()], freshNonce);
-      }
-      void url;
-      setTimeout(() => setSuppressAuthUntil(0), 0);
     })();
   }, [
     payload,
@@ -2103,60 +2121,50 @@ const mintChildSigil = useCallback(
     childMeta.kaiSignature = canonicalSig2;
     childMeta.userPhiKey = phiKeyCanon2;
 
-    const baseUrl = openShareTransferModal(childMeta, freshNonce) || "";
+const baseUrl = openShareTransferModal(childMeta, freshNonce) || `/s/${baseCanonical}`;
 
-    try {
-      const u = new URL(baseUrl || `/s/${baseCanonical}`, window.location.origin);
-u.pathname = `/s/${baseCanonical}`;
-u.searchParams.set("d", encodeDebitsQS({ originalAmount: childMeta.originalAmount }));
-let finalUrl = u.toString();
+try {
+  const u = new URL(baseUrl, window.location.origin);
+  u.pathname = `/s/${baseCanonical}`;
+  u.searchParams.set("d", encodeDebitsQS({ originalAmount: childMeta.originalAmount }));
 
-finalUrl = ensureClaimTimeInUrl(finalUrl, childMeta);   // ok with absolute
+  let finalUrl = ensureClaimTimeInUrl(u.toString(), childMeta);
+  finalUrl = await signAndAttach(childMeta, baseCanonical, freshNonce, finalUrl);
 
-setSealUrl(toAbsUrl(finalUrl));
-// …
-finalUrl = await signAndAttach(childMeta, baseCanonical, freshNonce, finalUrl);
-setSealUrl(toAbsUrl(finalUrl));
+  const can = canonicalFromUrl(finalUrl) || baseCanonical;
 
+  writeDebitsStored(
+    can,
+    decodeDebitsQS(new URL(finalUrl).searchParams.get("d")) ?? ({} as DebitQS),
+    freshNonce
+  );
 
-      const can = canonicalFromUrl(finalUrl) || baseCanonical;
-      writeDebitsStored(
-        can,
-        decodeDebitsQS(u.searchParams.get("d")) ?? ({} as DebitQS),
-        freshNonce
-      );
+  // descendants bookkeeping (unchanged)
+  const parentCanonical = currentCanonicalUtil(payload ?? null, localHash, legacyInfo);
+  const parentActiveTok = parentTok ?? null;
+  if (parentCanonical && parentActiveTok) {
+    const existing = readDescendantsStored(parentCanonical, parentActiveTok);
+    const nextList: DescendantLocal[] = [
+      ...existing,
+      {
+        token: freshNonce,
+        parentToken: parentActiveTok,
+        amount: Number(amount.toFixed(6)),
+        timestamp: nowPulse,
+        depth: 1,
+        recipientPhiKey: childMeta.userPhiKey!, // set above
+      },
+    ];
+    writeDescendantsStored(parentCanonical, parentActiveTok, nextList);
+    broadcastDescendants(parentCanonical, parentActiveTok, nextList);
+    setDescendants(nextList);
+  }
 
-      // ✅ use the same token key for descendant storage & broadcast
-      const parentCanonical = currentCanonicalUtil(payload ?? null, localHash, legacyInfo);
-      const parentActiveTok = parentTok ?? null;
+  setSealUrl(toAbsUrl(finalUrl));
+  setSealHash(can);
+  setSealOpen(true);
+  return finalUrl;
 
-      if (parentCanonical && parentActiveTok) {
-        const existing = readDescendantsStored(parentCanonical, parentActiveTok);
-        const nextList: DescendantLocal[] = [
-          ...existing,
-          {
-            token: freshNonce,
-            parentToken: parentActiveTok,
-            amount: Number(amount.toFixed(6)),
-            timestamp: nowPulse,
-            depth: 1,
-            recipientPhiKey: phiKeyCanon2,
-          },
-        ];
-        writeDescendantsStored(parentCanonical, parentActiveTok, nextList);
-        broadcastDescendants(parentCanonical, parentActiveTok, nextList);
-        setDescendants(nextList);
-      }
-
-      setSealUrl(finalUrl);
-      setSealHash(can);
-      setSealOpen(true);
-// after you compute finalUrl and before setSealUrl(finalUrl):
-finalUrl = await signAndAttach(childMeta, baseCanonical, freshNonce, finalUrl);
-// then:
-setSealUrl(finalUrl);
-
-      return finalUrl;
       
     } catch {
       const patched = ensureClaimTimeInUrl(baseUrl || `/s/${baseCanonical}`, childMeta);
@@ -2828,7 +2836,6 @@ useEffect(() => {
               aria-label="Open historical value chart"
               title={`Kai ${valSeal.computedAtPulse} • premium ×${valSeal.premium.toFixed(6)} • ${fmtUsd(usdPerPhi)}/Φ • ${Number.isFinite(phiPerUsd) ? `${phiPerUsd.toFixed(6)} Φ/$` : "—"} • stamp ${valSeal.stamp.slice(0, 12)}…`}
                {...openHistoryPress}
-              {...openHistoryPress}
             >
               {/* Φ rainbow icon — /assets/phi.svg mask */}
               <span

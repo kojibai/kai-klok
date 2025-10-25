@@ -292,11 +292,12 @@ function policyChecksum(): string {
   return ("00000000" + (h >>> 0).toString(16)).slice(-8);
 }
 
+/* ---- NEW: hoist checksum once (stability + micro perf; no behavior change) --- */
+const POLICY_CHECKSUM = policyChecksum();
 
 /* --------------------------------- helpers --------------------------------- */
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const log1p = (x: number) => Math.log(1 + Math.max(0, x));
-const q = (x: number, d = 9) => Math.round(x * 10 ** d) / 10 ** d;
 const frac = (x: number) => x - Math.floor(x);
 
 function median(arr: number[]): number {
@@ -390,21 +391,40 @@ function isPerfectSquareBig(n: bigint): boolean {
   const r = bigintSqrt(n);
   return r * r === n;
 }
+// Add near your other module-level state:
+const __fibMemo = new Map<number, boolean>();
+
 function isFibonacciExact(pulse: number): boolean {
   if (!Number.isFinite(pulse) || pulse < 0) return false;
-  const n = BigInt(Math.trunc(Math.abs(pulse)));
+  const nSafe = Math.trunc(Math.abs(pulse));
+  const cached = __fibMemo.get(nSafe);
+  if (cached !== undefined) return cached;
+
+  const n = BigInt(nSafe);
   const a = 5n * n * n + 4n;
   const b = 5n * n * n - 4n;
-  return isPerfectSquareBig(a) || isPerfectSquareBig(b);
+  const ok = isPerfectSquareBig(a) || isPerfectSquareBig(b);
+  __fibMemo.set(nSafe, ok);
+  return ok;
 }
+
+// Add near the Fibonacci memo:
+const __lucMemo = new Map<number, boolean>();
+
 function isLucasExact(pulse: number): boolean {
-  // Exact Lucas membership via recurrence until >= n (O(log_φ n) steps)
   if (!Number.isFinite(pulse) || pulse < 0) return false;
-  const n = BigInt(Math.trunc(Math.abs(pulse)));
-  let a = 2n, b = 1n; // L0=2, L1=1
+  const nSafe = Math.trunc(Math.abs(pulse));
+  const cached = __lucMemo.get(nSafe);
+  if (cached !== undefined) return cached;
+
+  const n = BigInt(nSafe);
+  let a = 2n, b = 1n;
   while (b < n) { const t = a + b; a = b; b = t; }
-  return b === n;
+  const ok = (b === n);
+  __lucMemo.set(nSafe, ok);
+  return ok;
 }
+
 
 function absDigits(pulse: number): string {
   return Math.abs(Math.trunc(pulse)).toString();
@@ -470,17 +490,27 @@ function genesisProximityLift(claimPulse: number): number {
 
 /* φ-spiral transition membership:
    EXACT transition integers s_n = ceil(φ^n), n ≥ 1. Only these pulses qualify. */
+// Add near the other memos:
+const __phiTransMemo = new Map<number, number | null>();
+
 function phiTransitionIndexFromPulse(pulse: number): number | null {
   if (!Number.isFinite(pulse) || pulse < 1) return null;
-  const N = Math.trunc(pulse);
+  const nSafe = Math.trunc(pulse);
+  const cached = __phiTransMemo.get(nSafe);
+  if (cached !== undefined) return cached;
+
+  const N = nSafe;
   const nApprox = Math.log(N) / Math.log(PHI);
   const start = Math.max(1, Math.floor(nApprox) - 2);
-  for (let n = start; n <= start + 6; n++) {
-    const s = Math.ceil(Math.pow(PHI, n));
-    if (s === N) return n;
+  let hit: number | null = null;
+  for (let k = start; k <= start + 6; k++) {
+    const s = Math.ceil(Math.pow(PHI, k));
+    if (s === N) { hit = k; break; }
   }
-  return null;
+  __phiTransMemo.set(nSafe, hit);
+  return hit;
 }
+
 
 /* Moment rarity (deterministic, multiplicative) */
 function momentRarityLiftFromPulse(pulse: number): number {
@@ -625,8 +655,8 @@ function countLucasLevelsSince(agePulses: number): number {
 */
 function strobeWave(claimPulse: number, nowPulse: number): { phase01: number; wave: number } {
   const u = frac((claimPulse + nowPulse) * PHI);
-  const wave = q(1 + STROBE_WAVE_GAIN * (2 * u - 1));
-  return { phase01: q(u), wave };
+  const wave = 1 + STROBE_WAVE_GAIN * (2 * u - 1);
+  return { phase01: u, wave };
 }
 
 /* --------------------- normalization (single-source step) ------------------- */
@@ -659,11 +689,27 @@ function resolveBeat(meta: SigilMetadataLite, pulsesPerBeat: number, claimPulse:
   return Math.floor(claimPulse / pulsesPerBeat);
 }
 
+
+/* ------------------ NEW: lightweight deep-freeze for cache safety ------------ */
+function freezeUnsigned<T extends { inputs: ValueInputs; headRef: ValueSeal["headRef"] }>(u: T): T {
+  Object.freeze(u.inputs);
+  Object.freeze(u.headRef);
+  return Object.freeze(u);
+}
+
+
+/* ------------------ NEW: memo cache for referential stability ---------------- */
+type UnsignedSeal =
+  Omit<ValueSeal, "stamp" | "policyChecksum" | "algorithm"> &
+  { algorithm: "phi/kosmos-vφ-5"; policyChecksum: string };
+
+const __unsignedCache = new Map<string, UnsignedSeal>();
+
 /* -------------------------- intrinsic computation -------------------------- */
 export function computeIntrinsicUnsigned(
   meta: SigilMetadataLite,
   nowPulse: number
-): { unsigned: Omit<ValueSeal, "stamp" | "policyChecksum" | "algorithm"> & { algorithm: "phi/kosmos-vφ-5"; policyChecksum: string }; stampPayload: string } {
+): { unsigned: UnsignedSeal; stampPayload: string } {
   // Rhythm derivation (allows alternative stepsPerBeat if provided)
   const STEPS_PER_BEAT = coerceStepsPerBeat(meta.stepsPerBeat);
   const pulsesPerBeat = STEPS_PER_BEAT * PULSES_PER_STEP; // default 484
@@ -767,32 +813,32 @@ export function computeIntrinsicUnsigned(
   const rarityScore01 = momentRarityScore01FromPulse(claimPulse);
   const k = ADOPTION_GAIN_BASE + ADOPTION_GAIN_RARE * rarityScore01;
 
-  const adoptionLift = q(Math.exp(k * adoptionDelta));
-  const indexScarcity = q(1 + INDEX_SCARCITY_GAIN * (1 - adoptionAtClaim));
+  const adoptionLift = Math.exp(k * adoptionDelta);
+  const indexScarcity = 1 + INDEX_SCARCITY_GAIN * (1 - adoptionAtClaim);
 
   const fibLevels   = countFibLevelsSince(agePulses);
   const lucasLevels = countLucasLevelsSince(agePulses);
-  const fibAccrualLift   = q(Math.exp(FIB_STEP_GAIN   * fibLevels));
-  const lucasAccrualLift = q(Math.exp(LUCAS_STEP_GAIN * lucasLevels));
+  const fibAccrualLift   = Math.exp(FIB_STEP_GAIN   * fibLevels);
+  const lucasAccrualLift = Math.exp(LUCAS_STEP_GAIN * lucasLevels);
 
-  const dynamicGrowth = q(indexScarcity * adoptionLift * fibAccrualLift * lucasAccrualLift);
+  const dynamicGrowth = indexScarcity * adoptionLift * fibAccrualLift * lucasAccrualLift;
 
   // Strict monotone rarity floor
-  const rarityFloor = q(1 * claimMoment * indexScarcity * adoptionLift * fibAccrualLift * lucasAccrualLift * Math.max(1, genesisBias));
+  const rarityFloor = 1 * claimMoment * indexScarcity * adoptionLift * fibAccrualLift * lucasAccrualLift * Math.max(1, genesisBias);
 
   /* --------------------------- live oscillations (φ) ------------------------- */
 
   // Breath wave
   const breathPhase01 = pulsesPerBeat > 0 ? ((nowPulse % pulsesPerBeat) / pulsesPerBeat) : 0;
   const breathAmp = BREATH_WAVE_GAIN * (0.5 + 0.5 * cadenceRegularity);
-  const breathWave = q(1 + breathAmp * Math.sin(2 * Math.PI * breathPhase01));
+  const breathWave = 1 + breathAmp * Math.sin(2 * Math.PI * breathPhase01);
 
   // Kai-day wave (claim-day ↔ now-day alignment)
   const dayPhase01 = frac(nowPulse / PULSES_PER_DAY_EXACT);
   const claimDayPhase01 = frac(claimPulse / PULSES_PER_DAY_EXACT);
   const daySim = 1 - Math.abs(((dayPhase01 - claimDayPhase01 + 1) % 1) - 0.5) * 2;
   const dayAmp = DAY_WAVE_GAIN * (0.5 + 0.5 * resonancePhi) * (0.5 + 0.5 * cadenceRegularity);
-  const dayWave = q(1 + dayAmp * (2 * daySim - 1));
+  const dayWave = 1 + dayAmp * (2 * daySim - 1);
 
   // φ-Beatty strobe (no RNG)
   const { phase01: strobePhase01, wave: strobeWaveVal } = strobeWave(claimPulse, nowPulse);
@@ -820,31 +866,26 @@ export function computeIntrinsicUnsigned(
 
   const w_step = 0.30, w_breath = 0.30, w_phi = 0.20, w_digit = 0.20;
   const digitBlend = (MOMENT_AFFINITY_DIGIT_WEIGHT * motifSim + (1 - MOMENT_AFFINITY_DIGIT_WEIGHT) * rareSim);
-  const momentAffinitySim01 = q(
-    w_step * stepSim +
-    w_breath * breathSim +
-    w_phi * phiFracSim +
-    w_digit * digitBlend, 6
-  );
+  const momentAffinitySim01 = w_step * stepSim + w_breath * breathSim + w_phi * phiFracSim + w_digit * digitBlend;
 
-  const momentAffinityAmp = q(
+  const momentAffinityAmp =
     MOMENT_AFFINITY_GAIN_BASE *
     (0.5 + 0.5 * claimRareScore) *
-    (0.5 + 0.5 * resonancePhi), 6);
+    (0.5 + 0.5 * resonancePhi);
 
-  const momentAffinityOsc = q(1 + momentAffinityAmp * (2 * momentAffinitySim01 - 1), 6);
+  const momentAffinityOsc = 1 + momentAffinityAmp * (2 * momentAffinitySim01 - 1);
 
   // Combine waves (strictly positive; preserves floor)
-  const combinedOsc = q(breathWave * dayWave * strobeWaveVal * momentAffinityOsc, 6);
+  const combinedOsc = breathWave * dayWave * strobeWaveVal * momentAffinityOsc;
 
   /* ----------------------- compose premium with living band ------------------ */
 
   const premiumPreWave = baselinePremium * dynamicGrowth;
   const premiumBandBase = Math.max(0, premiumPreWave - rarityFloor);
-  const premium = q(rarityFloor + premiumBandBase * combinedOsc, 6);
+  const premium = rarityFloor + premiumBandBase * combinedOsc;
 
   // Final value in Φ
-  const valuePhi = q(1 * premium + pv_phi, 6);
+  const valuePhi = 1 * premium + pv_phi;
 
   const headRef = {
     headHash: undefined as HashHex | undefined,
@@ -860,75 +901,87 @@ export function computeIntrinsicUnsigned(
     creatorRep: meta.creatorRep ?? 0,
     uniqueHolders,
     closedFraction,
-    cadenceRegularity: q(cadenceRegularity),
-    medianHoldBeats: q(medHoldBeats),
-    velocityPerBeat: q(velocityPerBeat),
-    resonancePhi: q(resonancePhi),
+    cadenceRegularity,
+    medianHoldBeats: medHoldBeats,
+    velocityPerBeat,
+    resonancePhi,
     pulsesPerBeat,
     agePulses,
-    geometryLift: Number(geomLift.toFixed(6)),
-    momentLift: Number(momentLift.toFixed(6)),
-    pv_phi: Number(pv_phi.toFixed(6)),
+    geometryLift: geomLift,
+    momentLift,
+    pv_phi,
 
     // growth & rarity diagnostics
     algorithmVersion: "phi/kosmos-vφ-5",
-    adoptionAtClaim: Number(adoptionAtClaim.toFixed(9)),
-    adoptionNow: Number(adoptionNow.toFixed(9)),
-    adoptionDelta: Number(adoptionDelta.toFixed(9)),
-    rarityScore01: Number(rarityScore01.toFixed(6)),
+    adoptionAtClaim,
+    adoptionNow,
+    adoptionDelta,
+    rarityScore01,
     fibAccrualLevels: fibLevels,
     lucasAccrualLevels: lucasLevels,
-    indexScarcity: Number(indexScarcity.toFixed(6)),
-    adoptionLift: Number(adoptionLift.toFixed(6)),
-    fibAccrualLift: Number(fibAccrualLift.toFixed(6)),
-    lucasAccrualLift: Number(lucasAccrualLift.toFixed(6)),
+    indexScarcity,
+    adoptionLift,
+    fibAccrualLift,
+    lucasAccrualLift,
 
     // live moment diagnostics
-    breathPhase01: Number(breathPhase01.toFixed(6)),
-    breathWave: Number(breathWave.toFixed(6)),
-    dayPhase01: Number(dayPhase01.toFixed(6)),
-    dayWave: Number(dayWave.toFixed(6)),
-    strobePhase01: Number(strobePhase01.toFixed(6)),
-    strobeWave: Number(strobeWaveVal.toFixed(6)),
-    momentAffinitySim01: Number(momentAffinitySim01.toFixed(6)),
-    momentAffinityAmp: Number(momentAffinityAmp.toFixed(6)),
-    momentAffinityOsc: Number(momentAffinityOsc.toFixed(6)),
-    combinedOsc: Number(combinedOsc.toFixed(6)),
+    breathPhase01,
+    breathWave,
+    dayPhase01,
+    dayWave,
+    strobePhase01,
+    strobeWave: strobeWaveVal,
+    momentAffinitySim01,
+    momentAffinityAmp,
+    momentAffinityOsc,
+    combinedOsc,
 
     // band/floor
-    dynamicGrowth: Number(dynamicGrowth.toFixed(6)),
-    rarityFloor: Number(rarityFloor.toFixed(6)),
-    premiumBandBase: Number(premiumBandBase.toFixed(6)),
+    dynamicGrowth,
+    rarityFloor,
+    premiumBandBase,
   };
 
-  const checksum = policyChecksum();
+  // ---- use hoisted checksum (unchanged value, stable reference) ----
+  const checksum = POLICY_CHECKSUM;
 
-  const unsigned = {
+  const unsignedRaw: UnsignedSeal = {
     version: 1 as const,
     unit: "Φ" as const,
     algorithm: "phi/kosmos-vφ-5" as const,
     policyId: meta.valuationPolicyId,
     policyChecksum: checksum,
-    valuePhi: Number(valuePhi.toFixed(6)),
-    premium: Number(premium.toFixed(6)),
+    valuePhi,
+    premium,
     inputs,
     computedAtPulse: nowPulse,
     headRef,
   };
 
   const stampPayload = stableStringify({
-    algorithm: unsigned.algorithm,
-    policy: unsigned.policyId ?? null,
-    policyChecksum: unsigned.policyChecksum,
-    inputs: unsigned.inputs,
+    algorithm: unsignedRaw.algorithm,
+    policy: unsignedRaw.policyId ?? null,
+    policyChecksum: unsignedRaw.policyChecksum,
+    inputs: unsignedRaw.inputs,
     minimalHead: {
-      headHash: unsigned.headRef.headHash ?? null,
-      transfersWindowRoot: unsigned.headRef.transfersWindowRoot ?? null,
-      cumulativeTransfers: unsigned.headRef.cumulativeTransfers,
+      headHash: unsignedRaw.headRef.headHash ?? null,
+      transfersWindowRoot: unsignedRaw.headRef.transfersWindowRoot ?? null,
+      cumulativeTransfers: unsignedRaw.headRef.cumulativeTransfers,
     },
   });
 
-  return { unsigned, stampPayload };
+  // ---- MEMOIZATION for referential stability (prevents render loops) ----
+  const cached = __unsignedCache.get(stampPayload);
+  if (cached) {
+    return { unsigned: cached, stampPayload };
+  }
+  const stableUnsigned = freezeUnsigned({
+    ...unsignedRaw,
+    inputs: { ...unsignedRaw.inputs },
+    headRef: { ...unsignedRaw.headRef },
+  });
+  __unsignedCache.set(stampPayload, stableUnsigned);
+  return { unsigned: stableUnsigned, stampPayload };
 }
 
 /** Build a full ValueSeal by hashing the canonical payload with the provided hasher. */
@@ -939,9 +992,13 @@ export async function buildValueSeal(
   headHash?: HashHex
 ): Promise<{ seal: ValueSeal }> {
   const { unsigned, stampPayload } = computeIntrinsicUnsigned(meta, nowPulse);
-  unsigned.headRef.headHash = headHash;
+  // Do NOT mutate cached unsigned; clone when injecting headHash
+  const unsignedWithHead: UnsignedSeal = {
+    ...unsigned,
+    headRef: { ...unsigned.headRef, headHash },
+  };
   const stamp = await hasher(stampPayload);
-  return { seal: { ...(unsigned as ValueSeal), stamp } };
+  return { seal: { ...(unsignedWithHead as ValueSeal), stamp } };
 }
 
 /** Attach a valuation into metadata (typed; no `any`). */
@@ -960,8 +1017,8 @@ export async function verifyValuation<T extends SigilMetadataLite & { valuation?
   const expectedStamp = await hasher(stampPayload);
 
   const ok =
-    Math.abs(unsigned.valuePhi - v.valuePhi) < 1e-9 &&
-    Math.abs(unsigned.premium - v.premium) < 1e-9 &&
+    Math.abs(unsigned.valuePhi - v.valuePhi) < 1e-12 &&
+    Math.abs(unsigned.premium - v.premium) < 1e-12 &&
     expectedStamp === v.stamp &&
     unsigned.policyChecksum === v.policyChecksum;
 
@@ -974,11 +1031,11 @@ export function explainValuation(seal: ValueSeal): string {
   const i = seal.inputs;
   const lines = [
     `Algorithm: ${seal.algorithm} • Policy checksum: ${seal.policyChecksum}`,
-    `Series rarity: size=${i.size} → rarityFactor≈${(i.size <= 1 ? RARITY_ONE_OF_ONE : Math.pow(i.size, -RARITY_EXP)).toFixed(6)}`,
-    `Moment lifts: geometry=${i.geometryLift.toFixed(6)} × numericMoment=${i.momentLift.toFixed(6)} × genesis/baseline floor=${i.rarityFloor.toFixed(6)}`,
-    `Adoption field: ΔA=${i.adoptionDelta.toFixed(6)} → adoptionLift=${i.adoptionLift.toFixed(6)} • indexScarcity=${i.indexScarcity.toFixed(6)} • fibLevels=${i.fibAccrualLevels} • lucasLevels=${i.lucasAccrualLevels}`,
-    `Live alignment: breath=${i.breathWave.toFixed(6)} • day=${i.dayWave.toFixed(6)} • strobe=${i.strobeWave.toFixed(6)} • affinity=${i.momentAffinityOsc.toFixed(6)} → combined=${i.combinedOsc.toFixed(6)}`,
-    `Premium: floor=${i.rarityFloor.toFixed(6)} + band=${i.premiumBandBase.toFixed(6)} × combined=${i.combinedOsc.toFixed(6)} ⇒ premium=${seal.premium.toFixed(6)} → valueΦ=${seal.valuePhi.toFixed(6)}`
+    `Series rarity: size=${i.size} → rarityFactor≈${(i.size <= 1 ? RARITY_ONE_OF_ONE : Math.pow(i.size, -RARITY_EXP))}`,
+    `Moment lifts: geometry=${i.geometryLift} × numericMoment=${i.momentLift} × genesis/baseline floor=${i.rarityFloor}`,
+    `Adoption field: ΔA=${i.adoptionDelta} → adoptionLift=${i.adoptionLift} • indexScarcity=${i.indexScarcity} • fibLevels=${i.fibAccrualLevels} • lucasLevels=${i.lucasAccrualLevels}`,
+    `Live alignment: breath=${i.breathWave} • day=${i.dayWave} • strobe=${i.strobeWave} • affinity=${i.momentAffinityOsc} → combined=${i.combinedOsc}`,
+    `Premium: floor=${i.rarityFloor} + band=${i.premiumBandBase} × combined=${i.combinedOsc} ⇒ premium=${seal.premium} → valueΦ=${seal.valuePhi}`
   ];
   return lines.join("\n");
 }
@@ -996,27 +1053,27 @@ export function explainRarity(pulse: number): string[] {
   const s = absDigits(pulse);
   const len = s.length;
 
-  if (isFibonacciExact(pulse)) out.push(`✓ Fibonacci exact (+${(MOMENT_FIB_EXACT_GAIN*100).toFixed(1)}%)`);
-  if (isLucasExact(pulse))     out.push(`✓ Lucas exact (+${(MOMENT_LUCAS_EXACT_GAIN*100).toFixed(1)}%)`);
-  if (phiTransitionIndexFromPulse(pulse) !== null) out.push(`✓ φ-spiral transition (+${(MOMENT_PHI_TRANSITION_GAIN*100).toFixed(1)}%)`);
+  if (isFibonacciExact(pulse)) out.push(`✓ Fibonacci exact (+${(MOMENT_FIB_EXACT_GAIN*100)}%)`);
+  if (isLucasExact(pulse))     out.push(`✓ Lucas exact (+${(MOMENT_LUCAS_EXACT_GAIN*100)}%)`);
+  if (phiTransitionIndexFromPulse(pulse) !== null) out.push(`✓ φ-spiral transition (+${(MOMENT_PHI_TRANSITION_GAIN*100)}%)`);
 
-  if (allSameDigit(s)) out.push(`✓ Uniform digits (${s[0].repeat(Math.max(1, len))}) (+${(MOMENT_UNIFORM_GAIN*100).toFixed(1)}%)`);
-  if (isPalindromeDigits(s)) out.push(`✓ Palindrome (+${(MOMENT_PAL_GAIN*100).toFixed(1)}%)`);
+  if (allSameDigit(s)) out.push(`✓ Uniform digits (${s[0].repeat(Math.max(1, len))}) (+${(MOMENT_UNIFORM_GAIN*100)}%)`);
+  if (isPalindromeDigits(s)) out.push(`✓ Palindrome (+${(MOMENT_PAL_GAIN*100)}%)`);
 
   const { len: runLen, digit } = longestRunDigitInfo(s);
   if (runLen >= 3) {
     const norm = clamp((runLen - 2) / Math.max(3, len - 2), 0, 1);
-    out.push(`✓ Long digit run (${runLen}×${digit}) (+${(MOMENT_RUN_GAIN*norm*100).toFixed(1)}%)`);
+    out.push(`✓ Long digit run (${runLen}×${digit}) (+${(MOMENT_RUN_GAIN*norm*100)}%)`);
   }
 
   const seq = longestConsecutiveSequenceLen(s);
   if (seq >= 4) {
     const norm = clamp((seq - 3) / Math.max(4, len - 3), 0, 1);
-    out.push(`✓ Consecutive sequence (len ${seq}) (+${(MOMENT_SEQ_GAIN*norm*100).toFixed(1)}%)`);
+    out.push(`✓ Consecutive sequence (len ${seq}) (+${(MOMENT_SEQ_GAIN*norm*100)}%)`);
   }
 
   const ent = digitEntropy01(s);
-  if (ent < 1) out.push(`✓ Low entropy (digit uniformity) (+${(MOMENT_LOW_ENTROPY_GAIN*(1-ent)*100).toFixed(1)}%)`);
+  if (ent < 1) out.push(`✓ Low entropy (digit uniformity) (+${(MOMENT_LOW_ENTROPY_GAIN*(1-ent)*100)}%)`);
 
   if (out.length === 0) out.push("• Clean moment (no special digit motifs)");
   return out;
@@ -1040,14 +1097,14 @@ export function explainOscillation(
   // breath
   const breathPhase01 = pulsesPerBeat > 0 ? ((nowPulse % pulsesPerBeat) / pulsesPerBeat) : 0;
   const breathAmp = BREATH_WAVE_GAIN * (0.5 + 0.5 * cadence);
-  const breathWave = q(1 + breathAmp * Math.sin(2 * Math.PI * breathPhase01));
+  const breathWave = 1 + breathAmp * Math.sin(2 * Math.PI * breathPhase01);
 
   // day
   const dayPhase01 = frac(nowPulse / PULSES_PER_DAY_EXACT);
   const claimDayPhase01 = frac(claimPulse / PULSES_PER_DAY_EXACT);
   const daySim = 1 - Math.abs(((dayPhase01 - claimDayPhase01 + 1) % 1) - 0.5) * 2;
   const dayAmp = DAY_WAVE_GAIN * (0.5 + 0.5 * resonance) * (0.5 + 0.5 * cadence);
-  const dayWave = q(1 + dayAmp * (2 * daySim - 1));
+  const dayWave = 1 + dayAmp * (2 * daySim - 1);
 
   // affinity
   const claimStep = typeof opts?.stepIndexClaimOverride === "number"
@@ -1070,17 +1127,17 @@ export function explainOscillation(
   const nowMotifs = motifFeatureSet(nowPulse);
   const motifSim = jaccard01(claimMotifs, nowMotifs);
 
-  // φ-Beatty strobe (avoid name shadowing)
+  // φ-Beatty strobe
   const { phase01: strobePhase01, wave: strobeWaveVal } = strobeWave(claimPulse, nowPulse);
 
   const w_step = 0.30, w_breath = 0.30, w_phi = 0.20, w_digit = 0.20;
   const digitBlend = (MOMENT_AFFINITY_DIGIT_WEIGHT * motifSim + (1 - MOMENT_AFFINITY_DIGIT_WEIGHT) * rareSim);
-  const momentAffinitySim01 = q(w_step * stepSim + w_breath * breathSim + w_phi * phiFracSim + w_digit * digitBlend, 6);
+  const momentAffinitySim01 = w_step * stepSim + w_breath * breathSim + w_phi * phiFracSim + w_digit * digitBlend;
 
-  const momentAffinityAmp = q(MOMENT_AFFINITY_GAIN_BASE * (0.5 + 0.5 * claimRareScore) * (0.5 + 0.5 * resonance), 6);
-  const momentAffinity = q(1 + momentAffinityAmp * (2 * momentAffinitySim01 - 1), 6);
+  const momentAffinityAmp = MOMENT_AFFINITY_GAIN_BASE * (0.5 + 0.5 * claimRareScore) * (0.5 + 0.5 * resonance);
+  const momentAffinity = 1 + momentAffinityAmp * (2 * momentAffinitySim01 - 1);
 
-  const combinedOsc = q(breathWave * dayWave * strobeWaveVal * momentAffinity, 6);
+  const combinedOsc = breathWave * dayWave * strobeWaveVal * momentAffinity;
 
   return {
     breathWave,
@@ -1121,8 +1178,8 @@ export function explainLineage(
 
     let stewardship = "";
     if (holdBeats < 5) stewardship = "quick flip → churn penalty";
-    else if (holdBeats < 20) stewardship = `held ${holdBeats.toFixed(0)} beats`;
-    else stewardship = `held ${holdBeats.toFixed(0)} beats (strong stewardship)`;
+    else if (holdBeats < 20) stewardship = `held ${holdBeats} beats`;
+    else stewardship = `held ${holdBeats} beats (strong stewardship)`;
 
     const momentStr = moments.length ? ` + ${moments.join(" • ")}` : "";
     lines.push(`Transfer ${n}: ${stewardship}${momentStr}`);
@@ -1139,7 +1196,7 @@ export function motifSimilarity(pulseA: number, pulseB: number): number {
   const rB = momentRarityScore01FromPulse(pulseB);
   const rareSim = 1 - Math.abs(rA - rB);
   const sim = MOMENT_AFFINITY_DIGIT_WEIGHT * j + (1 - MOMENT_AFFINITY_DIGIT_WEIGHT) * rareSim;
-  return q(sim, 6);
+  return sim;
 }
 
 /** 6) Export an “Explainable Scroll”: JSON + Markdown + SVG */
@@ -1204,8 +1261,8 @@ export function computeTrustGrade(
     verified: 0.10
   }, opts?.weights ?? {});
 
-  const holdScore = clamp(Math.log1p(inputs.medianHoldBeats) / Math.log(1 + 55), 0, 1); // ~50 beats ~ 0.9
-  const pvScore = inputs.pv_phi > 0 ? clamp(Math.log1p(inputs.pv_phi) / Math.log(1 + 3), 0, 1) : 0;
+  const holdScore = clamp(log1p(inputs.medianHoldBeats) / Math.log(1 + 55), 0, 1); // ~50 beats ~ 0.9
+  const pvScore = inputs.pv_phi > 0 ? clamp(log1p(inputs.pv_phi) / Math.log(1 + 3), 0, 1) : 0;
   const verified = inputs.creatorVerified ? 1 : 0;
 
   const score01 = clamp(
@@ -1226,12 +1283,12 @@ export function computeTrustGrade(
 
   const reasons: string[] = [];
   if (inputs.creatorVerified) reasons.push("Creator verified");
-  if (inputs.creatorRep > 0.7) reasons.push(`High creator rep (${(inputs.creatorRep*100).toFixed(0)}%)`);
-  if (inputs.closedFraction > 0.66) reasons.push(`Strong closure (${(inputs.closedFraction*100).toFixed(0)}%)`);
-  if (inputs.medianHoldBeats > 20) reasons.push(`Good stewardship (${inputs.medianHoldBeats.toFixed(0)} beats)`);
-  if (inputs.pv_phi > 0) reasons.push(`Intrinsic IP present (${inputs.pv_phi.toFixed(3)} Φ)`);
+  if (inputs.creatorRep > 0.7) reasons.push(`High creator rep (${inputs.creatorRep*100}%)`);
+  if (inputs.closedFraction > 0.66) reasons.push(`Strong closure (${inputs.closedFraction*100}%)`);
+  if (inputs.medianHoldBeats > 20) reasons.push(`Good stewardship (${inputs.medianHoldBeats} beats)`);
+  if (inputs.pv_phi > 0) reasons.push(`Intrinsic IP present (${inputs.pv_phi} Φ)`);
 
-  return { stars, score01: q(score01, 6), reasons };
+  return { stars, score01, reasons };
 }
 
 /** 14) Market tiering by rarity type */
@@ -1286,11 +1343,11 @@ export function scanKairosWindow(
     const dayPhase01 = frac(p / PULSES_PER_DAY_EXACT);
     arr.push({
       pulse: p,
-      rarity01: q(momentRarityScore01FromPulse(p), 6),
+      rarity01: momentRarityScore01FromPulse(p),
       tags,
-      breathPhase01: q(breathPhase01, 6),
-      strobeWave: q(stro, 6),
-      dayPhase01: q(dayPhase01, 6),
+      breathPhase01,
+      strobeWave: stro,
+      dayPhase01,
     });
   }
   return arr;
@@ -1393,7 +1450,7 @@ export function renderKairosSpiralSVG(
     const r = a * Math.pow(PHI, k*θ);
     const x = CX + r * Math.cos(θ);
     const y = CY + r * Math.sin(θ);
-    d += (i===0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    d += (i===0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
   }
 
   const fib = isFibonacciExact(pulse);
@@ -1412,7 +1469,7 @@ export function renderKairosSpiralSVG(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <rect width="${W}" height="${H}" fill="white"/>
     <path d="${d}" fill="none" stroke="black" stroke-width="${stroke}"/>
-    <circle cx="${mx.toFixed(2)}" cy="${my.toFixed(2)}" r="${markerR.toFixed(2)}" fill="none" stroke="black" stroke-width="1.25"/>
+    <circle cx="${mx}" cy="${my}" r="${markerR}" fill="none" stroke="black" stroke-width="1.25"/>
     <text x="${mx+10}" y="${my-10}" font-size="12" font-family="ui-sans-serif, system-ui">pulse ${pulse}</text>
     <g font-size="12" font-family="ui-sans-serif, system-ui">
       <text x="${W-260}" y="${H-108}">Fibonacci: ${fib ? "✓" : "–"}</text>
@@ -1420,7 +1477,7 @@ export function renderKairosSpiralSVG(
       <text x="${W-260}" y="${H-72}">φ transition: ${phiTran ? "✓" : "–"}</text>
       <text x="${W-260}" y="${H-54}">Palindrome: ${pal ? "✓" : "–"}</text>
       <text x="${W-260}" y="${H-36}">Uniform: ${uni ? "✓" : "–"}</text>
-      <text x="${W-260}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse).toFixed(6)}</text>
+      <text x="${W-260}" y="${H-18}">Rarity score: ${rarityScore01FromPulse(pulse)}</text>
     </g>
   </svg>`;
 }
