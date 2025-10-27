@@ -2269,7 +2269,28 @@ const fromSvgDataset = (
         <span className="k">Now</span>
         <span className="v">{pulseNow}</span>
       </div>
- 
+
+                {/* If child, show the fixed allocation clearly */}
+      {canonicalContext === "derivative" && (
+        <div className="kv">
+          <span className="k">Resonance (this derivative)</span>
+          <span className="v">
+            Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
+            {" · $"}
+            {fmtUsdNoSym(
+              Number(
+                fromScaledBig(
+                  mulScaled(
+                    toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
+                    usdPerPhiRateScaled
+                  )
+                )
+              )
+            )}
+          </span>
+        </div>
+      )}
+
       {/* ── IDENTITY & INTEGRITY ──────────────────────────────────── */}
       {meta.userPhiKey && (
         <div className="kv wide">
@@ -2322,26 +2343,6 @@ const fromSvgDataset = (
         <span className="v">Φ {remainingPhiDisplay4}</span>
       </div>
 
-      {/* If child, show the fixed allocation clearly */}
-      {canonicalContext === "derivative" && (
-        <div className="kv">
-          <span className="k">Resonance (this derivative)</span>
-          <span className="v">
-            Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
-            {" · $"}
-            {fmtUsdNoSym(
-              Number(
-                fromScaledBig(
-                  mulScaled(
-                    toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
-                    usdPerPhiRateScaled
-                  )
-                )
-              )
-            )}
-          </span>
-        </div>
-      )}
 
       <div className="kv wide">
         <span className="k">Exhale public key</span>
@@ -2368,7 +2369,7 @@ const fromSvgDataset = (
       {headProof && (
         <div className="kv">
           <span className="k">Latest proof</span>
-          <span className="v">{headProof.ok ? `#${headProof.index} ✓` : `#${headProof.index} ×`}</span>
+          <span className="v">{headProof.ok ? `#${headProof.index + 1} ✓` : `#${headProof.index} ×`}</span>
         </div>
       )}
       {/* Additional data appended (same KV rows) */}
@@ -2404,12 +2405,7 @@ const fromSvgDataset = (
               <span className="v">Used</span>
             </div>
           )}
-          {getChildLockInfo(meta, pulseNow).expireAt && (
-            <div className="kv">
-              <span className="k">Expires @ pulse</span>
-              <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
-            </div>
-          )}
+    
         </>
       )}
 
