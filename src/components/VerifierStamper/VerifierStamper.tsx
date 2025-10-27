@@ -2308,7 +2308,7 @@ const chakraGate = (() => {
 
       {meta.kaiSignature && (
         <div className="kv wide">
-          <span className="k">Kai-Sigature (Σ):</span>
+          <span className="k">Kai-Signature (Σ):</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>
             {meta.kaiSignature}
             {contentSigMatches === true && <span className="chip ok">match</span>}
