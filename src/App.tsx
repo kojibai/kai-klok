@@ -22,7 +22,7 @@ import HomePriceChartCard from "./components/HomePriceChartCard";
 
 /** ---- Config ---- */
 const APP_STORE_URL = "https://apps.apple.com/us/app/kai-klok/id6752520846";
-const GITHUB_URL = "https://github.com/kojibai/kai-klok";
+const GITHUB_URL = "https://api.kaiklok.com";
 
 /** ---- Window augmentation for safe TS ---- */
 declare global {
@@ -294,7 +294,7 @@ function SourceOrInstallButton() {
             <img src="/kai-icon.svg" alt="" className="dual-cta-icon" draggable={false} />
             <div className="dual-cta-text">
               <div className="dual-cta-title">Source</div>
-              <div className="dual-cta-sub">View the repository on GitHub</div>
+              <div className="dual-cta-sub">View the KAI-Klok Gateway</div>
             </div>
           </button>
         </div>

@@ -1258,13 +1258,11 @@ const VerifierStamperInner: React.FC = () => {
   const fmtUsdNoSym = useCallback((v: number) => {
     return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }).format(Math.max(0, v || 0));
   }, []);
-  const canShare = useMemo(() => {
-    const hasShare =
-      typeof navigator !== "undefined" &&
-      "share" in navigator &&
-      typeof (navigator as Navigator & { share?: (data?: ShareData) => Promise<void> }).share === "function";
-    return hasShare;
-  }, []);
+const canShare = useMemo(() => {
+  if (typeof navigator === "undefined") return false;
+  const n = navigator as Navigator & { share?: (data?: unknown) => Promise<void> };
+  return typeof n.share === "function";
+}, []);
 
   useEffect(() => {
     return () => {
@@ -2093,6 +2091,59 @@ const VerifierStamperInner: React.FC = () => {
     if (isSendFilename) push(<IconCircle key="nosg" kind="warn" title="SEND file: segmentation disabled"><Svg path="ban" /></IconCircle>);
     return chips;
   };
+// --- helpers (strict, no any) ---
+type Dict = Record<string, unknown>;
+
+const getPath = (obj: unknown, path: string): unknown => {
+  if (!obj || typeof obj !== "object") return undefined;
+  const parts = path.split(".");
+  let cur: unknown = obj;
+  for (const p of parts) {
+    if (cur && typeof cur === "object" && p in (cur as Dict)) {
+      cur = (cur as Dict)[p];
+    } else {
+      return undefined;
+    }
+  }
+  return cur;
+};
+
+const toStr = (v: unknown): string =>
+  v === undefined || v === null ? "" : String(v);
+
+const getFirst = (obj: unknown, paths: string[]): string => {
+  for (const p of paths) {
+    const v = getPath(obj, p);
+    if (v !== undefined && v !== null && v !== "") return toStr(v);
+  }
+  return "";
+};
+
+// dataset fallback: read from the inline <svg> if present
+const fromSvgDataset = (
+  m: SigilMetadataWithOptionals,
+  dashedAttr: string
+): string => {
+  const pulse = toStr(getPath(m, "pulse"));
+  const beat = toStr(getPath(m, "beat"));
+  const stepIndex = toStr(getPath(m, "stepIndex"));
+  const svgId = pulse && beat && stepIndex ? `ks-${pulse}-${beat}-${stepIndex}` : "";
+  const el = svgId ? document.getElementById(svgId) as (HTMLElement | null) : null;
+  if (!el) return "";
+  // convert data-foo-bar -> dataset.fooBar
+  const camelKey = dashedAttr
+    .replace(/^data-/, "")
+    .replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
+  const ds = el.dataset as Record<string, string | undefined>;
+  return ds[camelKey] ?? el.getAttribute(dashedAttr) ?? "";
+};
+
+
+
+  const frequencyHz =
+    getFirst(meta, ["frequencyHz", "valuationSource.frequencyHz"]) ||
+    fromSvgDataset(meta as SigilMetadataWithOptionals, "data-frequency-hz");
+
 
   return (
     <div className="verifier-stamper" role="application" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
@@ -2209,143 +2260,194 @@ const VerifierStamperInner: React.FC = () => {
                   Note
                 </button>
               </nav>
+{/* Body */}
+<section className="modal-body" role="tabpanel" style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden", paddingBottom: 80 }}>
+  {tab === "summary" && (
+    <div className="summary-grid">
+      {/* ── NOW & RHYTHM ───────────────────────────────────────────── */}
+      <div className="kv">
+        <span className="k">Now</span>
+        <span className="v">{pulseNow}</span>
+      </div>
+ 
+      {/* ── IDENTITY & INTEGRITY ──────────────────────────────────── */}
+      {meta.userPhiKey && (
+        <div className="kv wide">
+          <span className="k">Φ-Key</span>
+          <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+            {meta.userPhiKey}
+            {phiKeyExpected && (phiKeyMatches ? <span className="chip ok">match</span> : <span className="chip err">mismatch</span>)}
+          </span>
+        </div>
+      )}
 
-              {/* Body */}
-              <section className="modal-body" role="tabpanel" style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden", paddingBottom: 80 }}>
-                {tab === "summary" && (
-                  <div className="summary-grid">
-                    <div className="kv">
-                      <span className="k">Now</span>
-                      <span className="v">{pulseNow}</span>
-                    </div>
-                                     {/* Child lock/expiry info */}
-                    {canonicalContext === "derivative" && (
-                      <>
-                        {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
-                          <div className="kv">
-                            <span className="k">One-time lock</span>
-                            <span className="v">Used</span>
-                          </div>
-                        )}
-                        {getChildLockInfo(meta, pulseNow).expireAt && (
-                          <div className="kv">
-                            <span className="k">Expires @ pulse</span>
-                            <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                         {/* If child, show the fixed allocation clearly */}
-                    {canonicalContext === "derivative" && (
-                      <div className="kv">
-                        <span className="k">Allocation (this derivative)</span>
-                        <span className="v">
-                          Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
-                          {" · $"}
-                          {fmtUsdNoSym(
-                            Number(
-                              fromScaledBig(
-                                mulScaled(
-                                  toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
-                                  usdPerPhiRateScaled
-                                )
-                              )
-                            )
-                          )}
-                        </span>
-                      </div>
-                    )}
-                           {meta.userPhiKey && (
-                      <div className="kv wide">
-                        <span className="k">Φ-Key</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {meta.userPhiKey}
-                          {phiKeyExpected && (phiKeyMatches ? <span className="chip ok">match</span> : <span className="chip err">mismatch</span>)}
-                        </span>
-                      </div>
-                    )}
-                                        {meta.kaiSignature && (
-                      <div className="kv wide">
-                        <span className="k">Metadata Σ</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {meta.kaiSignature}
-                          {contentSigMatches === true && <span className="chip ok">match</span>}
-                          {contentSigMatches === false && <span className="chip err">mismatch</span>}
-                        </span>
-                      </div>
-                    )}
-                    {contentSigExpected && (
-                      <div className="kv wide">
-                        <span className="k">Expected Σ</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {contentSigExpected}
-                        </span>
-                      </div>
-                    )}
+      {meta.kaiSignature && (
+        <div className="kv wide">
+          <span className="k">Σ</span>
+          <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+            {meta.kaiSignature}
+            {contentSigMatches === true && <span className="chip ok">match</span>}
+            {contentSigMatches === false && <span className="chip err">mismatch</span>}
+          </span>
+        </div>
+      )}
 
-                                 {/* Remaining Φ is the single source of truth */}
-                    <div className="kv">
-                      <span className="k"> {canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance "} </span>
-                      <span className="v"> Φ {remainingPhiDisplay4}</span>
-                    </div>
+      {frequencyHz && (
+        <div className="kv">
+          <span className="k">Frequency (Hz)</span>
+          <span className="v">{frequencyHz}</span>
+        </div>
+      )}
 
-                    {/* Parent open-link expiry info */}
-                    {canonicalContext === "parent" && (() => {
-                      const pe = getParentOpenExpiry(meta, pulseNow);
-                      return pe.expireAt ? (
-                        <div className="kv">
-                          <span className="k">Exhale expires @</span>
-                          <span className="v">{pe.expireAt}</span>
-                        </div>
-                      ) : null;
-                    })()}
-
-                      {liveSig && (
-                      <div className="kv wide">
-                        <span className="k">Live Centre-Pixel ZK Sig</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {liveSig}
-                        </span>
-                      </div>
-                    )}
-                    <div className="kv">
-                      <span className="k">Segments</span>
-                      <span className="v">{meta.segments?.length ?? 0}</span>
-                    </div>
-                    <div className="kv">
-                      <span className="k">Cumulative</span>
-                      <span className="v">{meta.cumulativeTransfers ?? 0}</span>
-                    </div>
-
-                    {(meta as SigilMetadataWithOptionals).transfersWindowRoot && (
-                      <div className="kv wide">
-                        <span className="k">Head Breath Root</span>
-                        <span className="v mono" style={{ overflowWrap: "anywhere" }}>
-                          {(meta as SigilMetadataWithOptionals).transfersWindowRoot}
-                        </span>
-                      </div>
-                    )}
-                    {headProof && (
-                      <div className="kv">
-                        <span className="k">Latest proof</span>
-                        <span className="v">{headProof.ok ? `#${headProof.index} ✓` : `#${headProof.index} ×`}</span>
-                      </div>
-                    )}
-
-                    {rgbSeed && (
-                      <div className="kv">
-                        <span className="k">RGB seed</span>
-                        <span className="v">{rgbSeed.join(", ")}</span>
-                      </div>
-                    )}
+            {/* Live ZK + proof */}
+      {liveSig && (
+        <div className="kv wide">
+          <span className="k">ZK PROOF OF BREATH™</span>
+          <span className="v mono" style={{ overflowWrap: "anywhere" }}>
+            {liveSig}
+          </span>
+        </div>
+      )}
 
 
-                  </div>
-                  
-                )}
-                                  
+      {/* Presence-oriented user + timing */}
+      <div className="kv wide">
+        <span className="k">Effective Canonical</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{canonical ?? "—"}</span>
+      </div>
+
+      {/* ── VALUE (single source of truth) ─────────────────────────── */}
+      <div className="kv">
+        <span className="k">{canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance "}</span>
+        <span className="v">Φ {remainingPhiDisplay4}</span>
+      </div>
+
+      {/* If child, show the fixed allocation clearly */}
+      {canonicalContext === "derivative" && (
+        <div className="kv">
+          <span className="k">Allocation (this derivative)</span>
+          <span className="v">
+            Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
+            {" · $"}
+            {fmtUsdNoSym(
+              Number(
+                fromScaledBig(
+                  mulScaled(
+                    toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
+                    usdPerPhiRateScaled
+                  )
+                )
+              )
+            )}
+          </span>
+        </div>
+      )}
+
+      <div className="kv wide">
+        <span className="k">Sovereign public key</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.creatorPublicKey ?? "—"}</span>
+      </div>
+
+      <div className="kv wide">
+        <span className="k">Transfer nonce</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.transferNonce ?? "—"}</span>
+      </div>
+                 <div className="kv">
+        <span className="k">Derivative issued @</span>
+        <span className="v">{(meta as SigilMetadataWithOptionals)?.childIssuedPulse ?? "—"}</span>
+      </div>
+
+      {/* ── LINEAGE (Derivatives) ─────────────────────────────────── */}
+      <div className="kv wide">
+        <span className="k">Derivative of (source)</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.childOfHash ?? "—"}</span>
+      </div>
+
+      {/* ── LIVE PROOFS ───────────────────────────────────────────── */}
+
+      {headProof && (
+        <div className="kv">
+          <span className="k">Latest proof</span>
+          <span className="v">{headProof.ok ? `#${headProof.index} ✓` : `#${headProof.index} ×`}</span>
+        </div>
+      )}
+      {/* Additional data appended (same KV rows) */}
+      {headProof !== null && (
+        <div className="kv wide">
+          <span className="k">Source proof root</span>
+          <span className="v mono" style={{ overflowWrap: "anywhere" }}>{headProof.root}</span>
+        </div>
+      )}
+      <div className="kv wide">
+        <span className="k">Source proof root (v14)</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.transfersWindowRootV14 ?? "—"}</span>
+      </div>
+
+      {/* ── EXPIRY / WINDOW ───────────────────────────────────────── */}
+      {/* Parent open-link expiry info */}
+      {canonicalContext === "parent" && (() => {
+        const pe = getParentOpenExpiry(meta, pulseNow);
+        return pe.expireAt ? (
+          <div className="kv">
+            <span className="k">Inhale expires @</span>
+            <span className="v">{pe.expireAt}</span>
+          </div>
+        ) : null;
+      })()}
+
+      {/* Child lock/expiry info */}
+      {canonicalContext === "derivative" && (
+        <>
+          {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
+            <div className="kv">
+              <span className="k">One-time lock</span>
+              <span className="v">Used</span>
+            </div>
+          )}
+          {getChildLockInfo(meta, pulseNow).expireAt && (
+            <div className="kv">
+              <span className="k">Expires @ pulse</span>
+              <span className="v">{getChildLockInfo(meta, pulseNow).expireAt}</span>
+            </div>
+          )}
+        </>
+      )}
 
 
+
+      {/* ── STRUCTURE & STATS ─────────────────────────────────────── */}
+      <div className="kv">
+        <span className="k">Hardened transfers</span>
+        <span className="v">{meta.hardenedTransfers?.length ?? 0}</span>
+      </div>
+      <div className="kv">
+        <span className="k">Segments</span>
+        <span className="v">{meta.segments?.length ?? 0}</span>
+      </div>
+      <div className="kv">
+        <span className="k">Segment size</span>
+        <span className="v">{meta.segmentSize ?? SEGMENT_SIZE}</span>
+      </div>
+      <div className="kv">
+        <span className="k">Cumulative</span>
+        <span className="v">{meta.cumulativeTransfers ?? 0}</span>
+      </div>
+      <div className="kv wide">
+        <span className="k">Segments Merkle root</span>
+        <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.segmentsMerkleRoot ?? "—"}</span>
+      </div>
+
+      {/* ── DEV SIGNALS ───────────────────────────────────────────── */}
+      {rgbSeed && (
+        <div className="kv">
+          <span className="k">RGB seed</span>
+          <span className="v">{rgbSeed.join(", ")}</span>
+        </div>
+      )}
+    </div>
+  )}
+
+              
 
                 {tab === "lineage" && (
                   <div className="lineage">
@@ -2579,12 +2681,13 @@ const VerifierStamperInner: React.FC = () => {
   usdInput={usdInput}
   phiInput={phiInput}
   setUsdInput={setUsdInput}
-  setPhiInput={(v) => setPhiInput(v)}       // keep your exact state
+  setPhiInput={setPhiInput}
   convDisplayRight={conv.displayRight}
   remainingPhiDisplay4={remainingPhiDisplay4}
   canonicalContext={canonicalContext}
-  phiFormatter={fmtPhiCompact}              // uses your existing formatter
+  phiFormatter={fmtPhiCompact}
 />
+
 
         <button
           className="primary"
