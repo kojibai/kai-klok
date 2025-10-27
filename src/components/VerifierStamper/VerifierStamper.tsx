@@ -2333,7 +2333,7 @@ const fromSvgDataset = (
 
       {/* Presence-oriented user + timing */}
       <div className="kv wide">
-        <span className="k">Canonical Hash:</span>
+        <span className="k">Stewardship Hash:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{canonical ?? "—"}</span>
       </div>
 
