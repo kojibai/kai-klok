@@ -312,11 +312,10 @@ function base64EncodeUtf8(str: string): string {
     let bin = "";
     for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
     if (typeof btoa === "function") return btoa(bin);
-    throw new Error("btoa is not available in this environment");
   } catch (err) {
     logError("base64EncodeUtf8", err);
-    return "";
   }
+  return ""; // last resort
 }
 
 function base64DecodeUtf8(b64: string): string {
@@ -331,6 +330,7 @@ function base64DecodeUtf8(b64: string): string {
     return "";
   }
 }
+
 
 /* Safe readers */
 function readStrObj(o: unknown, k: string, fb = ""): string {
@@ -2047,7 +2047,7 @@ const canShare = useMemo(() => {
       ban: "M4.93 4.93l14.14 14.14M12 2a10 10 0 110 20 10 10 0 010-20",
     };
     return (
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" className="ico">
         <path d={p[path]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         <title>{label}</title>
       </svg>
@@ -2091,8 +2091,11 @@ const canShare = useMemo(() => {
     if (isSendFilename) push(<IconCircle key="nosg" kind="warn" title="SEND file: segmentation disabled"><Svg path="ban" /></IconCircle>);
     return chips;
   };
-// --- helpers (strict, no any) ---
+// ─── helpers (module scope; stable) ──────────────────────────────
 type Dict = Record<string, unknown>;
+
+const isBrowser =
+  typeof window !== "undefined" && typeof document !== "undefined";
 
 const getPath = (obj: unknown, path: string): unknown => {
   if (!obj || typeof obj !== "object") return undefined;
@@ -2119,18 +2122,18 @@ const getFirst = (obj: unknown, paths: string[]): string => {
   return "";
 };
 
-// dataset fallback: read from the inline <svg> if present
+// dataset fallback: read from the inline <svg> if present (SSR-safe)
 const fromSvgDataset = (
   m: SigilMetadataWithOptionals,
   dashedAttr: string
 ): string => {
+  if (!isBrowser) return "";
   const pulse = toStr(getPath(m, "pulse"));
   const beat = toStr(getPath(m, "beat"));
   const stepIndex = toStr(getPath(m, "stepIndex"));
   const svgId = pulse && beat && stepIndex ? `ks-${pulse}-${beat}-${stepIndex}` : "";
-  const el = svgId ? document.getElementById(svgId) as (HTMLElement | null) : null;
+  const el = svgId ? (document.getElementById(svgId) as HTMLElement | null) : null;
   if (!el) return "";
-  // convert data-foo-bar -> dataset.fooBar
   const camelKey = dashedAttr
     .replace(/^data-/, "")
     .replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
@@ -2139,25 +2142,36 @@ const fromSvgDataset = (
 };
 
 
-
-  const frequencyHz =
+const frequencyHz = useMemo(() => {
+  return (
     getFirst(meta, ["frequencyHz", "valuationSource.frequencyHz"]) ||
-    fromSvgDataset(meta as SigilMetadataWithOptionals, "data-frequency-hz");
-const chakraGate = (() => {
+    fromSvgDataset(meta as SigilMetadataWithOptionals, "data-frequency-hz")
+  );
+}, [meta]);
+
+const chakraGate = useMemo(() => {
   const raw =
     getFirst(meta, ["chakraGate", "valuationSource.chakraGate"]) ||
     fromSvgDataset(meta as SigilMetadataWithOptionals, "data-chakra-gate");
 
   return (raw || "")
-    // remove the word "gate" (any case) plus any trailing separators/digits
     .replace(/\bgate\b[\s\-_:]*\d*/gi, "")
-    // trim leftover leading/trailing separators
     .replace(/^[\s\-_,:–—]+|[\s\-_,:–—]+$/g, "")
-    // collapse inner whitespace
     .replace(/\s{2,}/g, " ")
     .trim();
-})();
+}, [meta]);
 
+
+
+
+const childDeadline = useMemo(() => {
+  if (canonicalContext !== "derivative") return null;
+  const info = getChildLockInfo(meta, pulseNow);
+  if (!info.expireAt) return null;
+  const leftPulses = Math.max(0, info.expireAt - pulseNow);
+  const leftSteps = Math.ceil(leftPulses / PULSES_PER_STEP);
+  return { leftPulses, leftSteps, expireAt: info.expireAt };
+}, [meta, pulseNow, canonicalContext]);
 
   return (
     <div className="verifier-stamper" role="application" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
@@ -2283,16 +2297,26 @@ const chakraGate = (() => {
         <span className="k">Now</span>
         <span className="v">{pulseNow}</span>
       </div>
+
+      {childDeadline && (
+  <div className="kv">
+    <span className="k">Inhale Seal:</span>
+    <span className="v">
+      {childDeadline.leftSteps} steps ({childDeadline.leftPulses} pulses) left
+    </span>
+  </div>
+)}
 {/* Child claim deadline (SEND sigil) */}
 {canonicalContext === "derivative" && (() => {
   const { expireAt } = getChildLockInfo(meta, pulseNow);
   return (typeof expireAt === "number" && Number.isFinite(expireAt)) ? (
     <div className="kv">
-      <span className="k">Claim by @:</span>
+      <span className="k">Inhale by:</span>
       <span className="v">{expireAt}</span>
     </div>
   ) : null;
 })()}
+
 
 
       {/* ── IDENTITY & INTEGRITY ──────────────────────────────────── */}
@@ -2769,12 +2793,13 @@ const chakraGate = (() => {
       </button>
     )}
 
-    {(meta?.transfers?.length ?? 0) > 0 && !isSendFilename && (
+   {(meta?.transfers?.length ?? 0) > 0 && (
       <button
         className="secondary"
         onClick={sealSegmentNow}
         aria-label="Segment head window"
         title="Roll current head-window into a segment (continuous)"
+        disabled={isSendFilename}
         style={{
           display: "inline-flex",
           alignItems: "center",
