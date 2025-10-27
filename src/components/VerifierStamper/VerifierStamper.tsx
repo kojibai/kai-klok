@@ -2269,27 +2269,17 @@ const fromSvgDataset = (
         <span className="k">Now</span>
         <span className="v">{pulseNow}</span>
       </div>
+{/* Child claim deadline (SEND sigil) */}
+{canonicalContext === "derivative" && (() => {
+  const { expireAt } = getChildLockInfo(meta, pulseNow);
+  return (typeof expireAt === "number" && Number.isFinite(expireAt)) ? (
+    <div className="kv">
+      <span className="k">Claim by @:</span>
+      <span className="v">{expireAt}</span>
+    </div>
+  ) : null;
+})()}
 
-                {/* If child, show the fixed allocation clearly */}
-      {canonicalContext === "derivative" && (
-        <div className="kv">
-          <span className="k">Resonance (this derivative)</span>
-          <span className="v">
-            Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
-            {" · $"}
-            {fmtUsdNoSym(
-              Number(
-                fromScaledBig(
-                  mulScaled(
-                    toScaledBig((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer))),
-                    usdPerPhiRateScaled
-                  )
-                )
-              )
-            )}
-          </span>
-        </div>
-      )}
 
       {/* ── IDENTITY & INTEGRITY ──────────────────────────────────── */}
       {meta.userPhiKey && (
@@ -2354,7 +2344,7 @@ const fromSvgDataset = (
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.transferNonce ?? "—"}</span>
       </div>
                  <div className="kv">
-        <span className="k">Derivative issued @:</span>
+        <span className="k">Issued @ (derivative):</span>
         <span className="v">{(meta as SigilMetadataWithOptionals)?.childIssuedPulse ?? "—"}</span>
       </div>
 
@@ -2429,7 +2419,7 @@ const fromSvgDataset = (
         <span className="v">{meta.cumulativeTransfers ?? 0}</span>
       </div>
       <div className="kv wide">
-        <span className="k">Segments Merkle root:</span>
+        <span className="k">Segment Tree Root:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.segmentsMerkleRoot ?? "—"}</span>
       </div>
 
