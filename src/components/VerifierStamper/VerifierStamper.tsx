@@ -2532,19 +2532,19 @@ const childDeadline = useMemo(() => {
                                 <span className={`state ${open ? "open" : "closed"}`}>{open ? "Pending receive" : "Sealed"}</span>
                               </header>
                               <div className="row">
-                                <span className="k">Sender Σ</span>
+                                <span className="k">Exhaler Σ</span>
                                 <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                   {t.senderSignature}
                                 </span>
                               </div>
                               <div className="row">
-                                <span className="k">Sender Stamp</span>
+                                <span className="k">Exhaler Seal:</span>
                                 <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                   {t.senderStamp}
                                 </span>
                               </div>
                               <div className="row">
-                                <span className="k">Sender Pulse</span>
+                                <span className="k">Exhaler Pulse</span>
                                 <span className="v">{t.senderKaiPulse}</span>
                               </div>
 
@@ -2566,14 +2566,14 @@ const childDeadline = useMemo(() => {
                                     </span>
                                   </div>
                                   <div className="row">
-                                    <span className="k">SEND leaf</span>
+                                    <span className="k">Exhale leaf</span>
                                     <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                       {hardened.transferLeafHashSend}
                                     </span>
                                   </div>
                                   {hardened.transferLeafHashReceive && (
                                     <div className="row">
-                                      <span className="k">RECV leaf</span>
+                                      <span className="k">Inhale leaf</span>
                                       <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                         {hardened.transferLeafHashReceive}
                                       </span>
@@ -2581,13 +2581,13 @@ const childDeadline = useMemo(() => {
                                   )}
                                   {hardened.zkSend && (
                                     <div className="row">
-                                      <span className="k">ZK SEND</span>
+                                      <span className="k">ZK Exhale:</span>
                                       <span className="v">{hardened.zkSend.verified ? "✓" : "•"} {hardened.zkSend.scheme}</span>
                                     </div>
                                   )}
                                   {hardened.zkSendBundle && (
                                     <div className="row">
-                                      <span className="k">ZK SEND hash</span>
+                                      <span className="k">ZK Exhale hash:</span>
                                       <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                         {hardened.zkSend?.proofHash}
                                       </span>
@@ -2595,13 +2595,13 @@ const childDeadline = useMemo(() => {
                                   )}
                                   {hardened.zkReceive && (
                                     <div className="row">
-                                      <span className="k">ZK RECV</span>
+                                      <span className="k">ZK Inhale</span>
                                       <span className="v">{hardened.zkReceive.verified ? "✓" : "•"} {hardened.zkReceive.scheme}</span>
                                     </div>
                                   )}
                                   {hardened.zkReceiveBundle && (
                                     <div className="row">
-                                      <span className="k">ZK RECV hash</span>
+                                      <span className="k">ZK Inhale hash</span>
                                       <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                         {hardened.zkReceive?.proofHash}
                                       </span>
@@ -2613,19 +2613,19 @@ const childDeadline = useMemo(() => {
                               {t.receiverSignature && (
                                 <>
                                   <div className="row">
-                                    <span className="k">Receiver Σ</span>
+                                    <span className="k">Inhaler Σ</span>
                                     <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                       {t.receiverSignature}
                                     </span>
                                   </div>
                                   <div className="row">
-                                    <span className="k">Receiver Stamp</span>
+                                    <span className="k">Inhaler Seal</span>
                                     <span className="v mono" style={{ overflowWrap: "anywhere" }}>
                                       {t.receiverStamp}
                                     </span>
                                   </div>
                                   <div className="row">
-                                    <span className="k">Receiver Pulse</span>
+                                    <span className="k">Inhaler Pulse</span>
                                     <span className="v">{t.receiverKaiPulse}</span>
                                   </div>
                                 </>
