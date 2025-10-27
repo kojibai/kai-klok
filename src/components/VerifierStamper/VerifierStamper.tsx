@@ -2374,12 +2374,12 @@ const fromSvgDataset = (
       {/* Additional data appended (same KV rows) */}
       {headProof !== null && (
         <div className="kv wide">
-          <span className="k">Source proof root</span>
+          <span className="k">Head proof root</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>{headProof.root}</span>
         </div>
       )}
       <div className="kv wide">
-        <span className="k">Source proof root (v14)</span>
+        <span className="k">Head proof root (v14)</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.transfersWindowRootV14 ?? "—"}</span>
       </div>
 
