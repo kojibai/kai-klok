@@ -2294,7 +2294,7 @@ const fromSvgDataset = (
       {/* ── IDENTITY & INTEGRITY ──────────────────────────────────── */}
       {meta.userPhiKey && (
         <div className="kv wide">
-          <span className="k">Φ-Key</span>
+          <span className="k">Φ-Key:</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>
             {meta.userPhiKey}
             {phiKeyExpected && (phiKeyMatches ? <span className="chip ok">match</span> : <span className="chip err">mismatch</span>)}
@@ -2304,7 +2304,7 @@ const fromSvgDataset = (
 
       {meta.kaiSignature && (
         <div className="kv wide">
-          <span className="k">Σ</span>
+          <span className="k">Σ:</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>
             {meta.kaiSignature}
             {contentSigMatches === true && <span className="chip ok">match</span>}
@@ -2315,7 +2315,7 @@ const fromSvgDataset = (
 
       {frequencyHz && (
         <div className="kv">
-          <span className="k">Frequency (Hz)</span>
+          <span className="k">Frequency (Hz):</span>
           <span className="v">{frequencyHz}</span>
         </div>
       )}
@@ -2323,7 +2323,7 @@ const fromSvgDataset = (
             {/* Live ZK + proof */}
       {liveSig && (
         <div className="kv wide">
-          <span className="k">ZK PROOF OF BREATH™</span>
+          <span className="k">ZK PROOF OF BREATH™:</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>
             {liveSig}
           </span>
@@ -2333,34 +2333,34 @@ const fromSvgDataset = (
 
       {/* Presence-oriented user + timing */}
       <div className="kv wide">
-        <span className="k">Effective Canonical</span>
+        <span className="k">Stewardship Hash:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{canonical ?? "—"}</span>
       </div>
 
       {/* ── VALUE (single source of truth) ─────────────────────────── */}
       <div className="kv">
         <span className="k">{canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance "}</span>
-        <span className="v">Φ {remainingPhiDisplay4}</span>
+        <span className="v">Φ: {remainingPhiDisplay4}</span>
       </div>
 
 
       <div className="kv wide">
-        <span className="k">Exhale public key</span>
+        <span className="k">Exhale key:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.creatorPublicKey ?? "—"}</span>
       </div>
 
       <div className="kv wide">
-        <span className="k">Exhale nonce</span>
+        <span className="k">Exhale nonce:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.transferNonce ?? "—"}</span>
       </div>
                  <div className="kv">
-        <span className="k">Derivative issued @</span>
+        <span className="k">Derivative issued @:</span>
         <span className="v">{(meta as SigilMetadataWithOptionals)?.childIssuedPulse ?? "—"}</span>
       </div>
 
       {/* ── LINEAGE (Derivatives) ─────────────────────────────────── */}
       <div className="kv wide">
-        <span className="k">Derivative of (source)</span>
+        <span className="k">Derivative of (source):</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.childOfHash ?? "—"}</span>
       </div>
 
@@ -2368,19 +2368,19 @@ const fromSvgDataset = (
 
       {headProof && (
         <div className="kv">
-          <span className="k">Latest proof</span>
+          <span className="k">Latest proof:</span>
           <span className="v">{headProof.ok ? `#${headProof.index + 1} ✓` : `#${headProof.index} ×`}</span>
         </div>
       )}
       {/* Additional data appended (same KV rows) */}
       {headProof !== null && (
         <div className="kv wide">
-          <span className="k">Head proof root</span>
+          <span className="k">Head proof root:</span>
           <span className="v mono" style={{ overflowWrap: "anywhere" }}>{headProof.root}</span>
         </div>
       )}
       <div className="kv wide">
-        <span className="k">Head proof root (v14)</span>
+        <span className="k">Head proof root (v14):</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.transfersWindowRootV14 ?? "—"}</span>
       </div>
 
@@ -2390,7 +2390,7 @@ const fromSvgDataset = (
         const pe = getParentOpenExpiry(meta, pulseNow);
         return pe.expireAt ? (
           <div className="kv">
-            <span className="k">Inhale expires @</span>
+            <span className="k">Inhale expires @:</span>
             <span className="v">{pe.expireAt}</span>
           </div>
         ) : null;
@@ -2401,7 +2401,7 @@ const fromSvgDataset = (
         <>
           {(meta as SigilMetadataWithOptionals)?.sendLock?.used && (
             <div className="kv">
-              <span className="k">One-time lock</span>
+              <span className="k">One-time lock:</span>
               <span className="v">Used</span>
             </div>
           )}
@@ -2413,30 +2413,30 @@ const fromSvgDataset = (
 
       {/* ── STRUCTURE & STATS ─────────────────────────────────────── */}
       <div className="kv">
-        <span className="k">Hardened transfers</span>
+        <span className="k">Hardened transfers:</span>
         <span className="v">{meta.hardenedTransfers?.length ?? 0}</span>
       </div>
       <div className="kv">
-        <span className="k">Segments</span>
+        <span className="k">Segments:</span>
         <span className="v">{meta.segments?.length ?? 0}</span>
       </div>
       <div className="kv">
-        <span className="k">Segment size</span>
+        <span className="k">Segment size:</span>
         <span className="v">{meta.segmentSize ?? SEGMENT_SIZE}</span>
       </div>
       <div className="kv">
-        <span className="k">Cumulative</span>
+        <span className="k">Segment Depth:</span>
         <span className="v">{meta.cumulativeTransfers ?? 0}</span>
       </div>
       <div className="kv wide">
-        <span className="k">Segments Merkle root</span>
+        <span className="k">Segments Merkle root:</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.segmentsMerkleRoot ?? "—"}</span>
       </div>
 
       {/* ── DEV SIGNALS ───────────────────────────────────────────── */}
       {rgbSeed && (
         <div className="kv">
-          <span className="k">RGB seed</span>
+          <span className="k">RGB seed:</span>
           <span className="v">{rgbSeed.join(", ")}</span>
         </div>
       )}
