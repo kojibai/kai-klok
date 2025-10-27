@@ -2325,7 +2325,7 @@ const fromSvgDataset = (
       {/* If child, show the fixed allocation clearly */}
       {canonicalContext === "derivative" && (
         <div className="kv">
-          <span className="k">Allocation (this derivative)</span>
+          <span className="k">Resonance (this derivative)</span>
           <span className="v">
             Φ {fmtPhiFixed4((meta as SigilMetadataWithOptionals)?.childAllocationPhi ?? fromScaledBig(exhalePhiFromTransferScaled(lastTransfer)))}
             {" · $"}
@@ -2344,12 +2344,12 @@ const fromSvgDataset = (
       )}
 
       <div className="kv wide">
-        <span className="k">Sovereign public key</span>
+        <span className="k">Exhale public key</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{(meta as SigilMetadataWithOptionals)?.creatorPublicKey ?? "—"}</span>
       </div>
 
       <div className="kv wide">
-        <span className="k">Transfer nonce</span>
+        <span className="k">Exhale nonce</span>
         <span className="v mono" style={{ overflowWrap: "anywhere" }}>{meta.transferNonce ?? "—"}</span>
       </div>
                  <div className="kv">
