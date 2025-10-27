@@ -2143,6 +2143,20 @@ const fromSvgDataset = (
   const frequencyHz =
     getFirst(meta, ["frequencyHz", "valuationSource.frequencyHz"]) ||
     fromSvgDataset(meta as SigilMetadataWithOptionals, "data-frequency-hz");
+const chakraGate = (() => {
+  const raw =
+    getFirst(meta, ["chakraGate", "valuationSource.chakraGate"]) ||
+    fromSvgDataset(meta as SigilMetadataWithOptionals, "data-chakra-gate");
+
+  return (raw || "")
+    // remove the word "gate" (any case) plus any trailing separators/digits
+    .replace(/\bgate\b[\s\-_:]*\d*/gi, "")
+    // trim leftover leading/trailing separators
+    .replace(/^[\s\-_,:–—]+|[\s\-_,:–—]+$/g, "")
+    // collapse inner whitespace
+    .replace(/\s{2,}/g, " ")
+    .trim();
+})();
 
 
   return (
@@ -2309,6 +2323,13 @@ const fromSvgDataset = (
           <span className="v">{frequencyHz}</span>
         </div>
       )}
+      {/* NEW: Chakra Gate */}
+      {chakraGate && (
+        <div className="kv">
+          <span className="k">Spiral Gate:</span>
+          <span className="v">{chakraGate}</span>
+        </div>
+      )}
 
             {/* Live ZK + proof */}
       {liveSig && (
@@ -2330,7 +2351,7 @@ const fromSvgDataset = (
       {/* ── VALUE (single source of truth) ─────────────────────────── */}
       <div className="kv">
         <span className="k">{canonicalContext === "derivative" ? "Derivative Resonance" : "Resonance "}</span>
-        <span className="v">Φ: {remainingPhiDisplay4}</span>
+        <span className="v"> Φ{remainingPhiDisplay4}</span>
       </div>
 
 
