@@ -465,12 +465,61 @@
 
       <div id="note-preview" class="note-preview-host out"></div>
     </section>
+<!-- 8) Provenance & Transfer (Offline) -->
+<section class="no-print">
+  <div class="flex">
+    <strong>8) Provenance & Transfer (Offline)</strong>
+    <span class="spacer"></span>
+    <span class="badge">Chain • Merkle • Note-ID</span>
+  </div>
+
+  <!-- PDF upload -->
+  <div class="file" style="margin:6px 0 10px">
+    <input id="pv-pdf" type="file" accept="application/pdf,.pdf" />
+    <span id="pv-pdfsum" class="hint" style="min-width:0;overflow:hidden;text-overflow:ellipsis"></span>
+  </div>
+
+  <div class="grid">
+    <div class="stack">
+      <label class="hint">Note ID</label>
+      <input id="pv-noteid" readonly class="out"/>
+    </div>
+    <div class="stack">
+      <label class="hint">Current Holder (Φkey)</label>
+      <input id="pv-current" readonly class="out"/>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="stack">
+      <label class="hint">Chain Length</label>
+      <input id="pv-len" readonly class="out"/>
+    </div>
+    <div class="stack">
+      <label class="hint">Merkle Root</label>
+      <input id="pv-root" readonly class="out"/>
+    </div>
+  </div>
+
+  <div class="row">
+    <label>Transfer to Φkey</label>
+    <input id="pv-newto" placeholder="Paste recipient Φkey"/>
+    <button id="pv-stamp" class="primary">Stamp Transfer</button>
+  </div>
+
+  <div class="row">
+    <label>Status</label>
+    <input id="pv-status" readonly class="out"/>
+  </div>
+</section>
+
 
     <!-- Hidden print root -->
     <div id="print-root" aria-hidden="true"></div>
   </div>
 
   <!-- Core verifier (your existing build) -->
+  <script src="./pdf-lib.min.js"></script>
   <script src="./verifier-core.js"></script>
   <script>
     /*! Minimal QR (byte mode, EC-M, v1–v12) — MIT.
@@ -1032,6 +1081,12 @@
       $("svgfile").value=""; for (const id of ["filesum","det-sigma","det-phi","det-fields","det-raw"]) $(id).value="";
       currentSvgText = ""; clearValuation(); refreshSendReady();
     });
+
+    // Show selected PDF summary in section 8
+$("pv-pdf")?.addEventListener("change", (e) => {
+  const f = e.target.files?.[0];
+  $("pv-pdfsum").textContent = f ? `${f.name} • ${f.size.toLocaleString()} bytes` : "";
+});
 
     /* ===========================================
        === E) Attestation verify (ECDSA P-256)
@@ -1771,6 +1826,164 @@
         });
       }
     });
+/* === Pv: Provenance & Transfer — unified (PDF or SVG) === */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const setStatus = (el, txt, ok) => { if (!el) return; el.value = txt; el.classList.toggle("ok", !!ok); el.classList.toggle("bad", !ok); };
+
+  // tiny helper (SVG attrs)
+  function upsertSvgRootAttrs(svgText, attrs) {
+    const m = svgText.match(/<svg\b[^>]*>/i);
+    if (!m) return svgText;
+    const openTag = m[0];
+    let newTag = openTag;
+    for (const [name, rawVal] of Object.entries(attrs || {})) {
+      if (rawVal == null) continue;
+      const val = String(rawVal).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      const re = new RegExp(`\\s${name}="[^"]*"`, "i");
+      newTag = re.test(newTag) ? newTag.replace(re, ` ${name}="${val}"`) : newTag.replace(/>$/, ` ${name}="${val}">`);
+    }
+    return svgText.replace(openTag, newTag);
+  }
+
+  // Recompute panel info from current SVG
+  async function loadFromCurrentSvg() {
+    const txt = (window.currentSvgText || $("det-raw")?.value || "").trim();
+    const noteEl = $("pv-noteid"), curEl = $("pv-current"), lenEl = $("pv-len"), rootEl = $("pv-root");
+    if (!txt) { if (noteEl) noteEl.value=""; if (curEl) curEl.value=""; if (lenEl) lenEl.value=""; if (rootEl) rootEl.value=""; return; }
+
+    const phi =
+      /"userPhiKey"\s*:\s*"([^"]{10,})"/.exec(txt)?.[1] ||
+      /data-phi-key="([^"]{10,})"/i.exec(txt)?.[1] || "";
+    const txBlock = txt.match(/"transfers"\s*:\s*\[([\s\S]*?)\]/);
+    let transfers = []; if (txBlock) { try { transfers = JSON.parse("[" + txBlock[1] + "]"); } catch {} }
+    const provBlock = txt.match(/"provenance"\s*:\s*\[([\s\S]*?)\]/);
+    let prov = []; if (provBlock) { try { prov = JSON.parse("[" + prov[1] + "]"); } catch {} }
+
+    if (curEl) curEl.value = phi || "";
+    const chainLen = (Array.isArray(transfers) ? transfers.length : 0) || (Array.isArray(prov) ? prov.length : 0);
+    if (lenEl) lenEl.value = String(chainLen);
+    const noteId = (await KaiVerifier.sha256HexCanon("note:" + txt)).slice(0, 16);
+    if (noteEl) noteEl.value = noteId;
+    const root = (await KaiVerifier.sha256HexCanon("merkle:" + JSON.stringify(prov || []))).slice(0, 16);
+    if (rootEl) rootEl.value = root;
+  }
+
+  // --- SVG stamping path (download fix included) ---
+  async function stampSvgProvenance(key) {
+    const txt = (window.currentSvgText || $("det-raw")?.value || "").trim();
+    if (!txt) { alert("Load a sigil first."); return; }
+    const now = (window.kaiNowPulseExact ? window.kaiNowPulseExact() : Date.now());
+    const stamp = await KaiVerifier.sha256HexCanon(`xfer:${now}:${key}`);
+
+    const updated = upsertSvgRootAttrs(txt, {
+      "data-transfer-to-phi": key,
+      "data-transfer-kai-pulse": String(now),
+      "data-transfer-stamp": stamp
+    });
+
+    const base = (window.lastSvgFileName || "sigil.svg").replace(/\.svg$/i, "");
+    const fname = `${base}.xfer-${stamp.slice(0, 8)}.svg`;
+
+    try {
+      const blob = new Blob([updated], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fname; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setStatus($("pv-status"), `Stamped ✓ ${fname}`, true);
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 1500);
+    } catch (e) {
+      setStatus($("pv-status"), "Stamp failed.", false);
+      console.error(e);
+    }
+  }
+
+  // --- PDF stamping path (adds a one-page Provenance sheet & metadata) ---
+  async function stampPdfProvenance(pdfFile, key) {
+    if (!window.PDFLib) { alert("Missing pdf-lib. Include ./pdf-lib.min.js"); return; }
+    const bytes = await pdfFile.arrayBuffer();
+
+    const now = (window.kaiNowPulseExact ? window.kaiNowPulseExact() : Date.now());
+    const stamp = await KaiVerifier.sha256HexCanon(`xfer:${now}:${key}`);
+    const stampShort = stamp.slice(0,8);
+
+    const noteId = ($("pv-noteid")?.value || "").trim();
+    const holder = ($("pv-current")?.value || "").trim();
+    const chainLen = ($("pv-len")?.value || "").trim();
+    const merkle = ($("pv-root")?.value || "").trim();
+
+    const doc = await PDFLib.PDFDocument.load(bytes, { updateMetadata: true });
+    const page = doc.addPage();
+    const { width, height } = page.getSize();
+    const font = await doc.embedFont(PDFLib.StandardFonts.Courier);
+    const size = 12, lh = 16;
+    let x = 54, y = height - 54;
+
+    function line(s){ page.drawText(String(s), { x, y, size, font }); y -= lh; }
+
+    page.drawText("KAIROS — Provenance Transfer", { x, y, size: 16, font }); y -= lh*2;
+    line(`Note ID:            ${noteId || "(n/a)"}`);
+    line(`Current Holder Φ:   ${holder || "(n/a)"}`);
+    line(`Chain Length:       ${chainLen || "0"}`);
+    line(`Merkle Root:        ${merkle || "(n/a)"}`);
+    y -= lh;
+    line(`Transfer To Φ:      ${key}`);
+    line(`Kai Pulse:          ${now}`);
+    line(`Transfer Stamp:     ${stamp}`);
+    y -= lh;
+    line(`Generated:          ${new Date().toISOString()}`);
+
+    try {
+      doc.setTitle("Kairos — Provenance Transfer");
+      doc.setSubject(`transfer-stamp=${stamp} kai-pulse=${now} to-phi=${key}`);
+      doc.setKeywords(["Kairos","Provenance","Transfer", `note=${noteId}`, `merkle=${merkle}`, `to=${key}`, `stamp=${stampShort}`]);
+      doc.setProducer("Kairos Exhaler (offline)");
+      doc.setCreator("Kairos Exhaler");
+      doc.setModificationDate(new Date());
+    } catch {}
+
+    const out = await doc.save();
+    const base = pdfFile.name.replace(/\.pdf$/i, "");
+    const fname = `${base}.xfer-${stampShort}.pdf`;
+
+    try {
+      const blob = new Blob([out], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fname; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setStatus($("pv-status"), `Stamped ✓ ${fname}`, true);
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 1500);
+    } catch (e) {
+      setStatus($("pv-status"), "Stamp failed.", false);
+      console.error(e);
+    }
+  }
+
+  // --- Single button routes: PDF first, else SVG ---
+  async function stampTransfer(toKeyInput) {
+    const key = (toKeyInput || $("pv-newto")?.value || "").trim();
+    if (!key) { alert("Paste recipient Φkey."); return; }
+    const pdfFile = $("pv-pdf")?.files?.[0] || null;
+    if (pdfFile) { await stampPdfProvenance(pdfFile, key); }
+    else { await stampSvgProvenance(key); }
+  }
+
+  // one listener
+  const btn = $("pv-stamp");
+  if (btn) {
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+    clone.addEventListener("click", () => stampTransfer());
+  }
+
+  window.Pv = Object.assign(window.Pv || {}, { loadFromCurrentSvg, stampTransfer });
+})();
+</script>
+<!-- call it now that Pv exists -->
+<script>
+  if (window.Pv?.loadFromCurrentSvg) Pv.loadFromCurrentSvg();
 
     /* =========================
        === G) Banknote Builder
@@ -2619,7 +2832,694 @@ $("btn-save-png").addEventListener("click", async () => {
     function init(){ refreshSendReady(); }
     init();
   </script>
-
+<script>
+  /* ===========================================================
+     === H) Provenance (Chain + Merkle) — fully offline, no DB
+     =========================================================== */
+  const Pv = (() => {
+    const $ = (id) => document.getElementById(id);
+    const sha = (s) => KaiVerifier.sha256HexCanon(String(s)); // uses your existing core
   
+    // --- METADATA I/O -------------------------------------------------
+    function parseMetadataBlock(svgText){
+      const m = svgText.match(/<metadata>([\s\S]*?)<\/metadata>/i);
+      if (!m) return {};
+      try { return JSON.parse(m[1]); }
+      catch {
+        // fallback: if only "provenance":[ ... ] is present
+        try {
+          const prov = svgText.match(/"provenance"\s*:\s*\[([\s\S]*?)\]/);
+          if (prov) return { provenance: { chain: JSON.parse("[" + prov[1] + "]") } };
+        } catch {}
+        return {};
+      }
+    }
+    function setMetadataBlock(svgText, obj){
+      const json = JSON.stringify(obj, null, 2);
+      if (/<metadata>[\s\S]*?<\/metadata>/i.test(svgText)){
+        return svgText.replace(/<metadata>[\s\S]*?<\/metadata>/i, `<metadata>\n${json}\n</metadata>`);
+      }
+      return svgText.replace(/<svg\b[^>]*>/i, m => `${m}\n<metadata>\n${json}\n</metadata>`);
+    }
+  
+    async function computeNoteId(svgText){
+      const metaLite = parseMetaLiteFromSvgText(svgText);
+      const sig   = metaLite.kaiSignature || "";
+      const pulse = Number(metaLite.kaiPulse ?? metaLite.pulse ?? 0);
+      const phi   = metaLite.userPhiKey || "";
+      return sha(`note:${sig}:${pulse}:${phi}`);
+    }
+  
+    // --- MERKLE -------------------------------------------------------
+    async function merkleRootFromLeafHashes(hashes){
+      if (!hashes.length) return null;
+      let layer = hashes.slice();
+      while (layer.length > 1) {
+        const next = [];
+        for (let i=0; i<layer.length; i+=2){
+          const a = layer[i], b = layer[i+1] || layer[i];
+          next.push(await sha(`merkle:${a}|${b}`));
+        }
+        layer = next;
+      }
+      return layer[0];
+    }
+  
+    // --- VERIFY CHAIN -------------------------------------------------
+    async function verifyChain(obj){
+      const prov  = obj.provenance || {};
+      const chain = prov.chain || [];
+      const note  = obj.note_id || '';
+  
+      let prevHead = prov.genesis_head || null;
+      for (let i=0; i<chain.length; i++){
+        const e = chain[i];
+        const expectEntry = await sha(`xfer:${note}:${prevHead||''}:${e.fromPhiKey}:${e.toPhiKey}:${e.receiverKaiPulse}`);
+        if (e.entryHash !== expectEntry) return { ok:false, error:`Transfer ${i} hash mismatch` };
+        const head = await sha(`head:${note}:${prevHead||''}:${e.entryHash}:${i}`);
+        if (e.headHash && e.headHash !== head) return { ok:false, error:`Transfer ${i} head mismatch` };
+        e.headHash = head;      // normalize in-memory
+        e.prevHead = prevHead;  // backfill for clarity
+        prevHead = head;
+      }
+  
+      const leafs = chain.map(e => e.entryHash);
+      const root  = await merkleRootFromLeafHashes(leafs);
+      const tip   = chain.length ? chain[chain.length-1].toPhiKey : null;
+      return { ok:true, len:chain.length, merkle_root:root||null, headHash: prevHead||null, current: tip };
+    }
+  
+    // --- UI SYNC ------------------------------------------------------
+    function setUI({note_id, current, len, merkle}){
+      const safe = (x) => x || "";
+      if ($("pv-noteid")) $("pv-noteid").value = safe(note_id);
+      if ($("pv-current")) $("pv-current").value = safe(current);
+      if ($("pv-len")) $("pv-len").value = String(len || 0);
+      if ($("pv-root")) $("pv-root").value = safe(merkle);
+    }
+  
+    async function loadFromCurrentSvg(){
+      const txt = ($("det-raw")?.value || window.currentSvgText || "");
+      if (!txt){ setUI({note_id:"", current:"", len:0, merkle:""}); return; }
+      let md = parseMetadataBlock(txt);
+      if (!md.note_id) md.note_id = await computeNoteId(txt);
+      if (!md.provenance) md.provenance = { version:1, chain:[] };
+  
+      const v = await verifyChain(md);
+      const metaLite = parseMetaLiteFromSvgText(txt);
+      const holder = v.current || metaLite.userPhiKey || "";
+      setUI({ note_id: md.note_id, current: holder, len: v.len||0, merkle: v.merkle_root||"" });
+  
+      Pv._state = { svgText: txt, meta: md, verify: v, fileName: (window.lastSvgFileName || "sigil.svg") };
+    }
+  
+    // --- STAMP TRANSFER (append entry, recompute Merkle, re-embed) ----
+    async function stampTransfer(newToPhiKey){
+      const st = Pv._state;
+      if (!st || !st.svgText){ alert("Load a sigil first."); return; }
+      if (!newToPhiKey || newToPhiKey.length < 8){ alert("Recipient Φkey required."); return; }
+  
+      const metaLite = parseMetaLiteFromSvgText(st.svgText);
+      const prov  = st.meta.provenance || (st.meta.provenance = { version:1, chain:[] });
+      const chain = prov.chain;
+      const now   = (window.kaiNowPulseExact? window.kaiNowPulseExact() : Date.now());
+      const fromPhiKey = chain.length ? chain[chain.length-1].toPhiKey : (metaLite.userPhiKey || "");
+  
+      // Safety: UI's current must match chain's current
+      const uiFrom = ($("pv-current")?.value || "").trim();
+      if (uiFrom && uiFrom !== fromPhiKey){
+        alert("Provenance mismatch. Reload SVG and try again."); return;
+      }
+  
+      const prevHead  = chain.length ? chain[chain.length-1].headHash : (prov.genesis_head || null);
+      const entryHash = await sha(`xfer:${st.meta.note_id}:${prevHead||''}:${fromPhiKey}:${newToPhiKey}:${now}`);
+      const headHash  = await sha(`head:${st.meta.note_id}:${prevHead||''}:${entryHash}:${chain.length}`);
+  
+      const entry = {
+        idx: chain.length,
+        fromPhiKey,
+        toPhiKey: newToPhiKey,
+        senderKaiPulse: Number(metaLite.kaiPulse ?? metaLite.pulse ?? now),
+        receiverKaiPulse: now,
+        prevHead: prevHead || null,
+        entryHash,
+        headHash
+      };
+      chain.push(entry);
+  
+      // Full Merkle + segmented window (last 16)
+      const leafs = chain.map(e => e.entryHash);
+      const merkle_root = await merkleRootFromLeafHashes(leafs);
+      const W = 16, start = Math.max(0, chain.length - W);
+      const windowRoot = await merkleRootFromLeafHashes(chain.slice(start).map(e => e.entryHash));
+  
+      st.meta.provenance.merkle_root  = merkle_root || null;
+      st.meta.provenance.window       = { size: W, start, root: windowRoot || null };
+      st.meta.provenance.last_updated = new Date().toISOString();
+  
+      const updatedSvg = setMetadataBlock(st.svgText, st.meta);
+      window.currentSvgText = updatedSvg;
+      if ($("det-raw")) $("det-raw").value = updatedSvg.slice(0, 200000);
+  
+      setUI({ note_id: st.meta.note_id, current: newToPhiKey, len: chain.length, merkle: merkle_root||"" });
+  
+      const fn = (st.fileName || "sigil.svg").replace(/\.svg$/i,"") + `.xfer-${String(entry.idx).padStart(3,"0")}.svg`;
+      triggerDownload(fn, new Blob([updatedSvg], { type:"image/svg+xml" }));
+  
+      if ($("pv-status")) $("pv-status").value = `Stamped → idx ${entry.idx} • head ${headHash.slice(0,10)}…`;
+    }
+  
+    return { loadFromCurrentSvg, stampTransfer, _state:null };
+  })();
+  </script>
+  <script>
+    /* ===========================================================
+       === H2) PDF loader for Provenance (offline, no deps)
+       =========================================================== */
+    (function(){
+      const $ = (id) => document.getElementById(id);
+      const latin1 = new TextDecoder("latin1");
+    
+      // Heuristic: find the nearest valid JSON object around an anchor index
+      function extractNearestJson(text, anchorIdx){
+        // search window around anchor
+        const L = Math.max(0, anchorIdx - 20000);
+        const R = Math.min(text.length, anchorIdx + 20000);
+        const s = text.slice(L, R);
+    
+        // find a '{' to the left and balance braces to the right
+        let start = s.lastIndexOf("{", anchorIdx - L);
+        if (start < 0) return null;
+    
+        let depth = 0, end = -1;
+        for (let i = start; i < s.length; i++){
+          const ch = s[i];
+          if (ch === "{") depth++;
+          else if (ch === "}") {
+            depth--;
+            if (depth === 0){ end = i; break; }
+          }
+        }
+        if (end < 0) return null;
+    
+        const raw = s.slice(start, end + 1);
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+    
+      // Parse PDF bytes → try XMP, Info, or inline JSON occurrences
+      function parsePdfForKairosMetadata(bytes){
+        const text = latin1.decode(new Uint8Array(bytes));
+    
+        // 1) Try XMP packet first
+        // Many PDFs embed XMP between <x:xmpmeta ...> ... </x:xmpmeta>
+        let metaObj = null;
+        const xmpStart = text.indexOf("<x:xmpmeta");
+        if (xmpStart >= 0){
+          const xmpEnd = text.indexOf("</x:xmpmeta>", xmpStart);
+          if (xmpEnd > xmpStart){
+            const xmp = text.slice(xmpStart, xmpEnd + "</x:xmpmeta>".length);
+            // Look for a JSON blob inside XMP (common when we embed JSON in rdf:Description or <metadata>)
+            const p1 = xmp.indexOf('"provenance"');
+            if (p1 >= 0){
+              metaObj = extractNearestJson(xmp, p1);
+            } else {
+              const p2 = xmp.indexOf('"kaiSignature"');
+              if (p2 >= 0) metaObj = extractNearestJson(xmp, p2);
+            }
+          }
+        }
+    
+        // 2) Fallback: scan the whole PDF stream for JSON anchors
+        if (!metaObj){
+          const anchors = ['"provenance"', '"kaiSignature"', '"userPhiKey"', '"kaiPulse"', '"pulse"'];
+          for (const a of anchors){
+            const idx = text.indexOf(a);
+            if (idx >= 0){
+              metaObj = extractNearestJson(text, idx);
+              if (metaObj) break;
+            }
+          }
+        }
+    
+        // Normalize to a consistent structure that Pv.verifyChain expects
+        // Accept either { provenance: { chain: [...] } } or { chain: [...] } etc.
+        let normalized = {};
+        if (metaObj){
+          if (metaObj.provenance && Array.isArray(metaObj.provenance.chain)){
+            normalized = metaObj;
+          } else if (Array.isArray(metaObj.chain)){
+            normalized = { provenance: { chain: metaObj.chain } };
+          } else {
+            // keep raw; Pv will tolerate empty chain and compute note_id from svg-like fields
+            normalized = metaObj;
+          }
+        }
+        return { meta: normalized || {}, rawText: text };
+      }
+    
+      async function computeNoteIdFromMetaLike(metaLike){
+        // Mimic Pv.computeNoteId(svgText) using the common fields we expect in PDFs
+        const sig   = metaLike?.kaiSignature || metaLike?.sig || "";
+        const pulse = Number(metaLike?.kaiPulse ?? metaLike?.pulse ?? 0);
+        const phi   = metaLike?.userPhiKey || metaLike?.holderPhiKey || "";
+        return KaiVerifier.sha256HexCanon(`note:${sig}:${pulse}:${phi}`);
+      }
+    
+      async function verifyAndPopulateFromPdf(bytes, fileName){
+        const r = parsePdfForKairosMetadata(bytes);
+        const meta = r.meta || {};
+    
+        // If we found inline fields at root level, map them into provenance object
+        if (!meta.provenance) meta.provenance = { version: 1, chain: [] };
+        if (!Array.isArray(meta.provenance.chain)) meta.provenance.chain = [];
+    
+        // Ensure a note_id exists
+        if (!meta.note_id){
+          const shallow = {
+            kaiSignature: meta.kaiSignature || meta.sig,
+            kaiPulse: meta.kaiPulse ?? meta.pulse,
+            userPhiKey: meta.userPhiKey || meta.holderPhiKey
+          };
+          meta.note_id = await computeNoteIdFromMetaLike(shallow);
+        }
+    
+        // Reuse Pv.verifyChain logic by calling it indirectly:
+        const tmp = { provenance: meta.provenance, note_id: meta.note_id, genesis_head: meta?.provenance?.genesis_head };
+        const res = await (async () => {
+          // inline a tiny adapter to Pv.verifyChain without exposing private API
+          // (we re-implement the minimal parts we need here to avoid touching Pv internals)
+          async function sha(s){ return KaiVerifier.sha256HexCanon(String(s)); }
+          async function merkleRoot(hashes){
+            if (!hashes.length) return null;
+            let layer = hashes.slice();
+            while (layer.length > 1) {
+              const next = [];
+              for (let i=0; i<layer.length; i+=2){
+                const a = layer[i], b = layer[i+1] || layer[i];
+                next.push(await sha(`merkle:${a}|${b}`));
+              }
+              layer = next;
+            }
+            return layer[0];
+          }
+          const chain = tmp.provenance?.chain || [];
+          let prevHead = tmp.genesis_head || null;
+          for (let i=0; i<chain.length; i++){
+            const e = chain[i];
+            const expectEntry = await sha(`xfer:${tmp.note_id}:${prevHead||''}:${e.fromPhiKey}:${e.toPhiKey}:${e.receiverKaiPulse}`);
+            if (e.entryHash !== expectEntry) return { ok:false, error:`Transfer ${i} hash mismatch` };
+            const head = await sha(`head:${tmp.note_id}:${prevHead||''}:${e.entryHash}:${i}`);
+            if (e.headHash && e.headHash !== head) return { ok:false, error:`Transfer ${i} head mismatch` };
+            prevHead = head;
+          }
+          const leafs = chain.map(e => e.entryHash);
+          const root  = await merkleRoot(leafs);
+          const tip   = chain.length ? chain[chain.length-1].toPhiKey : (meta.userPhiKey || "");
+          return { ok:true, len: chain.length, merkle_root: root||"", current: tip };
+        })();
+    
+        // Populate the UI
+        const set = (id, v) => { const el=$(id); if (el) el.value = v==null? "": String(v); };
+        set("pv-noteid", meta.note_id || "");
+        set("pv-current", res.current || "");
+        set("pv-len", res.len || 0);
+        set("pv-root", res.merkle_root || "");
+        set("pv-status", res.ok ? `Loaded ${fileName} ✓` : `PDF parsed but failed provenance: ${res.error || "unknown error"}`);
+      }
+    
+      // Wire PDF input
+      const inp = $("pv-pdf");
+      if (inp){
+        inp.addEventListener("change", async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          const sum = `${f.name} • ${f.type||"PDF"} • ${f.size.toLocaleString()} bytes`;
+          const sumEl = $("pv-pdfsum"); if (sumEl) sumEl.textContent = sum;
+    
+          try {
+            const buf = await f.arrayBuffer();
+            await verifyAndPopulateFromPdf(buf, f.name);
+          } catch (err){
+            const sEl = $("pv-status");
+            if (sEl) sEl.value = "Failed to read/parse PDF.";
+            console.error(err);
+          }
+        });
+      }
+    })();
+    </script>
+    <script>
+/* ================================
+         === 8) Provenance & Transfer  ===
+         ================================= */
+         (function(){
+        const LS_PREFIX = "kai:pv:v1:";
+      
+        const $ = (id) => document.getElementById(id);
+      
+        function lsKey(noteId){ return LS_PREFIX + noteId; }
+        function loadLocalChain(noteId){
+          try{ return JSON.parse(localStorage.getItem(lsKey(noteId))||"[]"); }catch{ return []; }
+        }
+        function saveLocalChain(noteId, chain){
+          try{ localStorage.setItem(lsKey(noteId), JSON.stringify(chain)); }catch{}
+        }
+      
+        /* Normalize any provenance entry shape into the one we use */
+        function normTx(t){
+          return {
+            senderPhiKey:    t.senderPhiKey || t.senderKey || t.sender || "",
+            receiverPhiKey:  t.receiverPhiKey || t.receiverKey || t.receiver || "",
+            senderKaiPulse:  Number(t.senderKaiPulse ?? t.senderPulse ?? t.pulse ?? 0) || 0,
+            receiverKaiPulse:Number(t.receiverKaiPulse ?? t.receiverPulse ?? t.pulse ?? 0) || 0,
+            senderGlyphStamp:t.senderGlyphStamp || t.glyphStamp || "",
+            txStamp:         t.txStamp || t.stamp || ""
+          };
+        }
+        function mergeUniqueByStamp(a,b){
+          const m = new Map();
+          for (const t of [...a,...b]) {
+            const k = t.txStamp || `${t.senderPhiKey}|${t.receiverPhiKey}|${t.senderKaiPulse}|${t.senderGlyphStamp}`;
+            if (!m.has(k)) m.set(k, normTx(t));
+          }
+          return [...m.values()];
+        }
+      
+        async function txStampOf(t){
+          const minimal = { s:t.senderPhiKey, r:t.receiverPhiKey, sp:t.senderKaiPulse, rp:t.receiverKaiPulse, g:t.senderGlyphStamp||"" };
+          return KaiVerifier.sha256HexCanon("tx:"+JSON.stringify(minimal));
+        }
+      
+        async function merkleRoot(leaves){
+          let layer = (leaves||[]).slice();
+          if (!layer.length) return "";
+          while (layer.length > 1) {
+            const next = [];
+            for (let i=0;i<layer.length;i+=2){
+              const L = layer[i], R = layer[i+1] ?? layer[i];
+              next.push(await KaiVerifier.sha256HexCanon("node:"+L+R));
+            }
+            layer = next;
+          }
+          return layer[0];
+        }
+      
+        async function glyphStampFromCurrentSvg(){
+          const raw = (window.currentSvgText||"").trim();
+          if (!raw) return "";
+          // make it stable: sanitize + strip volatile valuation attrs
+          const safe = sanitizeSvg(raw).replace(/\sdata-valuation-[^"]+="[^"]*"/gi, "");
+          return KaiVerifier.sha256HexCanon("glyph:"+safe);
+        }
+      
+        async function computeNoteId(meta, glyphStamp){
+          const seed = `note:${meta.kaiSignature||""}|${meta.userPhiKey||""}|${glyphStamp||""}`;
+          return KaiVerifier.sha256HexCanon(seed);
+        }
+      
+        function currentHolder(meta, chain){
+          if (!chain.length) return meta.userPhiKey || "";
+          return chain[chain.length-1].receiverPhiKey || meta.userPhiKey || "";
+        }
+      
+        async function loadFromCurrentSvg(){
+          const txt = ($("det-raw")?.value||"").trim();
+          if (!txt){ ["pv-noteid","pv-current","pv-len","pv-root","pv-status"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); return; }
+      
+          const meta = parseMetaLiteFromSvgText(txt);
+          const gStamp = await glyphStampFromCurrentSvg();
+          const noteId = await computeNoteId(meta, gStamp);
+      
+          // provenance embedded in SVG (if any)
+          const svgProv = Array.isArray(meta.provenance) ? meta.provenance.map(normTx) : [];
+          // local continuation (previous stamps on this device)
+          const localProv = loadLocalChain(noteId).map(normTx);
+      
+          // merge + ensure all have txStamp
+          const chain = mergeUniqueByStamp(svgProv, localProv);
+          for (const t of chain) if (!t.txStamp) t.txStamp = await txStampOf(t);
+      
+          const root = await merkleRoot(chain.map(t=>t.txStamp));
+          const holder = currentHolder(meta, chain);
+      
+          $("pv-noteid").value = noteId;
+          $("pv-current").value = holder;
+          $("pv-len").value    = String(chain.length);
+          $("pv-root").value   = root || "";
+          $("pv-status").value = "Loaded.";
+          saveLocalChain(noteId, chain);
+        }
+      
+        async function stampTransfer(){
+          const toKey = ($("pv-newto")?.value||"").trim();
+          if (!toKey){ alert("Paste recipient Φkey."); return; }
+          if (!hasSigilLoaded()) { alert("Upload a sigil in step 0 first."); return; }
+      
+          const txt   = $("det-raw").value||"";
+          const meta  = parseMetaLiteFromSvgText(txt);
+          const gStamp= await glyphStampFromCurrentSvg();
+          const noteId= await computeNoteId(meta, gStamp);
+      
+          const chain = loadLocalChain(noteId).map(normTx);
+          const holder = currentHolder(meta, chain);
+          const now = (window.kaiNowPulseExact ? window.kaiNowPulseExact() : Math.floor(Date.now()/1000));
+      
+          const tx = {
+            senderPhiKey: holder,
+            receiverPhiKey: toKey,
+            senderKaiPulse: now,
+            receiverKaiPulse: now,
+            senderGlyphStamp: gStamp
+          };
+          tx.txStamp = await txStampOf(tx);
+      
+          const newChain = [...chain, tx];
+          saveLocalChain(noteId, newChain);
+      
+          const root = await merkleRoot(newChain.map(t=>t.txStamp));
+          $("pv-current").value = toKey;
+          $("pv-len").value     = String(newChain.length);
+          $("pv-root").value    = root;
+          $("pv-status").value  = `Stamped ✓ • tx ${tx.txStamp.slice(0,10)}…`;
+          $("pv-newto").value   = "";
+        }
+      
+        function bind(){
+          // keep pdf picker purely informational for now
+          const pdf = $("pv-pdf");
+          if (pdf) pdf.addEventListener("change", e => {
+            const f = e.target.files?.[0]; $("pv-pdfsum").textContent = f ? `${f.name} • ${f.size.toLocaleString()} bytes` : "";
+          });
+      
+          const btn = $("pv-stamp");
+          if (btn) btn.addEventListener("click", ()=>{ stampTransfer().catch(err=>{ console.error(err); alert("Stamp failed."); }); });
+      
+          // refresh section 8 whenever a new SVG is loaded in step 0
+          const sig = $("svgfile");
+          if (sig) sig.addEventListener("change", ()=>{ loadFromCurrentSvg().catch(()=>{}); });
+      
+          // initial attempt in case an SVG was already parsed by the other handler
+          loadFromCurrentSvg();
+        }
+      
+        // expose minimal API for existing one-liner calls in your code
+        window.Pv = { loadFromCurrentSvg };
+      
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", bind, { once:true });
+        } else {
+          bind();
+        }
+      })();
+
+      </script>
+      <script>
+        /* === Fix 1: background injector used by valuation writer === */
+        function ensureSvgBackground(svgText, color){
+          try{
+            const bg = color || '#0a1114';
+            const open = svgText.match(/<svg\b[^>]*>/i);
+            if (!open) return svgText;
+            // already has a full-bleed background?
+            if (/<rect[^>]+width="100%"\s+height="100%"/i.test(svgText)) return svgText;
+            const escaped = String(bg).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const injected = `${open[0]}\n  <rect width="100%" height="100%" fill="${escaped}" />`;
+            return svgText.replace(open[0], injected);
+          }catch{ return svgText; }
+        }
+        
+        /* === Fix 2: make Clear Live truly reset send state === */
+        (function(){
+          const clearBtn = document.getElementById("btn-clear-live");
+          if (!clearBtn) return;
+          clearBtn.addEventListener("click", () => {
+            // disable these (they were being enabled on clear)
+            const dl = document.getElementById("btn-download-child");
+            const rot = document.getElementById("btn-rotate");
+            if (dl) dl.disabled = true;
+            if (rot) rot.disabled = true;
+            // wipe any minted cache
+            window.lastMintedChildSvg = "";
+            window.lastMintedChildName = "";
+          }, { capture: true });
+        })();
+        
+        /* === Fix 3: complete Provenance “Stamp Transfer” flow === */
+        (function(){
+          const $ = (id) => document.getElementById(id);
+          const setStatus = (el, txt, ok) => { if (!el) return; el.value = txt; el.classList.toggle("ok", !!ok); el.classList.toggle("bad", !ok); };
+        
+          async function loadFromCurrentSvg(){
+            try{
+              const txt = (window.currentSvgText || $("det-raw")?.value || "").trim();
+              if (!txt) {
+                ["pv-noteid","pv-current","pv-len","pv-root"].forEach(id => { const el=$(id); if (el) el.value=""; });
+                return;
+              }
+              const phi =
+                /"userPhiKey"\s*:\s*"([^"]{10,})"/.exec(txt)?.[1] ||
+                /data-phi-key="([^"]{10,})"/i.exec(txt)?.[1] || "";
+              const txBlock = txt.match(/"transfers"\s*:\s*\[([\s\S]*?)\]/);
+              let transfers = []; if (txBlock) { try { transfers = JSON.parse("[" + txBlock[1] + "]"); } catch {} }
+              const provBlock = txt.match(/"provenance"\s*:\s*\[([\s\S]*?)\]/);
+              let prov = []; if (provBlock) { try { prov = JSON.parse("[" + prov[1] + "]"); } catch {} }
+        
+              if ($("pv-current")) $("pv-current").value = phi || "";
+              const chainLen = (Array.isArray(transfers) ? transfers.length : 0) || (Array.isArray(prov) ? prov.length : 0);
+              if ($("pv-len")) $("pv-len").value = String(chainLen);
+              const noteId = (await KaiVerifier.sha256HexCanon("note:" + txt)).slice(0,16);
+              if ($("pv-noteid")) $("pv-noteid").value = noteId;
+              const root = (await KaiVerifier.sha256HexCanon("merkle:" + JSON.stringify(prov || []))).slice(0,16);
+              if ($("pv-root")) $("pv-root").value = root;
+            }catch{}
+          }
+        
+          async function stampSvgProvenance(key){
+            const txt = (window.currentSvgText || $("det-raw")?.value || "").trim();
+            if (!txt) { alert("Load a sigil first."); return; }
+            const now = (window.kaiNowPulseExact ? window.kaiNowPulseExact() : Date.now());
+            const stamp = await KaiVerifier.sha256HexCanon(`xfer:${now}:${key}`);
+        
+            // local helper to upsert attrs on root <svg>
+            function upsert(svgText, attrs){
+              const m = svgText.match(/<svg\b[^>]*>/i);
+              if (!m) return svgText;
+              const openTag = m[0];
+              let newTag = openTag;
+              for (const [name, rawVal] of Object.entries(attrs||{})) {
+                if (rawVal == null) continue;
+                const val = String(rawVal).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const re = new RegExp(`\\s${name}="[^"]*"`, "i");
+                newTag = re.test(newTag) ? newTag.replace(re, ` ${name}="${val}"`) : newTag.replace(/>$/, ` ${name}="${val}">`);
+              }
+              return svgText.replace(openTag, newTag);
+            }
+        
+            const updated = upsert(txt, {
+              "data-transfer-to-phi": key,
+              "data-transfer-kai-pulse": String(now),
+              "data-transfer-stamp": stamp
+            });
+        
+            const base = (window.lastSvgFileName || "sigil.svg").replace(/\.svg$/i,"");
+            const fname = `${base}.xfer-${stamp.slice(0,8)}.svg`;
+            try{
+              const blob = new Blob([updated], { type: "image/svg+xml" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = fname; a.rel = "noopener";
+              document.body.appendChild(a); a.click(); a.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 1200);
+              setStatus($("pv-status"), `Stamped ✓ ${fname}`, true);
+            }catch(e){
+              console.error(e);
+              setStatus($("pv-status"), "Stamp failed.", false);
+            }
+          }
+        
+          async function stampPdfProvenance(pdfFile, key){
+            if (!window.PDFLib) { alert("Missing pdf-lib. Include ./pdf-lib.min.js"); return; }
+            const bytes = await pdfFile.arrayBuffer();
+        
+            const now = (window.kaiNowPulseExact ? window.kaiNowPulseExact() : Date.now());
+            const stamp = await KaiVerifier.sha256HexCanon(`xfer:${now}:${key}`);
+            const stampShort = stamp.slice(0,8);
+        
+            const noteId = ($("pv-noteid")?.value || "").trim();
+            const holder = ($("pv-current")?.value || "").trim();
+            const chainLen = ($("pv-len")?.value || "").trim();
+            const merkle = ($("pv-root")?.value || "").trim();
+        
+            const doc = await PDFLib.PDFDocument.load(bytes, { updateMetadata: true });
+            const page = doc.addPage();
+            const { width, height } = page.getSize();
+            const font = await doc.embedFont(PDFLib.StandardFonts.Courier);
+            const size = 12, lh = 16;
+            let x = 54, y = height - 54;
+            const line = (s) => { page.drawText(String(s), { x, y, size, font }); y -= lh; };
+        
+            page.drawText("KAIROS — Provenance Transfer", { x, y, size: 16, font }); y -= lh*2;
+            line(`Note ID:            ${noteId || "(n/a)"}`);
+            line(`Current Holder Φ:   ${holder || "(n/a)"}`);
+            line(`Chain Length:       ${chainLen || "0"}`);
+            line(`Merkle Root:        ${merkle || "(n/a)"}`);
+            y -= lh;
+            line(`Transfer To Φ:      ${key}`);
+            line(`Kai Pulse:          ${now}`);
+            line(`Transfer Stamp:     ${stamp}`);
+            y -= lh;
+            line(`Generated:          ${new Date().toISOString()}`);
+        
+            try {
+              doc.setTitle("Kairos — Provenance Transfer");
+              doc.setSubject(`transfer-stamp=${stamp} kai-pulse=${now} to-phi=${key}`);
+              doc.setKeywords(["Kairos","Provenance","Transfer", `note=${noteId}`, `merkle=${merkle}`, `to=${key}`, `stamp=${stampShort}`]);
+              doc.setProducer("Kairos Exhaler (offline)");
+              doc.setCreator("Kairos Exhaler");
+              doc.setModificationDate(new Date());
+            } catch {}
+        
+            const out = await doc.save();
+            const base = pdfFile.name.replace(/\.pdf$/i, "");
+            const fname = `${base}.xfer-${stampShort}.pdf`;
+        
+            try{
+              const blob = new Blob([out], { type: "application/pdf" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = fname; a.rel = "noopener";
+              document.body.appendChild(a); a.click(); a.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 1200);
+              setStatus($("pv-status"), `Stamped ✓ ${fname}`, true);
+            }catch(e){
+              console.error(e);
+              setStatus($("pv-status"), "Stamp failed.", false);
+            }
+          }
+        
+          // ← This is where your snippet got cut off; finish it:
+          async function stampTransfer(toKeyInput){
+            const key = (typeof toKeyInput === "string" ? toKeyInput : (toKeyInput?.value || "")).trim();
+            if (!key) { alert("Paste recipient Φkey."); return; }
+            const pdfFile = $("pv-pdf")?.files?.[0] || null;
+            if (pdfFile) await stampPdfProvenance(pdfFile, key);
+            else         await stampSvgProvenance(key);
+          }
+        
+          // Wire up UI
+          $("pv-stamp")?.addEventListener("click", () => stampTransfer($("pv-newto")));
+          $("pv-newto")?.addEventListener("input", () => setStatus($("pv-status"), "", false));
+        
+          // keep Provenance panel in sync when SVG is loaded
+          document.getElementById("svgfile")?.addEventListener("change", () => setTimeout(loadFromCurrentSvg, 0));
+          window.addEventListener("DOMContentLoaded", loadFromCurrentSvg);
+        })();
+        </script>
+        
+    
 </body>
 </html>

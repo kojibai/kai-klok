@@ -1,5 +1,22 @@
+// src/components/valuation/ValuationModal.tsx
 /* eslint-disable no-restricted-globals */
 "use client";
+
+/* ────────────────────────────────────────────────────────────────
+   ValuationModal.tsx · Market Ticker + ΦGlyph Mint
+   v24.7 — SHARED PRECISION + Verifier parity (child Φ exact)
+   Updates:
+   - Display Φ priority = child(meta) → last uploaded glyph → initialGlyph → model.
+   - All displayed values (chart line, PV line, donut, main KPI) use CHILD Φ if derivative.
+   - PV is *scaled* to child proportion: pv_scaled = pv_parent * (childΦ / parentModelΦ).
+   - All values snapped to 6dp via shared helpers (snap6).
+   - Prevents drift between:
+       • Exhale (Temple-Glyph mint) value
+       • Send (child/derivative glyph) value
+       • Displayed pool balances
+   - Child/Derivative detection includes filename “sigil_send”, sendLock,
+     childOfHash, and explicit child fields (childAllocationPhi/branchBasePhi).
+   ─────────────────────────────────────────────────────────────── */
 
 import React, {
   useEffect,
@@ -55,9 +72,33 @@ import { sha256HexStable } from "./valuation/asset";
 import DonorsEditor, { type DonorRow } from "./valuation/DonorsEditor";
 import { buildDriversSections } from "./valuation/drivers";
 
-/** ----------------------------------------------------------------
- * ValuationModal — Market Ticker + ΦGlyph Mint
- * ----------------------------------------------------------------- */
+/* ───────── shared micro-Φ helpers (Verifier/UI single source of truth) ───────── */
+import {
+  addPhi as addΦ,
+  subPhi as subΦ,
+  sumPhi as sumΦ,
+  snap6,
+} from "../utils/phi-precision";
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Dev-safe logger                                                 */
+/* ─────────────────────────────────────────────────────────────── */
+
+const devWarn = (...args: ReadonlyArray<unknown>): void => {
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(...args);
+    } catch {
+      /* no-op */
+    }
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Types & globals                                                 */
+/* ─────────────────────────────────────────────────────────────── */
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -67,7 +108,6 @@ type Props = {
   initialGlyph?: Glyph;
 };
 
-/* Augment Window to avoid any-casts */
 declare global {
   interface Window {
     __SIGIL__?: {
@@ -76,19 +116,10 @@ declare global {
   }
 }
 
-/* ───────── Dev-safe logger (no explicit any) ───────── */
-const devWarn = (...args: ReadonlyArray<unknown>): void => {
-  if (process.env.NODE_ENV !== "production") {
-    try {
-      // eslint-disable-next-line no-console
-      console.debug(...args);
-    } catch (err: unknown) {
-      void String(err);
-    }
-  }
-};
+/* ─────────────────────────────────────────────────────────────── */
+/* UI helpers                                                      */
+/* ─────────────────────────────────────────────────────────────── */
 
-/* ───────── Helpers ───────── */
 const onRipple = (e: React.MouseEvent<HTMLElement>) => {
   const t = e.currentTarget;
   const rect = t.getBoundingClientRect();
@@ -97,8 +128,6 @@ const onRipple = (e: React.MouseEvent<HTMLElement>) => {
   t.style.setProperty("--x", `${x}%`);
   t.style.setProperty("--y", `${y}%`);
 };
-
-const round6 = (n: number) => Number((Number.isFinite(n) ? n : 0).toFixed(6));
 
 /** Split a Φ value into integer and fractional parts for crisp typography */
 const formatPhiParts = (val: number): { int: string; frac: string } => {
@@ -126,10 +155,6 @@ const useForceFallback = (stacked: boolean) => {
     const isAndroidWebView =
       /wv/.test(ua) || /\bVersion\/\d+\.\d+ Chrome\/\d+\.\d+/.test(ua);
 
-    // Prefer the bottom-sheet on:
-    //  - iOS Safari / WebViews (dialog focus/trapping can be unreliable)
-    //  - Android WebViews
-    //  - Very small viewports (stacked layout)
     if (isIOS || isAndroidWebView || stacked) {
       setForceFallback(true);
     } else {
@@ -138,6 +163,26 @@ const useForceFallback = (stacked: boolean) => {
   }, [stacked]);
 
   return forceFallback;
+};
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Numeric coercion helper (accepts number or numeric-like string) */
+/* ─────────────────────────────────────────────────────────────── */
+
+const asNum = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() && Number.isFinite(Number(v))) {
+    return Number(v);
+  }
+  return null;
+};
+
+/* Safe alias extractor for dataset/metaDataset without `any` */
+const getAliasFrom = (obj: unknown, key: string): number | string | null => {
+  if (!obj || typeof obj !== "object") return null;
+  const rec = obj as Record<string, unknown>;
+  const v = rec[key];
+  return typeof v === "number" || typeof v === "string" ? v : null;
 };
 
 const ValuationModal: React.FC<Props> = ({
@@ -163,8 +208,6 @@ const ValuationModal: React.FC<Props> = ({
   // State
   const [seal, setSeal] = useState<ValueSeal | null>(null);
   const [chart, setChart] = useState<ChartBundle | null>(null);
-
-  // LIVE price (breath)
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
 
@@ -190,11 +233,11 @@ const ValuationModal: React.FC<Props> = ({
   const stacked = useMedia("(max-width: 760px)");
   const chartHeight = stacked ? 160 : 220;
 
-  // POOLED BALANCE + IMPORTED GLYPHS
+  // ───── POOLED BALANCE + IMPORTED GLYPHS (Verifier-parity via shared μΦ helpers) ─────
   const [importedGlyphs, setImportedGlyphs] = useState<Glyph[]>([]);
-  const [balancePhi, setBalancePhi] = useState<number>(0);
+  const [balancePhi, setBalancePhi] = useState<number>(0); // stored/displayed as Φ; writes go through snap6/addΦ/subΦ
 
-  // Amounts routed to various actions
+  // Amounts routed to various actions (kept snapped to 6dp)
   const [balanceForMintPhi, setBalanceForMintPhi] = useState<number>(0);
   const [sendAmountPhi, setSendAmountPhi] = useState<number>(0);
 
@@ -209,19 +252,20 @@ const ValuationModal: React.FC<Props> = ({
   // Donors by URL (for ΦGlyph builder)
   const [donors, setDonors] = useState<DonorRow[]>([{ url: "", amount: 0 }]);
 
+  // Donor total (Verifier-parity via μΦ)
   const totalUrlDonorsPhi = useMemo(
-    () =>
-      donors.reduce(
-        (a, d) => a + (Number.isFinite(d.amount) ? Math.max(0, d.amount) : 0),
-        0
-      ),
+    () => sumΦ(donors.map((d) => Math.max(0, Number(d.amount) || 0))),
     [donors]
   );
 
-  const totalDonorAmount = useMemo(
-    () => round6(totalUrlDonorsPhi + Math.max(0, balanceForMintPhi)),
+  // Exhale value preview (Verifier-exact): donors + balanceForMintPhi
+  const exhaleValuePhi = useMemo(
+    () => snap6(totalUrlDonorsPhi + Math.max(0, balanceForMintPhi)),
     [totalUrlDonorsPhi, balanceForMintPhi]
   );
+
+  // Keep a named total to pass to children AND satisfy eslint usage
+  const totalDonorAmount = exhaleValuePhi;
 
   // viewport height var for iOS (mobile-friendly safe VH)
   useEffect(() => {
@@ -294,7 +338,6 @@ const ValuationModal: React.FC<Props> = ({
       if (!bg) return;
       if (hidden) {
         bg.setAttribute("aria-hidden", "true");
-        // inert attribute: add without value (boolean attribute)
         bg.setAttribute("inert", "");
       } else {
         bg.removeAttribute("aria-hidden");
@@ -302,7 +345,6 @@ const ValuationModal: React.FC<Props> = ({
       }
     };
 
-    // Decide branch once per state change
     const usingDialog =
       supportsDialog && !useFallback && !forceFallbackOnMobile && !!d;
 
@@ -312,7 +354,6 @@ const ValuationModal: React.FC<Props> = ({
           try {
             d.showModal();
           } catch (err) {
-            // On iOS or quirky browsers, fall back immediately
             devWarn("dialog.showModal failed — falling back:", err);
             setUseFallback(true);
             setBgHidden(true);
@@ -340,7 +381,7 @@ const ValuationModal: React.FC<Props> = ({
         try {
           d.close();
         } catch {
-          // ignore
+          /* no-op */
         }
         setBgHidden(false);
         setVisible(false);
@@ -472,26 +513,194 @@ const ValuationModal: React.FC<Props> = ({
       [onClose]
     );
 
-  // bootstrap valuation + series
+  // ───────── Head-root carrier (Verifier parity) ─────────
+  type HeadRootCarrier = {
+    transfersWindowRoot?: string;
+    transfersWindowRootV14?: string;
+  };
+
+  const getHeadRoot = (m: SigilMetadataLite): string => {
+    const x = m as SigilMetadataLite & Partial<HeadRootCarrier>;
+    return x.transfersWindowRoot ?? x.transfersWindowRootV14 ?? "";
+  };
+
+  /* ───────── Child/Derivative detection + exact child Φ extraction (bulletproof) ───────── */
+  type DerivativeHints = {
+    fileName?: string;
+    sourceName?: string;
+    name?: string;
+    filename?: string;
+    file?: string;
+    path?: string;
+
+    canonicalContext?: string;
+    context?: string;
+
+    // Strong child signals
+    childOfHash?: string;
+    sendLock?: unknown;
+    childClaim?: { steps?: number; expireAtPulse?: number };
+
+    // Exact child value fields (most authoritative first)
+    childAllocationPhi?: number | string;
+    branchBasePhi?: number | string;
+
+    // Other places we’ve stashed child value before
+    valuationSource?: { childValuePhi?: number | string };
+    stats?: { childValuePhi?: number | string; remainingPhi?: number | string };
+
+    // Relaxed fallbacks (only if derivative confirmed)
+    remainingPhi?: number | string;
+    valuePhi?: number | string;
+    value?: number | string;
+
+    // Sometimes attached via dataset/metadataset on loaders
+    dataset?: Record<string, unknown>;
+    metaDataset?: Record<string, unknown>;
+
+    // ── Legacy aliases (strictly typed; no `any`)
+    childValuePhi?: number | string;
+    childPhi?: number | string;
+    value_child_phi?: number | string;
+    "child-value-phi"?: number | string;
+    child_value_phi?: number | string;
+  };
+
+  /** Heuristics to declare “this is a derivative (child) glyph” — lenient like Verifier */
+  const isDerivative = (m: SigilMetadataLite): boolean => {
+    const mm = m as SigilMetadataLite & Partial<DerivativeHints>;
+
+    // name-ish fields combined
+    const nameish = [
+      mm.fileName,
+      mm.sourceName,
+      mm.name,
+      mm.filename,
+      mm.file,
+      mm.path,
+    ]
+      .map((s) => (typeof s === "string" ? s.toLowerCase() : ""))
+      .filter(Boolean)
+      .join("|");
+
+    // context
+    const ctx = String(mm.canonicalContext ?? mm.context ?? "").toLowerCase();
+
+    // filename signals: “sigil_send”, with underscore/hyphen variants
+    if (/\bsigil[_-]?send\b/.test(nameish)) return true;
+
+    // explicit contexts
+    if (ctx === "derivative" || ctx === "child") return true;
+
+    // lineage & locks
+    if (typeof mm.childOfHash === "string" && mm.childOfHash) return true;
+    if (mm.sendLock && typeof mm.sendLock === "object") return true;
+    if (mm.childClaim && typeof mm.childClaim === "object") return true;
+
+    // explicit child value fields imply derivative
+    if (mm.childAllocationPhi != null || mm.branchBasePhi != null) return true;
+    if (mm.stats?.childValuePhi != null) return true;
+    if (mm.valuationSource?.childValuePhi != null) return true;
+
+    return false;
+  };
+
+  /** Extract the child’s *exact* Φ (6dp) from any known slot (first hit wins) */
+  const getChildExactPhi = (m: SigilMetadataLite): number | null => {
+    const mm = m as SigilMetadataLite & Partial<DerivativeHints>;
+    const sureChild = isDerivative(m);
+
+    const pick = (...vals: unknown[]): number | null => {
+      for (const v of vals) {
+        const n = asNum(v);
+        if (n != null && n >= 0) return snap6(n);
+      }
+      return null;
+    };
+
+    // Authoritative first, then aliases, then dataset/metaDataset.
+    // Relaxed fallbacks only if sure derivative.
+    return (
+      pick(
+        // authoritative
+        mm.childAllocationPhi,
+        mm.branchBasePhi,
+        mm.valuationSource?.childValuePhi,
+        mm.stats?.childValuePhi,
+
+        // legacy aliases (strictly typed)
+        mm.childValuePhi,
+        mm.childPhi,
+        mm.value_child_phi,
+        mm["child-value-phi"],
+        mm.child_value_phi,
+
+        // loader datasets (safe reads; cover common alias spellings)
+        getAliasFrom(mm.dataset, "childValuePhi"),
+        getAliasFrom(mm.metaDataset, "childValuePhi"),
+        getAliasFrom(mm.dataset, "child-value-phi"),
+        getAliasFrom(mm.metaDataset, "child-value-phi"),
+        getAliasFrom(mm.dataset, "child_value_phi"),
+        getAliasFrom(mm.metaDataset, "child_value_phi"),
+
+        // relaxed fallbacks if confirmed derivative
+        ...(sureChild
+          ? [mm.stats?.remainingPhi, mm.remainingPhi, mm.valuePhi, mm.value]
+          : [])
+      ) ?? null
+    );
+  };
+
+  /* ───────── Exact glyph Φ resolution (priority: child → last upload → initial) ───────── */
+  const glyphPhiExact = useMemo<number | null>(() => {
+    // 1) Prefer meta-derived child Φ if this is a derivative glyph
+    if (isDerivative(meta)) {
+      const v = getChildExactPhi(meta);
+      if (v != null) return v; // exact 6dp child value
+    }
+
+    // 2) If user uploaded glyphs in this session, show the most recent one
+    if (importedGlyphs.length >= 1) {
+      const last = importedGlyphs[importedGlyphs.length - 1];
+      const n = Number(last?.value);
+      if (Number.isFinite(n)) return snap6(n);
+    }
+
+    // 3) Finally, fall back to the explicit initialGlyph (if any)
+    if (initialGlyph && Number.isFinite(Number(initialGlyph.value))) {
+      return snap6(Number(initialGlyph.value));
+    }
+
+    return null;
+  }, [meta, importedGlyphs, initialGlyph]);
+
+  /* ───────── Bootstrap valuation + series (child Φ first) ───────── */
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
+        const headHash = getHeadRoot(meta);
         const { seal: builtSeal } = await buildValueSeal(
           meta,
           nowPulse,
-          sha256HexStable
+          sha256HexStable,
+          headHash
         );
+
         if (!alive) return;
         setSeal(builtSeal);
+
+        // Prefer exact child Φ if present; else model valuation
+        const preferred = glyphPhiExact ?? snap6(builtSeal.valuePhi);
+
         rngRef.current = mulberry32(seedFrom(meta, nowPulse));
         const boot = bootstrapSeries(builtSeal, meta, nowPulse);
         setChart(boot);
-        startRef.current = builtSeal.valuePhi;
-        liveRef.current = builtSeal.valuePhi;
-        tickIndexRef.current =
-          boot.lineData[boot.lineData.length - 1]?.i ?? 0;
-        setLivePrice(builtSeal.valuePhi);
+
+        startRef.current = preferred;
+        liveRef.current = preferred;
+        tickIndexRef.current = boot.lineData[boot.lineData.length - 1]?.i ?? 0;
+        setLivePrice(preferred);
       } catch (err) {
         devWarn("buildValueSeal/bootstrap failed:", err);
       }
@@ -499,9 +708,9 @@ const ValuationModal: React.FC<Props> = ({
     return () => {
       alive = false;
     };
-  }, [meta, nowPulse]);
+  }, [meta, nowPulse, glyphPhiExact]);
 
-  // breath loop
+  /* ───────── Breath loop (visual only; model parity preserved) ───────── */
   useEffect(() => {
     if (!seal || !chart) return;
     let timer: number | undefined;
@@ -509,7 +718,7 @@ const ValuationModal: React.FC<Props> = ({
     const tick = () => {
       const rng = rngRef.current;
       const last = liveRef.current;
-      const target = seal.valuePhi;
+      const target = glyphPhiExact ?? seal.valuePhi; // ← follow child exact Φ when present
       const noise = (rng() - 0.5) * 0.032 * target; // ±3.2%
       const next = Math.max(0, last + (target - last) * 0.12 + noise);
       const dir: "up" | "down" | null =
@@ -540,12 +749,10 @@ const ValuationModal: React.FC<Props> = ({
 
         const y = nextLine.map((p) => p.value);
         const { slope, r2 } = linreg(y);
-        const change =
-          ((y[y.length - 1] - y[0]) / (y[0] || 1)) * 100;
+        const change = ((y[y.length - 1] - y[0]) / (y[0] || 1)) * 100;
         const vol =
           y.reduce(
-            (a, _, k) =>
-              k ? a + Math.abs(y[k] - y[k - 1]) : 0,
+            (a, _, k) => (k ? a + Math.abs(y[k] - y[k - 1]) : 0),
             0
           ) / (y.length - 1 || 1);
 
@@ -563,7 +770,7 @@ const ValuationModal: React.FC<Props> = ({
     return () => {
       if (timer) window.clearTimeout(timer);
     };
-  }, [seal, chart]);
+  }, [seal, chart, glyphPhiExact]);
 
   // Seed initial glyph into the pool (once per open)
   const seededRef = useRef(false);
@@ -575,8 +782,9 @@ const ValuationModal: React.FC<Props> = ({
     if (seededRef.current) return;
 
     if (initialGlyph) {
+      const v = snap6(Number(initialGlyph.value ?? 0));
       setImportedGlyphs([initialGlyph]);
-      setBalancePhi(Math.max(0, Number(initialGlyph.value ?? 0)));
+      setBalancePhi(v); // exact 6dp
       seededRef.current = true;
     } else {
       setImportedGlyphs([]);
@@ -589,7 +797,7 @@ const ValuationModal: React.FC<Props> = ({
   useEffect(() => {
     const summarize = importedGlyphs.map((g) => ({
       h: g.hash,
-      v: g.value,
+      v: snap6(Number(g.value ?? 0)),
     }));
     const s = JSON.stringify(summarize);
     (async () => {
@@ -598,26 +806,51 @@ const ValuationModal: React.FC<Props> = ({
     })();
   }, [importedGlyphs]);
 
-  // When a glyph is imported, add to pool & bump session baseline
+  // When a glyph is imported, add to pool & bump session baseline (Verifier exact)
   const handleImportedGlyph = useCallback((glyph: Glyph) => {
     setImportedGlyphs((prev: Glyph[]) => [...prev, glyph]);
-    const v = Number(glyph.value ?? 0);
-    setBalancePhi((prev: number) => prev + v);
+    const v = snap6(Number(glyph.value ?? 0));
+    setBalancePhi((prev: number) => addΦ(prev, v));
+    // Live ticker re-center to latest imported glyph value for UX
     liveRef.current = v;
     setLivePrice(v);
     startRef.current = v;
   }, []);
 
-  // derived donut data (PV vs premium)
+  // ───────── Child-aware PV scaling (for ALL displays) ─────────
+  // Display Φ: prefer exact child Φ when present
+  const modelPhi = Number.isFinite(livePrice)
+    ? snap6(livePrice as number)
+    : snap6(seal?.valuePhi ?? 0);
+  const displayPhi = glyphPhiExact ?? modelPhi;
+
+  // Parent model Φ (for scaling baseline)
+  const parentModelPhi = snap6(seal?.valuePhi ?? 0);
+  const isChild = isDerivative(meta);
+  const pvScaled = useMemo(() => {
+    const pvParent = snap6(seal?.inputs.pv_phi ?? 0);
+    const ratio =
+      isChild && parentModelPhi > 0 ? displayPhi / parentModelPhi : 1;
+    return snap6(Math.max(0, pvParent * Math.max(0, ratio)));
+  }, [seal, isChild, parentModelPhi, displayPhi]);
+
+  const displayUsd = displayPhi * (quotePhiForUsd(
+    { meta, nowPulse, usd: 100, currentStreakDays: 0, lifetimeUsdSoFar: 0 },
+    DEFAULT_ISSUANCE_POLICY
+  ).usdPerPhi || 0); // keep consistent with usdPerPhi below
+
+  const phiParts = formatPhiParts(displayPhi);
+
+  // derived donut data (PV vs premium) — CHILD-AWARE
   const pieData = useMemo(() => {
-    const pv = Math.max(0, seal?.inputs.pv_phi ?? 0);
-    const p = Math.max(0, livePrice ?? seal?.valuePhi ?? 0);
-    const premOnly = Math.max(0, p - pv);
+    const pv = pvScaled;
+    const p = Math.max(0, snap6(displayPhi));
+    const premOnly = Math.max(0, snap6(p - pv));
     return [
       { name: "Intrinsic (PV)", value: pv },
       { name: "Premium", value: premOnly },
     ];
-  }, [seal, livePrice]);
+  }, [pvScaled, displayPhi]);
 
   const sessionChangePct = useMemo(() => {
     if (livePrice == null) return 0;
@@ -648,13 +881,7 @@ const ValuationModal: React.FC<Props> = ({
   const phiPerUsd = liveQuote.phiPerUsd || 0;
 
   const usdPerPhiText = `${usd(usdPerPhi)}/Φ`;
-  const phiPerUsdText = `${tiny(phiPerUsd)} Φ/$`;
-
-  const displayPhi = Number.isFinite(livePrice)
-    ? (livePrice as number)
-    : (seal?.valuePhi ?? 0);
-  const displayUsd = displayPhi * usdPerPhi;
-  const phiUI = formatPhiParts(displayPhi);
+  const phiPerUsdText = `${tiny(snap6(phiPerUsd))} Φ/$`;
 
   /* ───────── Moment display analysis (UI-only) ───────── */
   const momentUi = useMemo(() => {
@@ -702,18 +929,18 @@ const ValuationModal: React.FC<Props> = ({
     };
   }, [meta, nowPulse, seal?.inputs?.momentLift, seal?.inputs?.pulsesPerBeat]);
 
-  /* ───────── Drivers model ───────── */
+  /* ───────── Drivers model (already child-aware in buildDriversSections) ───────── */
   const driversSections = useMemo(() => {
     if (!seal) return [];
     return buildDriversSections(
       seal,
-      livePrice,
+      displayPhi, // child Φ flows through
       chart,
       sessionChangePct,
       meta,
       momentUi
     );
-  }, [seal, livePrice, chart, sessionChangePct, meta, momentUi]);
+  }, [seal, displayPhi, chart, sessionChangePct, meta, momentUi]);
 
   /* ───────── donors editor helpers ───────── */
   const addDonor = () =>
@@ -724,10 +951,15 @@ const ValuationModal: React.FC<Props> = ({
 
   const updateDonor = (idx: number, patch: Partial<DonorRow>) =>
     setDonors((rows: DonorRow[]) =>
-      rows.map((r, i) => (i === idx ? { ...r, ...patch } : r))
+      rows.map((r, i) => {
+        const next = { ...r, ...patch };
+        // snap donor amount to 6dp to keep exact parity
+        next.amount = snap6(Math.max(0, Number(next.amount) || 0));
+        return i === idx ? next : r;
+      })
     );
 
-  // Open the ΦGlyph mint modal
+  // Open the ΦGlyph mint modal (Exhale)
   const onMintComposite = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       onRipple(e);
@@ -745,7 +977,7 @@ const ValuationModal: React.FC<Props> = ({
         : meta;
     return {
       hash: pooledHash,
-      value: balancePhi,
+      value: snap6(balancePhi),
       pulseCreated: nowPulse,
       meta: baseMeta,
     } as Glyph;
@@ -772,25 +1004,25 @@ const ValuationModal: React.FC<Props> = ({
           {!stacked && (
             <>
               <div className="balance-chip" title="Pooled Φ balance">
-                Pool:&nbsp;<strong className="mono">{currency(balancePhi)}</strong>
+                Pool:&nbsp;
+                <strong className="mono">
+                  {currency(snap6(balancePhi))}
+                </strong>
               </div>
               <input
                 className="send-amt-input"
                 type="number"
                 step="0.000001"
                 min={0}
-                max={balancePhi}
+                max={snap6(balancePhi)}
                 placeholder="Φ to send"
                 aria-label="Amount from pool to send"
                 value={Number.isFinite(sendAmountPhi) ? sendAmountPhi : 0}
-                onChange={(e) =>
-                  setSendAmountPhi(
-                    Math.min(
-                      Math.max(0, Number(e.currentTarget.value || 0)),
-                      balancePhi
-                    )
-                  )
-                }
+                onChange={(e) => {
+                  const raw = Number(e.currentTarget.value || 0);
+                  const clamped = Math.min(Math.max(0, raw), balancePhi);
+                  setSendAmountPhi(snap6(clamped));
+                }}
               />
               <button
                 className="btn primary attach-btn"
@@ -823,10 +1055,7 @@ const ValuationModal: React.FC<Props> = ({
                 className="btn secondary small"
                 onClick={onMintComposite}
                 title="Exhale Temple-Glyph (ZIP)"
-                disabled={
-                  !donors.some((d) => d.url && d.amount > 0) &&
-                  balanceForMintPhi <= 0
-                }
+                disabled={totalDonorAmount <= 0}
               >
                 <span className="small hide-xs">Exhale</span>
               </button>
@@ -877,15 +1106,14 @@ const ValuationModal: React.FC<Props> = ({
                               ? "flash-down"
                               : "")
                           }
-                          title="Φ value with indicative USD"
+                          title={isChild ? "Child Φ value with indicative USD" : "Φ value with indicative USD"}
                           aria-live="polite"
                         >
                           <span className="phi-mark" aria-hidden>
                             Φ
                           </span>
-                          <span className="phi-int">{phiUI.int}</span>
-                          <span className="phi-frac">{phiUI.frac}</span>
-                          {/* IMPORTANT: ensure .usd-inline CSS does NOT inject Φ via ::before */}
+                          <span className="phi-int">{phiParts.int}</span>
+                          <span className="phi-frac">{phiParts.frac}</span>
                           <span className="usd-inline">≈ {usd(displayUsd)}</span>
                         </div>
 
@@ -915,21 +1143,26 @@ const ValuationModal: React.FC<Props> = ({
                         </div>
 
                         {visible && (
-                          <LiveChart
-                            data={chart.lineData}
-                            live={displayPhi}
-                            pv={Math.max(0, seal.inputs.pv_phi ?? 0)}
-                            premiumX={seal.premium ?? 1}
-                            momentX={seal.inputs.momentLift ?? 1}
-                            colors={Array.from(COLORS)}
-                            height={chartHeight}
-                            reflowKey={reflowKey}
-                          />
+                      <LiveChart
+                        data={chart.lineData}
+                        live={displayPhi}                                        // child-aware
+                        pv={pvScaled}                                            // already scaled in parent; disable internal scaling:
+                        premiumX={seal.premium ?? 1}
+                        momentX={seal.inputs.momentLift ?? 1}
+                        colors={Array.from(COLORS)}
+                        height={chartHeight}
+                        reflowKey={reflowKey}
+                        usdPerPhi={Number.isFinite(usdPerPhi) ? usdPerPhi : 0}
+                        childPhiExact={glyphPhiExact ?? null}                    // ensures child at first render
+                        scalePvToChild={false}
+                      />
+
+
                         )}
 
                         {!stacked && visible && (
                           <ValueDonut
-                            data={pieData}
+                            data={pieData}                   // CHILD-aware donut
                             colors={Array.from(COLORS)}
                             size={120}
                           />
@@ -949,7 +1182,7 @@ const ValuationModal: React.FC<Props> = ({
                                 >
                                   Pool:&nbsp;
                                   <strong className="mono">
-                                    {currency(balancePhi)}
+                                    {currency(snap6(balancePhi))}
                                   </strong>
                                 </div>
                               </div>
@@ -960,7 +1193,7 @@ const ValuationModal: React.FC<Props> = ({
                                   type="number"
                                   step="0.000001"
                                   min={0}
-                                  max={balancePhi}
+                                  max={snap6(balancePhi)}
                                   placeholder="Φ to send"
                                   aria-label="Amount from pool to send"
                                   value={
@@ -968,17 +1201,14 @@ const ValuationModal: React.FC<Props> = ({
                                       ? sendAmountPhi
                                       : 0
                                   }
-                                  onChange={(e) =>
-                                    setSendAmountPhi(
-                                      Math.min(
-                                        Math.max(
-                                          0,
-                                          Number(e.currentTarget.value || 0)
-                                        ),
-                                        balancePhi
-                                      )
-                                    )
-                                  }
+                                  onChange={(e) => {
+                                    const raw = Number(e.currentTarget.value || 0);
+                                    const clamped = Math.min(
+                                      Math.max(0, raw),
+                                      balancePhi
+                                    );
+                                    setSendAmountPhi(snap6(clamped));
+                                  }}
                                 />
                                 <button
                                   className="btn primary btn-full"
@@ -1014,11 +1244,7 @@ const ValuationModal: React.FC<Props> = ({
                                   className="btn secondary btn-full"
                                   onClick={onMintComposite}
                                   title="Exhale Temple-Glyph (ZIP)"
-                                  disabled={
-                                    !donors.some(
-                                      (d) => d.url && d.amount > 0
-                                    ) && balanceForMintPhi <= 0
-                                  }
+                                  disabled={totalDonorAmount <= 0}
                                 >
                                   Exhale
                                 </button>
@@ -1031,9 +1257,11 @@ const ValuationModal: React.FC<Props> = ({
                         {stacked && (
                           <DonorsEditor
                             donors={donors}
-                            balancePhi={balancePhi}
-                            balanceForMintPhi={balanceForMintPhi}
-                            setBalanceForMintPhi={setBalanceForMintPhi}
+                            balancePhi={snap6(balancePhi)}
+                            balanceForMintPhi={snap6(balanceForMintPhi)}
+                            setBalanceForMintPhi={(v) =>
+                              setBalanceForMintPhi(snap6(Math.max(0, v)))
+                            }
                             addDonor={addDonor}
                             removeDonor={removeDonor}
                             updateDonor={updateDonor}
@@ -1131,9 +1359,11 @@ const ValuationModal: React.FC<Props> = ({
                 {!stacked && (
                   <DonorsEditor
                     donors={donors}
-                    balancePhi={balancePhi}
-                    balanceForMintPhi={balanceForMintPhi}
-                    setBalanceForMintPhi={setBalanceForMintPhi}
+                    balancePhi={snap6(balancePhi)}
+                    balanceForMintPhi={snap6(balanceForMintPhi)}
+                    setBalanceForMintPhi={(v) =>
+                      setBalanceForMintPhi(snap6(Math.max(0, v)))
+                    }
                     addDonor={addDonor}
                     removeDonor={removeDonor}
                     updateDonor={updateDonor}
@@ -1151,7 +1381,7 @@ const ValuationModal: React.FC<Props> = ({
                       <strong>Pool</strong>
                     </div>
                     <div className="badge dim small">
-                      {currency(balancePhi)}
+                      {currency(snap6(balancePhi))}
                     </div>
                   </header>
                   <div className="card-bd">
@@ -1169,7 +1399,7 @@ const ValuationModal: React.FC<Props> = ({
                           >
                             <div className="mono small">{g.hash}</div>
                             <div className="mono small">
-                              {currency(Number(g.value))}
+                              {currency(snap6(Number(g.value)))}
                             </div>
                           </div>
                         ))}
@@ -1303,35 +1533,37 @@ const ValuationModal: React.FC<Props> = ({
         onImport={handleImportedGlyph}
       />
 
-      {/* Send glyph popover */}
+      {/* Send glyph popover (EXACT child value) */}
       {pooledGlyph && sendOpen && (
         <SendSigilModal
           isOpen={sendOpen}
           onClose={() => setSendOpen(false)}
           sourceGlyph={{
             ...pooledGlyph,
-            value: Number(sendAmountPhi.toFixed(6)),
+            value: snap6(sendAmountPhi), // exact 6dp child value
           }}
           onSend={(newGlyph) => {
-            const spent = Math.max(0, Number(newGlyph.value ?? 0));
-            setBalancePhi((prev: number) => Math.max(0, prev - spent));
+            const spent = snap6(Number(newGlyph.value ?? 0));
+            setBalancePhi((prev: number) => subΦ(prev, spent)); // exact deduct
             setSendOpen(false);
           }}
         />
       )}
 
-      {/* Mint ΦGlyph popover */}
+      {/* Mint ΦGlyph popover (EXACT exhale value) */}
       <MintCompositeModal
         isOpen={mintOpen}
         onClose={() => setMintOpen(false)}
         donors={donors}
-        balancePhi={balancePhi}
-        balanceForMintPhi={balanceForMintPhi}
-        setBalanceForMintPhi={setBalanceForMintPhi}
+        balancePhi={snap6(balancePhi)}
+        balanceForMintPhi={snap6(balanceForMintPhi)}
+        setBalanceForMintPhi={(v) =>
+          setBalanceForMintPhi(snap6(Math.max(0, v)))
+        }
         addDonor={addDonor}
         removeDonor={removeDonor}
         updateDonor={updateDonor}
-        totalDonorAmount={totalDonorAmount}
+        totalDonorAmount={totalDonorAmount} // pass exact 6dp
         onMinted={() => {
           // hook: toast/log if desired
         }}

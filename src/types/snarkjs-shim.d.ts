@@ -1,13 +1,24 @@
 // src/types/snarkjs-shim.d.ts
 declare module "snarkjs" {
-    export namespace groth16 {
-      export function verify(
-        vkey: Record<string, unknown>,
-        publicSignals:
-          | readonly (string | number | bigint)[]
-          | Record<string, string | number | bigint>,
-        proof: Record<string, unknown>
-      ): Promise<boolean>;
-    }
-  }
-  
+  export type Groth16Proof = {
+    pi_a: [string, string, string?];
+    pi_b: [[string, string], [string, string], [string, string]?];
+    pi_c: [string, string, string?];
+    protocol?: "groth16";
+    curve?: string;
+  };
+
+  export const groth16: {
+    fullProve(
+      input: Record<string, string | number | bigint>,
+      wasmPath: string,
+      zkeyPath: string
+    ): Promise<{ proof: Groth16Proof; publicSignals: string[] }>;
+
+    verify(
+      vkey: unknown,
+      publicSignals: string[],
+      proof: Groth16Proof
+    ): Promise<boolean>;
+  };
+}

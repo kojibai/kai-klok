@@ -1,3 +1,4 @@
+// src/components/valuation/chart/LiveChart.tsx
 "use client";
 
 import React, {
@@ -22,19 +23,32 @@ import {
   Tooltip,
 } from "recharts";
 import type { LabelProps, TooltipProps as RTooltipProps } from "recharts";
-import { currency } from "../display";
+import { currency, usd } from "../display";
 import type { ChartPoint } from "../series";
 
-/** ─────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────
+ * Extended point fields we may carry alongside core series.
+ * (No `any`; all optional and strictly typed.)
+ * ───────────────────────────────────────────────────────────── */
+type WithFXUSD = {
+  fx?: number;         // per-point FX (USD per Φ)
+  usdPerPhi?: number;  // alias of fx
+  usd?: number;        // per-point price in USD
+  usdPrice?: number;   // alias
+};
+
+type FXPoint = ChartPoint & WithFXUSD;
+
+/* ─────────────────────────────────────────────────────────────
  * Props
  * ───────────────────────────────────────────────────────────── */
 export type LiveChartProps = {
-  data: ChartPoint[];         // { i: number; value: number; ... }
-  live: number;               // latest price
-  pv: number;                 // intrinsic
-  premiumX: number;           // premium multiplier
-  momentX: number;            // moment multiplier
-  colors: string[];           // [primary, ...]
+  data: ChartPoint[];   // parent model series
+  live: number;         // latest display price in Φ (child Φ if child)
+  pv: number;           // intrinsic PV (in Φ; will scale as needed)
+  premiumX: number;
+  momentX: number;
+  colors: string[];
   height?: number;
   reflowKey?: number;
 
@@ -43,11 +57,21 @@ export type LiveChartProps = {
 
   /** Percent padding added to Y scale. Default: 7% */
   yPaddingPct?: number;
+
+  /** If provided, treat the *last* point as this exact child Φ (6dp). */
+  childPhiExact?: number | null;
+
+  /** Scale PV line proportionally to child (default: true). */
+  scalePvToChild?: boolean;
+
+  /** Live FX (USD per Φ) used when a point lacks its own fx. */
+  usdPerPhi: number;
+
+  /** If you know it's a child glyph, pass true to force USD mode. */
+  isChildGlyph?: boolean;
 };
 
-/** ─────────────────────────────────────────────────────────────
- * Recharts helper types
- * ───────────────────────────────────────────────────────────── */
+/* Recharts helper types */
 type MouseMoveFunc = NonNullable<React.ComponentProps<typeof LineChart>["onMouseMove"]>;
 type MouseLeaveFunc = NonNullable<React.ComponentProps<typeof LineChart>["onMouseLeave"]>;
 type ClickFunc = NonNullable<React.ComponentProps<typeof LineChart>["onClick"]>;
@@ -59,14 +83,12 @@ type StateWithPayload = {
   activeTooltipIndex?: number | null;
 };
 
-/** Safe Math */
+/* Safe Math */
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
 
 /** Pixel → index: needs container width */
-/* NOTE: Some @types/react versions infer `RefObject<HTMLDivElement | null>` here.
-   We explicitly cast on return to satisfy `ref` prop’s `Ref<HTMLDivElement>` shape. */
-function useContainerWidth(): [React.RefObject<HTMLDivElement>, number] {
-  const ref = useRef<HTMLDivElement>(null);
+function useContainerWidth(): [React.MutableRefObject<HTMLDivElement | null>, number] {
+  const ref = useRef<HTMLDivElement | null>(null);
   const [w, setW] = useState<number>(0);
 
   useEffect(() => {
@@ -84,12 +106,9 @@ function useContainerWidth(): [React.RefObject<HTMLDivElement>, number] {
     return () => ro.disconnect();
   }, []);
 
-  return [ref as unknown as React.RefObject<HTMLDivElement>, w];
+  return [ref, w];
 }
 
-/** ─────────────────────────────────────────────────────────────
- * Component
- * ───────────────────────────────────────────────────────────── */
 export default function LiveChart({
   data,
   live,
@@ -101,6 +120,10 @@ export default function LiveChart({
   reflowKey = 0,
   initialWindow = 256,
   yPaddingPct = 7,
+  childPhiExact = null,
+  scalePvToChild = true,
+  usdPerPhi,
+  isChildGlyph = false,
 }: LiveChartProps) {
   // Container & width (for pan/zoom calculations)
   const [wrapRef, wrapWidth] = useContainerWidth();
@@ -111,6 +134,68 @@ export default function LiveChart({
   const dataMin = hasData ? safeData[0].i : 0;
   const dataMax = hasData ? safeData[safeData.length - 1].i : 1;
   const lastIndex = hasData ? safeData[safeData.length - 1].i : 0;
+  const lastParentValue = hasData ? safeData[safeData.length - 1].value : live;
+
+  // Detect child glyph (explicit or live differs from parent last tick)
+  const childΦ = useMemo<number | null>(() => {
+    if (childPhiExact != null && Number.isFinite(childPhiExact)) return childPhiExact;
+    const diff = Math.abs(live - lastParentValue);
+    return diff > 1e-9 ? live : null;
+  }, [childPhiExact, live, lastParentValue]);
+
+  // Force child mode from prop if known
+  const isChild = isChildGlyph || childΦ != null;
+  const isUsdMode = isChild; // requirement: child glyph charts in USD; parent in Φ
+
+  /* Accessors for per-point FX / USD with strict typing */
+  const fxOf = useCallback(
+    (p?: FXPoint): number => {
+      const fx = (p?.fx ?? p?.usdPerPhi);
+      if (typeof fx === "number" && Number.isFinite(fx)) return fx;
+      return Number.isFinite(usdPerPhi) ? usdPerPhi : 0;
+    },
+    [usdPerPhi]
+  );
+
+  /** USD value for a *point* based on that point’s Φ and FX (or point-provided USD). */
+  const usdFromPoint = useCallback(
+    (p: FXPoint): number => {
+      if (typeof p.usd === "number" && Number.isFinite(p.usd)) return p.usd;
+      if (typeof p.usdPrice === "number" && Number.isFinite(p.usdPrice)) return p.usdPrice;
+      const phiAtPoint = p.value; // parent series value at that point (Φ)
+      return fxOf(p) * phiAtPoint;
+    },
+    [fxOf]
+  );
+
+  // Build plot series in the correct units:
+  // - Parent: Φ series as-is (value in Φ)
+  // - Child: USD series (value in USD), derived from per-point Φ * per-point FX (or per-point USD override)
+  const plotData = useMemo<ChartPoint[]>(() => {
+    if (!hasData) return safeData;
+    if (!isUsdMode) return safeData; // Φ mode for parent
+
+    return safeData.map((p) => {
+      const fp: FXPoint = p; // widen to allow optional fields
+      return { ...p, value: usdFromPoint(fp) };
+    });
+  }, [hasData, safeData, isUsdMode, usdFromPoint]);
+
+  // PV display (in Φ), optionally scaled by child ratio
+  const pvPhi = useMemo<number>(() => {
+    if (!scalePvToChild || childΦ == null || !Number.isFinite(lastParentValue) || lastParentValue <= 0) {
+      return pv;
+    }
+    const r = childΦ / lastParentValue;
+    return pv * r;
+  }, [pv, scalePvToChild, childΦ, lastParentValue]);
+
+  // PV line in chart units
+  const pvChart = useMemo<number>(() => (isUsdMode ? pvPhi * fxOf() : pvPhi), [isUsdMode, pvPhi, fxOf]);
+
+  // Live values in both units
+  const livePhi = live; // Φ (childΦ if child)
+  const liveUsd = useMemo(() => livePhi * (Number.isFinite(usdPerPhi) ? usdPerPhi : 0), [livePhi, usdPerPhi]);
 
   // Viewport (x-domain) state
   const [xMin, setXMin] = useState<number>(() => Math.max(dataMin, lastIndex - (initialWindow - 1)));
@@ -136,17 +221,18 @@ export default function LiveChart({
     const hi = Number.MAX_SAFE_INTEGER;
     let minV = hi;
     let maxV = lo;
-    for (let i = 0; i < safeData.length; i += 1) {
-      const p = safeData[i];
+    for (let i = 0; i < plotData.length; i += 1) {
+      const p = plotData[i];
       if (p.i < xMin || p.i > xMax) continue;
       const v = p.value;
       if (v < minV) minV = v;
       if (v > maxV) maxV = v;
     }
     if (minV === hi || maxV === lo) return [0, 1];
-    const pad = Math.max(1e-9, (maxV - minV) * (yPaddingPct / 100));
+    const span = maxV - minV;
+    const pad = Math.max(1e-9, (span || Math.abs(minV) || 1) * (yPaddingPct / 100));
     return [minV - pad, maxV + pad];
-  }, [safeData, xMin, xMax, yPaddingPct, hasData]);
+  }, [plotData, xMin, xMax, yPaddingPct, hasData]);
 
   // Hover & pin (cursor / selection)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -155,62 +241,74 @@ export default function LiveChart({
   /** Gradient id (stable for chart instance) */
   const areaId = useMemo(() => `grad-${Math.random().toString(36).slice(2)}`, []);
 
-  /** Tiny H/L tag */
-  const tinyTag =
-    (text: string) =>
-    (props: LabelProps): React.ReactElement<SVGElement> => {
-      const vb = props.viewBox as { x?: number; y?: number } | undefined;
-      const x = typeof vb?.x === "number" ? vb.x : 0;
-      const y = typeof vb?.y === "number" ? vb.y : 0;
-      const w = Math.max(18, text.length * 8);
-      return (
-        <g transform={`translate(${x + 6},${y - 10})`} aria-hidden="true">
-          <rect
-            x={0}
-            y={-10}
-            rx={6}
-            ry={6}
-            width={w}
-            height={16}
-            fill="rgba(0,0,0,.55)"
-            stroke="rgba(255,255,255,.25)"
-            strokeWidth={1}
-          />
-          <text x={w / 2} y={2} fontSize={11} fontWeight={800} textAnchor="middle" fill={colors[0]}>
-            {text}
-          </text>
-        </g>
-      );
-    };
+  /** Tiny pill tag factory (H/L/child Φ) — typed for Recharts Label content */
+  const tinyTag = useCallback(
+    (text: string): LabelProps["content"] =>
+      (props: LabelProps) => {
+        const vb = props.viewBox as { x?: number; y?: number } | undefined;
+        const x = typeof vb?.x === "number" ? vb.x : 0;
+        const y = typeof vb?.y === "number" ? vb.y : 0;
+        const w = Math.max(18, text.length * 8);
+        return (
+          <g transform={`translate(${x + 6},${y - 10})`} aria-hidden="true">
+            <rect
+              x={0}
+              y={-10}
+              rx={6}
+              ry={6}
+              width={w}
+              height={16}
+              fill="rgba(0,0,0,.55)"
+              stroke="rgba(255,255,255,.25)"
+              strokeWidth={1}
+            />
+            <text x={w / 2} y={2} fontSize={11} fontWeight={800} textAnchor="middle" fill={colors[0]}>
+              {text}
+            </text>
+          </g>
+        );
+      },
+    [colors]
+  );
 
-  /** Last price tag */
-  const renderPriceTag = useCallback(
-    (props: LabelProps): React.ReactElement<SVGElement> => {
+  /** Last price tag — typed as LabelProps["content"] */
+  const renderPriceTag: LabelProps["content"] = useCallback(
+    (props: LabelProps) => {
       const vb = props.viewBox as { x?: number; y?: number } | undefined;
       const x = typeof vb?.x === "number" ? vb.x : 0;
       const y = typeof vb?.y === "number" ? vb.y : 0;
-      const tag = currency(live);
-      const w = Math.max(64, tag.length * 8.2) + 12;
+
+      const phiTag = currency(livePhi);
+      const usdTag = usd(liveUsd);
+
+      const w = Math.max(84, Math.max(phiTag.length, usdTag.length) * 8.2) + 12;
+      const h = 38; // two lines
+
       return (
-        <g transform={`translate(${x + 10},${y - 10})`} aria-hidden="true">
+        <g transform={`translate(${x + 10},${y - 12})`} aria-hidden="true">
           <rect
             x={0}
-            y={-24}
+            y={-h}
             rx={8}
             ry={8}
             width={w}
-            height={22}
+            height={h}
             fill="rgba(0,0,0,.55)"
             stroke="rgba(255,255,255,.25)"
             strokeWidth={1}
           />
-          <text x={8} y={-9} fontSize={12} fontWeight={800} fill={colors[0]}>
-            {tag}
+          {/* Φ line */}
+          <text x={8} y={-h + 14} fontSize={12} fontWeight={800} fill={colors[0]}>
+            {phiTag}
+          </text>
+          {/* USD line (live) */}
+          <text x={8} y={-h + 28} fontSize={11} fontWeight={700} fill="rgba(255,255,255,.85)">
+            {usdTag}
           </text>
         </g>
       );
     },
-    [colors, live]
+    [colors, livePhi, liveUsd]
   );
 
   /** Pick payload point from Recharts event */
@@ -233,7 +331,7 @@ export default function LiveChart({
     setPinnedIdx((cur) => (cur === p.i ? null : p.i));
   };
 
-  /** Tooltip (Robinhood/TV style) */
+  /** Tooltip (chart-units first; also show the other unit) */
   type ChartTooltipProps = RTooltipProps<RechartsValue, RechartsName> & {
     payload?: Array<{ payload: ChartPoint }>;
   };
@@ -242,16 +340,51 @@ export default function LiveChart({
       const { active, payload } = props;
       if (!active || !payload?.length) return null;
       const p = payload[0].payload;
-      const price = p.value;
-      const premOnly = Math.max(0, price - pv);
-      const startVisible = safeData.find((pt) => pt.i >= xMin)?.value ?? price;
-      const chg = ((price - startVisible) / (startVisible || 1)) * 100;
+
+      // Chart value (already in chart units via plotData)
+      const chartVal = (p.value as number) ?? 0;
+
+      // Derive both units for display
+      const fx = fxOf(p as FXPoint);
+
+      // Φ value to show in tooltip:
+      // - parent mode -> Φ at point (chartVal)
+      // - child mode  -> the child’s Φ (fixed), fall back to liveΦ if needed
+      const phiHere = isUsdMode ? (childΦ ?? livePhi) : chartVal;
+
+      // USD value to show in tooltip:
+      // - parent mode -> parent's USD at point (chartVal * fx)
+      // - child mode  -> **child’s USD** at the hovered point (child Φ × point FX)
+      //    (this is the only change requested; ensures tooltip reflects CHILD USD)
+      const usdHereNum = isUsdMode ? (phiHere * fx) : (chartVal * fx); // ← FIXED
+
+      // Change vs first visible in *chart units*
+      const firstVisible = plotData.find((pt) => pt.i >= xMin)?.value ?? chartVal;
+      const fv = typeof firstVisible === "number" ? firstVisible : Number(firstVisible);
+      const chg = ((chartVal - fv) / (fv || 1)) * 100;
+
+      // PV & premium in chart units
+      const pvHereChart = pvChart;
+      const premOnlyChart = Math.max(0, chartVal - pvHereChart);
 
       return (
         <div className="tt-card">
-          <div className="tt-row"><span>Price</span><strong>{currency(price)}</strong></div>
-          <div className="tt-row"><span>Intrinsic (PV)</span><strong>{currency(pv)}</strong></div>
-          <div className="tt-row"><span>Premium</span><strong>{currency(premOnly)}</strong></div>
+          <div className="tt-row">
+            <span>Price ({isUsdMode ? "USD" : "Φ"})</span>
+            <strong>{isUsdMode ? usd(usdHereNum) : currency(phiHere)}</strong>
+          </div>
+          <div className="tt-row">
+            <span>{isUsdMode ? "Φ" : "USD"}</span>
+            <strong>{isUsdMode ? currency(phiHere) : usd(usdHereNum)}</strong>
+          </div>
+          <div className="tt-row">
+            <span>Intrinsic (PV)</span>
+            <strong>{isUsdMode ? usd(pvHereChart) : currency(pvHereChart)}</strong>
+          </div>
+          <div className="tt-row">
+            <span>Premium</span>
+            <strong>{isUsdMode ? usd(premOnlyChart) : currency(premOnlyChart)}</strong>
+          </div>
           <div className="tt-row"><span>Premium ×</span><strong>{(premiumX ?? 1).toFixed(6)}</strong></div>
           <div className="tt-row"><span>Moment ×</span><strong>{(momentX ?? 1).toFixed(6)}</strong></div>
           <div className="tt-row">
@@ -263,15 +396,15 @@ export default function LiveChart({
         </div>
       );
     },
-    [pv, premiumX, momentX, safeData, xMin]
+    [isUsdMode, childΦ, livePhi, plotData, xMin, pvChart, premiumX, momentX, fxOf]
   );
 
   /** Active point under cursor/pin */
   const activePoint = useMemo(() => {
     const activeIdx = pinnedIdx ?? hoverIdx ?? lastIndex;
     if (activeIdx == null) return null;
-    return safeData.find((d) => d.i === activeIdx) ?? null;
-  }, [safeData, hoverIdx, pinnedIdx, lastIndex]);
+    return plotData.find((d) => d.i === activeIdx) ?? null;
+  }, [plotData, hoverIdx, pinnedIdx, lastIndex]);
 
   /** ── Pan & Zoom (wheel / drag / pinch) */
   const draggingRef = useRef<boolean>(false);
@@ -394,16 +527,16 @@ export default function LiveChart({
     [hasData, dataMin, dataMax, setDomain]
   );
 
-  /** Local window high/low around the active index */
+  /** Local window high/low around the active index (in chart units) */
   const localHL = useMemo<{ low: number; high: number; start: number; end: number } | null>(() => {
     if (!hasData) return null;
-    const activeIdx = pinnedIdx ?? hoverIdx ?? safeData[safeData.length - 1]?.i ?? xMax;
+    const activeIdx = pinnedIdx ?? hoverIdx ?? plotData[plotData.length - 1]?.i ?? xMax;
     const start = Math.max(xMin, activeIdx - Math.floor((xMax - xMin) * 0.1));
     const end = Math.min(xMax, activeIdx + Math.floor((xMax - xMin) * 0.1));
     let low = Number.POSITIVE_INFINITY;
     let high = Number.NEGATIVE_INFINITY;
-    for (let i = 0; i < safeData.length; i += 1) {
-      const p = safeData[i];
+    for (let i = 0; i < plotData.length; i += 1) {
+      const p = plotData[i];
       if (p.i < start || p.i > end) continue;
       const v = p.value;
       if (v < low) low = v;
@@ -411,7 +544,7 @@ export default function LiveChart({
     }
     if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
     return { low, high, start, end };
-  }, [safeData, hoverIdx, pinnedIdx, xMin, xMax, hasData]);
+  }, [plotData, hoverIdx, pinnedIdx, xMin, xMax, hasData]);
 
   /** Render */
   if (!hasData) {
@@ -429,6 +562,8 @@ export default function LiveChart({
       </div>
     );
   }
+
+  const childBaselineY = isUsdMode ? (childΦ! * fxOf()) : childΦ!;
 
   return (
     <div
@@ -454,7 +589,7 @@ export default function LiveChart({
 
       <ResponsiveContainer key={`rc-${reflowKey}`} width="100%" height={height}>
         <LineChart
-          data={safeData}
+          data={plotData}
           margin={{ top: 10, right: 12, bottom: 6, left: 4 }}
           onMouseMove={onMove}
           onMouseLeave={onLeave}
@@ -468,25 +603,12 @@ export default function LiveChart({
           </defs>
 
           <CartesianGrid stroke="rgba(255,255,255,.08)" vertical={false} strokeDasharray="4 6" />
-          <XAxis
-            dataKey="i"
-            type="number"
-            domain={[xMin, xMax]}
-            axisLine={false}
-            tickLine={false}
-            hide
-          />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            hide
-            domain={[yMin, yMax]}
-            width={0}
-          />
+          <XAxis dataKey="i" type="number" domain={[xMin, xMax]} axisLine={false} tickLine={false} hide />
+          <YAxis axisLine={false} tickLine={false} hide domain={[yMin, yMax]} width={0} />
 
-          {/* PV line + label */}
+          {/* PV line + label (in chart units) */}
           <ReferenceLine
-            y={pv}
+            y={pvChart}
             stroke="rgba(255,255,255,.55)"
             strokeDasharray="5 7"
             strokeWidth={1}
@@ -509,7 +631,39 @@ export default function LiveChart({
             }
           />
 
-          {/* Area fill + price line */}
+          {/* CHILD baseline (Φ constant; draw at USD or Φ according to mode) */}
+          {isChild && (
+            <ReferenceLine
+              y={childBaselineY}
+              stroke={colors[0]}
+              strokeOpacity={0.35}
+              strokeDasharray="2 4"
+              strokeWidth={1}
+              ifOverflow="extendDomain"
+              label={
+                <Label
+                  position="insideTopRight"
+                  content={(props: LabelProps): React.ReactElement<SVGElement> => {
+                    const vb = props.viewBox as { x?: number; y?: number } | undefined;
+                    const x = (vb?.x ?? 0) - 6;
+                    const y = (vb?.y ?? 0) + 12;
+                    const tag = isUsdMode ? "child Φ × FX (baseline)" : "child Φ (constant)";
+                    const w = Math.max(140, tag.length * 6.6);
+                    return (
+                      <g transform={`translate(${x - w},${y})`} aria-hidden="true">
+                        <rect x={0} y={-12} rx={6} ry={6} width={w} height={18} fill="rgba(0,0,0,.45)" stroke="rgba(255,255,255,.2)" strokeWidth={1} />
+                        <text x={w / 2} y={2} fontSize={11} fontWeight={700} textAnchor="middle" fill={colors[0]}>
+                          {tag}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
+              }
+            />
+          )}
+
+          {/* Area fill + price line (value is Φ for parent; USD for child) */}
           <Area type="monotone" dataKey="value" stroke="none" fill={`url(#${areaId})`} isAnimationActive={false} />
           <Line
             type="monotone"
@@ -521,7 +675,7 @@ export default function LiveChart({
             activeDot={{ r: 5 }}
           />
 
-          {/* Local H/L band around active index */}
+          {/* Local H/L band around active index (chart units) */}
           {localHL && (
             <ReferenceArea
               x1={localHL.start}
@@ -548,10 +702,10 @@ export default function LiveChart({
                 {localHL && (
                   <>
                     <ReferenceDot x={activeIdx} y={localHL.high} r={0} ifOverflow="extendDomain">
-                      <Label content={tinyTag("H") as unknown as LabelProps["content"]} />
+                      <Label content={tinyTag("H")} />
                     </ReferenceDot>
                     <ReferenceDot x={activeIdx} y={localHL.low} r={0} ifOverflow="extendDomain">
-                      <Label content={tinyTag("L") as unknown as LabelProps["content"]} />
+                      <Label content={tinyTag("L")} />
                     </ReferenceDot>
                   </>
                 )}
@@ -559,11 +713,26 @@ export default function LiveChart({
             );
           })()}
 
-          {/* Last price marker + tag */}
-          <ReferenceDot x={lastIndex} y={live} r={5.5} fill={colors[0]} stroke="rgba(0,0,0,.55)" strokeWidth={1} ifOverflow="extendDomain" />
-          <ReferenceDot x={lastIndex} y={live} r={0} ifOverflow="extendDomain">
+          {/* Last price marker + tag: y in CHART UNITS */}
+          <ReferenceDot
+            x={lastIndex}
+            y={isUsdMode ? liveUsd : livePhi}
+            r={5.5}
+            fill={colors[0]}
+            stroke="rgba(0,0,0,.55)"
+            strokeWidth={1}
+            ifOverflow="extendDomain"
+          />
+          <ReferenceDot x={lastIndex} y={isUsdMode ? liveUsd : livePhi} r={0} ifOverflow="extendDomain">
             <Label content={renderPriceTag} />
           </ReferenceDot>
+
+          {/* Tiny "child Φ" badge at tail when applicable */}
+          {isChild && (
+            <ReferenceDot x={lastIndex} y={isUsdMode ? liveUsd : livePhi} r={0} ifOverflow="extendDomain">
+              <Label content={tinyTag("child Φ")} />
+            </ReferenceDot>
+          )}
 
           <Tooltip content={ChartTooltip} wrapperStyle={{ background: "transparent", border: "0" }} cursor={false} />
         </LineChart>

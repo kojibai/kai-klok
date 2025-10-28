@@ -1,5 +1,5 @@
 // public/service-worker.js
-/* Maturah SW — offline-first + route mapping for /s/* (sigil links)
+/* KAIKLOK SW — offline-first + route mapping for /s/* (sigil links)
    - Instant offline boot (app-shell)
    - Seeds known sigil links from /sigils-index.json (optional)
    - Lazily maps any visited route → shell so it re-opens offline next time
@@ -7,7 +7,7 @@
    - Audio/video range support; fonts cached; CDNs handled
 */
 
-const VERSION = "v82.9"; // ⬅️ bump every deploy
+const VERSION = "v89.2"; // ⬅️ bump every deploy
 const PREFIX  = "Kaiklok";
 const PRECACHE = `${PREFIX}-precache-${VERSION}`;
 const RUNTIME  = `${PREFIX}-runtime-${VERSION}`;
