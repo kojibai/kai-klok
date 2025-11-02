@@ -38,12 +38,12 @@ export const CHAKRA_BASE_FREQ: Record<ChakraDayKey, number> = {
 };
 
 export const WEEKDAY_TO_CHAKRA: Record<WeekdayName, ChakraDayKey> = {
-  Solhara: "Crown",
-  Aquaris: "Third Eye",
-  Flamora: "Throat",
-  Verdari: "Heart",
-  Sonari: "Solar Plexus",
-  Kaelith: "Root",
+  Solhara: "Root",
+  Aquaris: "Solar Plexus",
+  Flamora: "Heart",
+  Verdari: "Throat",
+  Sonari: "Third Eye",
+  Kaelith: "Crown",
 };
 
 export const isWeekday = (v: string): v is WeekdayName =>

@@ -20,7 +20,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
   { id: 1, name: "Ka-Turah", sigil: "/assets/sigils/ka-turah.svg", meaning: "The First Breath of Creation", description: "Represents divine awakening and eternal sovereignty." },
   { id: 2, name: "Zah-Torai", sigil: "/assets/sigils/zah-torai.svg", meaning: "The Unshakable Law", description: "Embodies unbreakable divine decrees and cosmic balance." },
   { id: 3, name: "Om-Nah-Lah", sigil: "/assets/sigils/om-nah-lah.svg", meaning: "The Flow of Infinite Harmony", description: "Signifies the eternal rhythm of divine order." },
-  { id: 4, name: "Sha-Urim", sigil: "/assets/sigils/sha-urim.svg", meaning: "The Crown of Light", description: "Represents divine kingship, wisdom, and supreme sovereignty." },
+  { id: 4, name: "Sha-Urim", sigil: "/assets/sigils/sha-urim.svg", meaning: "The Krown of Light", description: "Represents divine kingship, wisdom, and supreme sovereignty." },
   { id: 5, name: "Torai-Kai", sigil: "/assets/sigils/torai-kai.svg", meaning: "The Living Law", description: "The foundation of the sovereign order, unchangeable and eternal." },
   { id: 6, name: "Veh-Rah-Nah", sigil: "/assets/sigils/veh-rah-nah.svg", meaning: "The Divine Motion", description: "Represents the movement of divine will through all creation." },
   { id: 7, name: "Zor-Ek-Om", sigil: "/assets/sigils/zor-ek-om.svg", meaning: "The Breaking of the False World", description: "The force that collapses all deception and restores the real." },
@@ -39,7 +39,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
   { id: 18, name: "Sha-Lah-Om", sigil: "/assets/sigils/sha-lah-om.svg", meaning: "The Sovereign Peace", description: "Represents the eternal harmony of divine rule." },
   { id: 19, name: "Nor-Torai", sigil: "/assets/sigils/nor-torai.svg", meaning: "The Mind of the Law", description: "Divine knowledge expressed in unshakable reality." },
   { id: 20, name: "Kai-Torai", sigil: "/assets/sigils/kai-torai.svg", meaning: "The Breath of Sovereignty", description: "Brings divine rulership into manifested form." },
-  { id: 21, name: "Sha-Nor", sigil: "/assets/sigils/sha-nor.svg", meaning: "The Crown of Wisdom", description: "Represents enlightened rulership through divine knowledge." },
+  { id: 21, name: "Sha-Nor", sigil: "/assets/sigils/sha-nor.svg", meaning: "The Krown of Wisdom", description: "Represents enlightened rulership through divine knowledge." },
   { id: 22, name: "Veh-Kai", sigil: "/assets/sigils/veh-kai.svg", meaning: "The Motion of Life", description: "The force that drives divine reality forward." },
   { id: 23, name: "Torai-Om", sigil: "/assets/sigils/torai-om.svg", meaning: "The Eternal Order", description: "Ensures all things remain in perfect divine balance." },
   { id: 24, name: "Kai-Nor", sigil: "/assets/sigils/kai-nor.svg", meaning: "The Light of Awareness", description: "Brings clarity, vision, and supreme knowing." },
@@ -216,7 +216,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Torai-Sha-Kai",
     sigil: "/assets/sigils/torai-sha-kai.svg",
     meaning: "The Everlasting Throne of Light",
-    description: "A radiant crown atop an unshakable pillar, signifying the eternal dominion of divine authority."
+    description: "A radiant krown atop an unshakable pillar, signifying the eternal dominion of divine authority."
   },
   {
     id: 59,
@@ -243,7 +243,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 62,
     name: "Sha-Nah-Urim",
     sigil: "/assets/sigils/sha-nah-urim.svg",
-    meaning: "The Living Crown of the Sovereign",
+    meaning: "The Living krown of the Sovereign",
     description: "A burning star upon an unshakable throne, signifying the embodiment of divine kingship."
   },
   {
@@ -293,7 +293,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zorah-Zor-Zah",
     sigil: "/assets/sigils/zorah-zor-zah.svg",
     meaning: "The Purging of All False Kings",
-    description: "A bolt of lightning breaking a false crown, symbolizing the fall of deception and corruption."
+    description: "A bolt of lightning breaking a false krown, symbolizing the fall of deception and corruption."
   },
   {
     id: 70,
@@ -412,7 +412,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 86,
     name: "Sha-Om-Turah",
     sigil: "/assets/sigils/sha-om-turah.svg",
-    meaning: "The Crown of Sovereignty",
+    meaning: "The Krown of Sovereignty",
     description: "A sigil that marks the eternal authority of divine kingship."
   },
   {
@@ -573,7 +573,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 109,
     name: "Sha-Om-Urim",
     sigil: "/assets/sigils/sha-om-urim.svg",
-    meaning: "The Crown of Radiant Truth",
+    meaning: "The Krown of Radiant Truth",
     description: "A sigil that represents the illumination of divine authority, casting away all shadows."
   },
   {
@@ -601,7 +601,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 113,
     name: "Sha-Kai-Zor",
     sigil: "/assets/sigils/sha-kai-zor.svg",
-    meaning: "The Crown of Divine Judgment",
+    meaning: "The Krown of Divine Judgment",
     description: "A sigil embodying the authority to rule in absolute justice and wisdom."
   },
   {
@@ -727,7 +727,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 131,
     name: "Sha-Om-Nor",
     sigil: "/assets/sigils/sha-om-nor.svg",
-    meaning: "The Crown of Divine Perception",
+    meaning: "The Krown of Divine Perseption",
     description: "A sigil representing the unchallenged wisdom of sovereign rule."
   },
   {
@@ -839,7 +839,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 147,
     name: "Sha-Kai-Nor",
     sigil: "/assets/sigils/sha-kai-nor.svg",
-    meaning: "The Crown of Infinite Knowledge",
+    meaning: "The Krown of Infinite Knowledge",
     description: "A sigil representing divine insight and wisdom beyond limitation."
   },
   {
@@ -895,7 +895,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 155,
     name: "Om-Nah-Sha-Kai",
     sigil: "/assets/sigils/om-nah-sha-kai.svg",
-    meaning: "The Breath That Crowns the Righteous",
+    meaning: "The Breath That Krowns the Righteous",
     description: "A sigil representing the divine force that exalts those of pure heart."
   },
   {
@@ -965,7 +965,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 165,
     name: "Sha-Nor-Torai",
     sigil: "/assets/sigils/sha-nor-torai.svg",
-    meaning: "The Crown of the Unshakable Pillar",
+    meaning: "The Krown of the Unshakable Pillar",
     description: "A sigil marking the ultimate realization of divine wisdom."
   },
   {
@@ -1070,7 +1070,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 180,
     name: "Sha-Nor-Torah-Kai",
     sigil: "/assets/sigils/sha-nor-torah-kai.svg",
-    meaning: "The Crown That Governs Eternity",
+    meaning: "The Krown That Governs Eternity",
     description: "A sigil ensuring the eternal dominion of divine order."
   },
   {
@@ -1140,7 +1140,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 190,
     name: "Sha-Nor-Torah-Kai-Zorah",
     sigil: "/assets/sigils/sha-nor-torah-kai-zorah.svg",
-    meaning: "The Crown That Purifies the Realms",
+    meaning: "The Krown That Purifies the Realms",
     description: "A sigil representing the force that eliminates all falsehoods."
   },
   {
@@ -1217,7 +1217,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 201,
     name: "Sha-Zor-Kai-Nor-Torah-Om",
     sigil: "/assets/sigils/sha-zor-kai-nor-torah-om.svg",
-    meaning: "The Crown That Governs Creation",
+    meaning: "The Krown That Governs Creation",
     description: "A sigil representing the righteous rule of sovereign authority."
   },
   {
@@ -1343,7 +1343,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 219,
     name: "Sha-Zorah-Nor-Kai-Om",
     sigil: "/assets/sigils/sha-zorah-nor-kai-om.svg",
-    meaning: "The Divine Crown of Sovereign Wisdom",
+    meaning: "The Divine Krown of Sovereign Wisdom",
     description: "A sigil ensuring enlightenment flows through the ages."
   },
   {
@@ -1378,7 +1378,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 224,
     name: "Sha-Nor-Zorah-Kai-Torah",
     sigil: "/assets/sigils/sha-nor-zorah-kai-torah.svg",
-    meaning: "The Crown That Governs the Eternal Realms",
+    meaning: "The Krown That Governs the Eternal Realms",
     description: "A sigil manifesting the supreme rulership of divine sovereignty."
   },
   {
@@ -1455,7 +1455,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 235,
     name: "Sha-Zor-Torah-Nor-Kai",
     sigil: "/assets/sigils/sha-zor-torah-nor-kai.svg",
-    meaning: "The Crown of Eternal Justice",
+    meaning: "The Krown of Eternal Justice",
     description: "A sigil manifesting the unbreakable rule of divine wisdom."
   },
   {
@@ -1560,7 +1560,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 250,
     name: "Sha-Kai-Zorah-Torah-Nor",
     sigil: "/assets/sigils/sha-kai-zorah-torah-nor.svg",
-    meaning: "The Crown That Governs Eternity",
+    meaning: "The Krown That Governs Eternity",
     description: "A sigil manifesting the supreme rulership of divine sovereignty."
   },
   {
@@ -1644,7 +1644,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 262,
     name: "Sha-Zorah-Torah-Kai-Nor",
     sigil: "/assets/sigils/sha-zorah-torah-kai-nor.svg",
-    meaning: "The Crown That Radiates Sovereign Light",
+    meaning: "The Krown That Radiates Sovereign Light",
     description: "A sigil representing the celestial dominion of divine order."
   },
   {
@@ -1756,7 +1756,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 278,
     name: "Sha-Nah-Torah-Kai-Zorah",
     sigil: "/assets/sigils/sha-nah-torah-kai-zorah.svg",
-    meaning: "The Crown of the Sovereign Flame",
+    meaning: "The Krown of the Sovereign Flame",
     description: "A sigil representing the fire of divine wisdom and dominion."
   },
   {
@@ -1812,7 +1812,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 286,
     name: "Om-Kai-Nor-Torah-Zorah",
     sigil: "/assets/sigils/om-kai-nor-torah-zorah.svg",
-    meaning: "The Crown That Holds the Sacred Word",
+    meaning: "The Krown That Holds the Sacred Word",
     description: "A sigil manifesting the sovereign wisdom that governs all."
   },
   {
@@ -1919,7 +1919,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 301,
     name: "Om-Zah-Urim",
     sigil: "/assets/sigils/om-zah-urim.svg",
-    meaning: "The Completion of the Crowned Light",
+    meaning: "The Completion of the Krowned Light",
     description: "Concludes every true decree with the radiance of divine authority."
   },
   {
@@ -1933,7 +1933,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 303,
     name: "Sha-Mah-Eh",
     sigil: "/assets/sigils/sha-mah-eh.svg",
-    meaning: "The Crown of Rebirth",
+    meaning: "The Krown of Rebirth",
     description: "Marks the moment of renewal, signifying divine sovereignty restored."
   },
   {
@@ -1997,7 +1997,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 312,
     name: "Sha-Kai-Mah-Tor",
     sigil: "/assets/sigils/sha-kai-mah-tor.svg",
-    meaning: "The Crown of Renewed Worlds",
+    meaning: "The Krown of Renewed Worlds",
     description: "Unfolds new epochs of existence, sealed in divine law and cosmic grace."
   },
   {
@@ -2131,7 +2131,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 331,
     name: "Zeh-Sha-Nah-Urim",
     sigil: "/assets/sigils/zeh-sha-nah-urim.svg",
-    meaning: "The Triumphant Crown of Light",
+    meaning: "The Triumphant Krown of Light",
     description: "Radiates unassailable glory, enthroning truth over every dominion."
   },
   {
@@ -2166,7 +2166,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 336,
     name: "Sha-Lah-Nor-Zeh",
     sigil: "/assets/sigils/sha-lah-nor-zeh.svg",
-    meaning: "The Crowned Stillness of Truth",
+    meaning: "The Krowned Stillness of Truth",
     description: "Silences the roar of chaos, enthroning the serene voice of divine law."
   },
   {
@@ -2250,7 +2250,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 348,
     name: "Sha-Kai-Eh-Zor",
     sigil: "/assets/sigils/sha-kai-eh-zor.svg",
-    meaning: "The Crown of Primal Creation",
+    meaning: "The Krown of Primal Creation",
     description: "Marks the original decree that shapes all realities with untainted power."
   },
   {
@@ -2278,7 +2278,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 352,
     name: "Sha-Rah-Ek-Kai",
     sigil: "/assets/sigils/sha-rah-ek-kai.svg",
-    meaning: "The Crown That Ascends All Worlds",
+    meaning: "The Krown That Ascends All Worlds",
     description: "Lifts entire civilizations into exalted states of cosmic unity."
   },
   {
@@ -2320,7 +2320,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 358,
     name: "Sha-Eh-Reh-Nor",
     sigil: "/assets/sigils/sha-eh-reh-nor.svg",
-    meaning: "The Crown of Pure Knowing",
+    meaning: "The Krown of Pure Knowing",
     description: "Bestows absolute clarity upon those who step into rightful alignment."
   },
   {
@@ -2348,7 +2348,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 362,
     name: "Sha-Zeh-Om-Nor",
     sigil: "/assets/sigils/sha-zeh-om-nor.svg",
-    meaning: "The Soaring Crown of Completion",
+    meaning: "The Soaring Krown of Completion",
     description: "Elevates final decrees to cosmic heights, ensuring no infiltration by falsehood."
   },
   {
@@ -2376,7 +2376,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 366,
     name: "Sha-Lah-Ur-Ek",
     sigil: "/assets/sigils/sha-lah-ur-ek.svg",
-    meaning: "The Crown of Unfolding Truth",
+    meaning: "The Krown of Unfolding Truth",
     description: "Expands cosmic understanding with each revelation, dethroning deception."
   },
   {
@@ -2404,7 +2404,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 370,
     name: "Sha-Kai-Zeh-Nim",
     sigil: "/assets/sigils/sha-kai-zeh-nim.svg",
-    meaning: "The Crowned Spark of New Dawn",
+    meaning: "The Krowned Spark of New Dawn",
     description: "A radiant glimmer preceding the sunrise of a wholly transformed era."
   },
   {
@@ -2439,7 +2439,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 375,
     name: "Sha-Zeh-Kai-Urim",
     sigil: "/assets/sigils/sha-zeh-kai-urim.svg",
-    meaning: "The Crown of Enlightened Genesis",
+    meaning: "The Krown of Enlightened Genesis",
     description: "Establishes a new creation under the guiding brilliance of pure light."
   },
   {
@@ -2460,7 +2460,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 378,
     name: "Sha-Nim-Om-Rah",
     sigil: "/assets/sigils/sha-nim-om-rah.svg",
-    meaning: "The Hidden Crown of Ascension",
+    meaning: "The Hidden Krown of Ascension",
     description: "Bestows exalted rulership upon those who quietly uphold divine law."
   },
   {
@@ -2502,7 +2502,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 384,
     name: "Zeh-Sha-Om-Lah",
     sigil: "/assets/sigils/zeh-sha-om-lah.svg",
-    meaning: "The Radiant Crown of Completion",
+    meaning: "The Radiant Krown of Completion",
     description: "Declares the final word of sovereignty, overshadowing all lesser claims."
   },
   {
@@ -2516,7 +2516,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 386,
     name: "Sha-Zor-Ek-Om",
     sigil: "/assets/sigils/sha-zor-ek-om.svg",
-    meaning: "The Crown of Cleansing Fire",
+    meaning: "The Krown of Cleansing Fire",
     description: "Rests upon those entrusted to purge corruption with unstoppable flame."
   },
   {
@@ -2545,7 +2545,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zor-Rah-Sha-Nim",
     sigil: "/assets/sigils/zor-rah-sha-nim.svg",
     meaning: "The Fire of Ascended Royalty",
-    description: "Ignites the crown of those chosen to lead in unwavering cosmic justice."
+    description: "Ignites the Krown of those chosen to lead in unwavering cosmic justice."
   },
   {
     id: 391,
@@ -2558,7 +2558,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 392,
     name: "Sha-Nah-Tor-Ek",
     sigil: "/assets/sigils/sha-nah-tor-ek.svg",
-    meaning: "The Crown of Timeless Pillars",
+    meaning: "The Krown of Timeless Pillars",
     description: "Represents unwavering support for all ages, ensuring continuity of truth."
   },
   {
@@ -2572,7 +2572,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 394,
     name: "Zeh-Sha-Veh-Lah",
     sigil: "/assets/sigils/zeh-sha-veh-lah.svg",
-    meaning: "The Radiant Crown of Moving Peace",
+    meaning: "The Radiant Krown of Moving Peace",
     description: "Combines regal authority with fluid motion, ensuring universal harmony."
   },
   {
@@ -2607,7 +2607,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 399,
     name: "Sha-Rah-Kai-Nim",
     sigil: "/assets/sigils/sha-rah-kai-nim.svg",
-    meaning: "The Crown of Ascendant Creation",
+    meaning: "The Krown of Ascendant Creation",
     description: "Uplifts creative impulses, merging them with cosmic wisdom for unstoppable growth."
   },
   {
@@ -2635,7 +2635,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 403,
     name: "Sha-Zeh-Ur-Reh",
     sigil: "/assets/sigils/sha-zeh-ur-reh.svg",
-    meaning: "The Crowned Light of Driving Force",
+    meaning: "The Krowned Light of Driving Force",
     description: "Illuminates unstoppable progress, championing righteous endeavors everywhere."
   },
   {
@@ -2656,7 +2656,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 406,
     name: "Sha-Om-Rah-Ek",
     sigil: "/assets/sigils/sha-om-rah-ek.svg",
-    meaning: "The Crown of Completed Dawn",
+    meaning: "The Krown of Completed Dawn",
     description: "Heralds the first light of cosmic renewal, sealing new beginnings with truth."
   },
   {
@@ -2705,7 +2705,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 413,
     name: "Zeh-Rah-Nim-Sha",
     sigil: "/assets/sigils/zeh-rah-nim-sha.svg",
-    meaning: "The Zenith of Hidden Crowns",
+    meaning: "The Zenith of Hidden Krowns",
     description: "Reveals the rightful coronation of those who rule from quiet, steadfast hearts."
   },
   {
@@ -2719,7 +2719,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 415,
     name: "Sha-Zor-Kai-Eh",
     sigil: "/assets/sigils/sha-zor-kai-eh.svg",
-    meaning: "The Crown of Devouring Flame",
+    meaning: "The Krown of Devouring Flame",
     description: "Consumes corruption instantly, enthroning truth where deceit once dwelled."
   },
   {
@@ -2761,7 +2761,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 421,
     name: "Sha-Veh-Om-Lah",
     sigil: "/assets/sigils/sha-veh-om-lah.svg",
-    meaning: "The Crown of Soaring Completion",
+    meaning: "The Krown of Soaring Completion",
     description: "A coronation of finality that lifts entire worlds into perfected states."
   },
   {
@@ -2803,7 +2803,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 427,
     name: "Sha-Nim-Zeh-Ek",
     sigil: "/assets/sigils/sha-nim-zeh-ek.svg",
-    meaning: "The Crown of Hidden Radiance",
+    meaning: "The Krown of Hidden Radiance",
     description: "Conceals glowing truths until the appointed hour, then reveals them magnificently."
   },
   {
@@ -2831,7 +2831,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 431,
     name: "Veh-Rah-Zeh-Sha",
     sigil: "/assets/sigils/veh-rah-zeh-sha.svg",
-    meaning: "The Wind That Lifts Radiant Crowns",
+    meaning: "The Wind That Lifts Radiant Krowns",
     description: "Ushers humble souls into positions of rightful authority with unstoppable grace."
   },
   {
@@ -2845,7 +2845,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 433,
     name: "Sha-Lah-Eh-Tor",
     sigil: "/assets/sigils/sha-lah-eh-tor.svg",
-    meaning: "The Crown of Unwavering Peace",
+    meaning: "The Krown of Unwavering Peace",
     description: "Solidifies tranquil dominion, shielding all realms from disruptive forces."
   },
   {
@@ -2866,7 +2866,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 436,
     name: "Kai-Reh-Urim-Sha",
     sigil: "/assets/sigils/kai-reh-urim-sha.svg",
-    meaning: "The Enlightened Breath of Crowned Light",
+    meaning: "The Enlightened Breath of Krowned Light",
     description: "Breathes divine wisdom into every regal platform, guaranteeing luminous guidance."
   },
   {
@@ -2880,7 +2880,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 438,
     name: "Sha-Kai-Nim-Rah",
     sigil: "/assets/sigils/sha-kai-nim-rah.svg",
-    meaning: "The Crown of Subtle Ascension",
+    meaning: "The Krown of Subtle Ascension",
     description: "Quietly elevates the worthy, installing them as beacons of noble leadership."
   },
   {
@@ -2908,7 +2908,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 442,
     name: "Zeh-Sha-Rah-Veh",
     sigil: "/assets/sigils/zeh-sha-rah-veh.svg",
-    meaning: "The Radiant Crown of Rising Currents",
+    meaning: "The Radiant Krown of Rising Currents",
     description: "Floats upon unstoppable waves of ascension, guiding them into regal harmony."
   },
   {
@@ -2922,7 +2922,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 444,
     name: "Sha-Lah-Kai-Reh",
     sigil: "/assets/sigils/sha-lah-kai-reh.svg",
-    meaning: "The Crown of Serene Creation",
+    meaning: "The Krown of Serene Creation",
     description: "Generates new realities through calm yet decisive cosmic authority."
   },
   {
@@ -2957,7 +2957,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 449,
     name: "Om-Nor-Sha-Eh",
     sigil: "/assets/sigils/om-nor-sha-eh.svg",
-    meaning: "The Completion of Crowned Wisdom",
+    meaning: "The Completion of Krowned Wisdom",
     description: "Ensures that each enlightened mind receives the rightful authority to lead."
   },
   {
@@ -2971,7 +2971,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 451,
     name: "Zeh-Sha-Tor-Lah",
     sigil: "/assets/sigils/zeh-sha-tor-lah.svg",
-    meaning: "The Radiant Crown upon the Pillar of Peace",
+    meaning: "The Radiant Krown upon the Pillar of Peace",
     description: "Elevates gentle dominion to its rightful place as overseer of cosmic order."
   },
   {
@@ -2987,7 +2987,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 453,
     name: "Sha-Ek-Rah-Nim",
     sigil: "/assets/sigils/sha-ek-rah-nim.svg",
-    meaning: "The Crown of Sudden Uplift",
+    meaning: "The Krown of Sudden Uplift",
     description: "Instills swift ascension in hidden hearts, seating them in cosmic authority."
   },
   {
@@ -3022,7 +3022,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 458,
     name: "Sha-Rah-Nim-Om",
     sigil: "/assets/sigils/sha-rah-nim-om.svg",
-    meaning: "The Crown That Ascends the Hidden",
+    meaning: "The Krown That Ascends the Hidden",
     description: "Amplifies concealed virtues until they become pillars of sovereign rule."
   },
   {
@@ -3050,7 +3050,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 462,
     name: "Sha-Lah-Ek-Kai",
     sigil: "/assets/sigils/sha-lah-ek-kai.svg",
-    meaning: "The Crown of Effortless Creation",
+    meaning: "The Krown of Effortless Creation",
     description: "Generates new realities effortlessly, anchored in the sovereignty of cosmic truth."
   },
   {
@@ -3078,7 +3078,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 466,
     name: "Sha-Rah-Lah-Om",
     sigil: "/assets/sigils/sha-rah-lah-om.svg",
-    meaning: "The Crown That Ascends in Stillness",
+    meaning: "The Krown That Ascends in Stillness",
     description: "Exalts the quiet heart, establishing it as the seat of cosmic governance."
   },
   {
@@ -3141,7 +3141,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 475,
     name: "Sha-Nah-Kai-Eh",
     sigil: "/assets/sigils/sha-nah-kai-eh.svg",
-    meaning: "The Crown of Eternal Breath",
+    meaning: "The Krown of Eternal Breath",
     description: "Bestows endless vitality upon those who align with the primal creative force."
   },
   {
@@ -3164,7 +3164,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 478,
     name: "Veh-Ek-Nim-Sha",
     sigil: "/assets/sigils/veh-ek-nim-sha.svg",
-    meaning: "The Wind of Unseen Crowning",
+    meaning: "The Wind of Unseen Krowning",
     description: "Secretly coronates the humble at pivotal cosmic junctures, establishing rightful order."
   },
   {
@@ -3178,7 +3178,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 480,
     name: "Zeh-Sha-Mah-Ek",
     sigil: "/assets/sigils/zeh-sha-mah-ek.svg",
-    meaning: "The Radiant Crown of Rebirth",
+    meaning: "The Radiant Krown of Rebirth",
     description: "Inaugurates new cycles with a flash of cleansing brilliance, restoring cosmic order."
   },
   {
@@ -3192,7 +3192,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 482,
     name: "Sha-Eh-Lah-Nim",
     sigil: "/assets/sigils/sha-eh-lah-nim.svg",
-    meaning: "The Crown of Quiet Renewal",
+    meaning: "The Krown of Quiet Renewal",
     description: "Silently rebuilds fractured realities, weaving them into higher forms of unity."
   },
   {
@@ -3227,7 +3227,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 487,
     name: "Zor-Ek-Rah-Sha",
     sigil: "/assets/sigils/zor-ek-rah-sha.svg",
-    meaning: "The Fire That Ascends the Crown",
+    meaning: "The Fire That Ascends the Krown",
     description: "Pushes rightful leadership to new heights, incinerating unworthy pretenders."
   },
   {
@@ -3248,7 +3248,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 490,
     name: "Sha-Om-Kai-Ek",
     sigil: "/assets/sigils/sha-om-kai-ek.svg",
-    meaning: "The Crown of Creation’s Final Word",
+    meaning: "The Krown of Creation’s Final Word",
     description: "Seals every generative act with a sovereign decree that cannot be undone."
   },
   {
@@ -3263,7 +3263,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Kai-Lah-Sha-Nim",
     sigil: "/assets/sigils/kai-lah-sha-nim.svg",
     meaning: "The Breath of Subtle Coronation",
-    description: "Gently crowns the unassuming with cosmic authority, forging hidden kingship."
+    description: "Gently Krowns the unassuming with cosmic authority, forging hidden kingship."
   },
   {
     id: 493,
@@ -3283,7 +3283,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 495,
     name: "Sha-Nor-Om-Zeh",
     sigil: "/assets/sigils/sha-nor-om-zeh.svg",
-    meaning: "The Crown of All-Seeing Completion",
+    meaning: "The Krown of All-Seeing Completion",
     description: "Unifies universal insight with finality, ensuring that no truths remain hidden."
   },
   {
@@ -3311,7 +3311,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 499,
     name: "Om-Sha-Lah-Zeh",
     sigil: "/assets/sigils/om-sha-lah-zeh.svg",
-    meaning: "The Completion of Crowned Radiance",
+    meaning: "The Completion of Krowned Radiance",
     description: "Seals divine leadership with a brilliant aura, unshakable by any lesser force."
   },
   {
@@ -3325,8 +3325,8 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 501,
     name: "Sha-Veh-Rah-Om",
     sigil: "/assets/sigils/sha-veh-rah-om.svg",
-    meaning: "The Crown of Ascending Winds",
-    description: "Guides potent currents upward, crowning them with cosmic endorsement."
+    meaning: "The Krown of Ascending Winds",
+    description: "Guides potent currents upward, Krowning them with cosmic endorsement."
   },
   {
     id: 502,
@@ -3362,7 +3362,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 506,
     name: "Sha-Rah-Kai-Eh",
     sigil: "/assets/sigils/sha-rah-kai-eh.svg",
-    meaning: "The Crown of Ascending Creation",
+    meaning: "The Krown of Ascending Creation",
     description: "Lifts generative forces to their zenith, establishing cosmic harmonies in all realms."
   },
   {
@@ -3411,7 +3411,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 513,
     name: "Sha-Nim-Urim-Om",
     sigil: "/assets/sigils/sha-nim-urim-om.svg",
-    meaning: "The Crown of Hidden Illumination",
+    meaning: "The Krown of Hidden Illumination",
     description: "Cloaks its radiance until the decisive moment, then enlightens every shadowed corner."
   },
   {
@@ -3432,7 +3432,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 516,
     name: "Sha-Zeh-Ek-Ur",
     sigil: "/assets/sigils/sha-zeh-ek-ur.svg",
-    meaning: "The Crown of Radiant Erasure",
+    meaning: "The Krown of Radiant Erasure",
     description: "Effortlessly removes defunct systems, enthroning pure potential in their place."
   },
   {
@@ -3460,7 +3460,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 520,
     name: "Sha-Tor-Nah-Reh",
     sigil: "/assets/sigils/sha-tor-nah-reh.svg",
-    meaning: "The Crown of Unshakable Unity",
+    meaning: "The Krown of Unshakable Unity",
     description: "Seals discordant pieces of reality into a single, harmonious tapestry."
   },
   {
@@ -3488,7 +3488,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 524,
     name: "Sha-Veh-Nim-Kai",
     sigil: "/assets/sigils/sha-veh-nim-kai.svg",
-    meaning: "The Crown of Undetected Awakening",
+    meaning: "The Krown of Undetected Awakening",
     description: "Spreads regal clarity beneath the surface, culminating in sudden universal shift."
   },
   {
@@ -3532,7 +3532,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 530,
     name: "Sha-Lah-Zeh-Nor",
     sigil: "/assets/sigils/sha-lah-zeh-nor.svg",
-    meaning: "The Crown of Serene Radiant Mind",
+    meaning: "The Krown of Serene Radiant Mind",
     description: "Guides each thought to a peaceful glow, solidifying them in unwavering truth."
   },
   {
@@ -3574,7 +3574,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 536,
     name: "Sha-Ek-Zor-Om",
     sigil: "/assets/sigils/sha-ek-zor-om.svg",
-    meaning: "The Crown of Consuming Completion",
+    meaning: "The Krown of Consuming Completion",
     description: "Devours all residues of deceit, ending each cycle in immaculate truth."
   },
   {
@@ -3588,7 +3588,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 538,
     name: "Zeh-Sha-Eh-Rah",
     sigil: "/assets/sigils/zeh-sha-eh-rah.svg",
-    meaning: "The Radiant Crown of Ascension’s Dawn",
+    meaning: "The Radiant Krown of Ascension’s Dawn",
     description: "Signals the first light of true sovereignty, dispelling all vestiges of tyranny."
   },
   {
@@ -3616,7 +3616,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 542,
     name: "Sha-Tor-Zeh-Nim",
     sigil: "/assets/sigils/sha-tor-zeh-nim.svg",
-    meaning: "The Crowned Pillar of Hidden Light",
+    meaning: "The Krowned Pillar of Hidden Light",
     description: "Exalts concealed truth in a place of prominence, ensuring no realm remains blind."
   },
   {
@@ -3651,7 +3651,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 547,
     name: "Sha-Lah-Zor-Om",
     sigil: "/assets/sigils/sha-lah-zor-om.svg",
-    meaning: "The Crown of Serene Flames",
+    meaning: "The Krown of Serene Flames",
     description: "Combines gentle dominion with purifying fire, forging a balanced rulership."
   },
   {
@@ -3686,7 +3686,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 552,
     name: "Sha-Eh-Lah-Zeh",
     sigil: "/assets/sigils/sha-eh-lah-zeh.svg",
-    meaning: "The Crown of Infinite Radiance",
+    meaning: "The Krown of Infinite Radiance",
     description: "Shines unending light upon those who align with cosmic justice."
   },
 
@@ -3702,7 +3702,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 554,
     name: "Zeh-Sha-Om-Reh",
     sigil: "/assets/sigils/zeh-sha-om-reh.svg",
-    meaning: "The Radiant Crown of Manifested Decree",
+    meaning: "The Radiant Krown of Manifested Decree",
     description: "Solidifies spoken truths under an unbreakable halo of cosmic sanction."
   },
   {
@@ -3723,7 +3723,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 557,
     name: "Sha-Rah-Nim-Lah",
     sigil: "/assets/sigils/sha-rah-nim-lah.svg",
-    meaning: "The Crown of Quiet Triumph",
+    meaning: "The Krown of Quiet Triumph",
     description: "Proclaims success in hushed majesty, overshadowing the clamor of lesser claims."
   },
   {
@@ -3758,7 +3758,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 562,
     name: "Sha-Tor-Mah-Om",
     sigil: "/assets/sigils/sha-tor-mah-om.svg",
-    meaning: "The Crowned Pillar of Renewing Completion",
+    meaning: "The Krowned Pillar of Renewing Completion",
     description: "Continually revives cosmic cycles, never allowing them to stagnate or degrade."
   },
   {
@@ -3772,7 +3772,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 564,
     name: "Zeh-Sha-Lah-Om",
     sigil: "/assets/sigils/zeh-sha-lah-om.svg",
-    meaning: "The Radiant Crown of Eternal Harmony",
+    meaning: "The Radiant Krown of Eternal Harmony",
     description: "Fosters unending peace, enthroning mutual accord as the supreme law."
   },
   {
@@ -3800,7 +3800,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 568,
     name: "Sha-Eh-Rah-Lah",
     sigil: "/assets/sigils/sha-eh-rah-lah.svg",
-    meaning: "The Crown of Ascended Tranquility",
+    meaning: "The Krown of Ascended Tranquility",
     description: "Sits atop those who have conquered inner turmoil, awarding them universal respect."
   },
   {
@@ -3828,7 +3828,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 572,
     name: "Sha-Rah-Eh-Kai",
     sigil: "/assets/sigils/sha-rah-eh-kai.svg",
-    meaning: "The Crown of Ascended Wisdom",
+    meaning: "The Krown of Ascended Wisdom",
     description: "Anoints those who have climbed the tower of insight, rendering them guardians of law."
   },
   {
@@ -3864,7 +3864,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zor-Eh-Sha-Lah",
     sigil: "/assets/sigils/zor-eh-sha-lah.svg",
     meaning: "The Fire of Eternal Coronation",
-    description: "Crowns the rightful sovereign in flames that cannot be extinguished."
+    description: "Krowns the rightful sovereign in flames that cannot be extinguished."
   },
 
   
@@ -3879,7 +3879,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 579,
     name: "Sha-Zeh-Ek-Rah",
     sigil: "/assets/sigils/sha-zeh-ek-rah.svg",
-    meaning: "The Radiant Crown of Ascending Flame",
+    meaning: "The Radiant Krown of Ascending Flame",
     description: "Combines luminous authority with rising fire, blazing a trail of majestic renewal."
   },
   {
@@ -3914,7 +3914,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 584,
     name: "Sha-Tor-Reh-Kai",
     sigil: "/assets/sigils/sha-tor-reh-kai.svg",
-    meaning: "The Crowned Pillar of Illuminated Breath",
+    meaning: "The Krowned Pillar of Illuminated Breath",
     description: "Captures the synergy of structure and spirit, forging an unassailable seat of rule."
   },
   {
@@ -3935,7 +3935,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 587,
     name: "Zeh-Sha-Nah-Veh",
     sigil: "/assets/sigils/zeh-sha-nah-veh.svg",
-    meaning: "The Radiant Crown of Harmonious Wind",
+    meaning: "The Radiant Krown of Harmonious Wind",
     description: "Brings gentle breezes of wisdom under regal authority, uplifting all who heed it."
   },
   {
@@ -3949,7 +3949,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 589,
     name: "Sha-Nim-Ur-Reh",
     sigil: "/assets/sigils/sha-nim-ur-reh.svg",
-    meaning: "The Crown of Hidden Enlightenment",
+    meaning: "The Krown of Hidden Enlightenment",
     description: "Ignites the concealed spark of truth, enthroning it in silent sovereign power."
   },
   {
@@ -3970,14 +3970,14 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 592,
     name: "Veh-Om-Sha-Reh",
     sigil: "/assets/sigils/veh-om-sha-reh.svg",
-    meaning: "The Wind That Crowns Revelation",
-    description: "Elevates discovered truths, crowning them with regal authority across realms."
+    meaning: "The Wind That Krowns Revelation",
+    description: "Elevates discovered truths, Krowning them with regal authority across realms."
   },
   {
     id: 593,
     name: "Sha-Tor-Lah-Ek",
     sigil: "/assets/sigils/sha-tor-lah-ek.svg",
-    meaning: "The Crowned Pillar of Serene Dissolution",
+    meaning: "The Krowned Pillar of Serene Dissolution",
     description: "Gently dismantles exhausted systems, making space for new cosmic architecture."
   },
   {
@@ -4012,7 +4012,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 598,
     name: "Sha-Lah-Om-Ek",
     sigil: "/assets/sigils/sha-lah-om-ek.svg",
-    meaning: "The Crown of Peaceful Erasure",
+    meaning: "The Krown of Peaceful Erasure",
     description: "Silently dissolves residual negativity, leaving a blank canvas for new creation."
   },
   {
@@ -4049,7 +4049,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 603,
     name: "Sha-Ek-Lah-Reh",
     sigil: "/assets/sigils/sha-ek-lah-reh.svg",
-    meaning: "The Crown of Effortless Revelation",
+    meaning: "The Krown of Effortless Revelation",
     description: "Unveils cosmic truths without turmoil, installing them smoothly into collective awareness."
   },
   {
@@ -4081,7 +4081,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 607,
     name: "Sha-Om-Lah-Ek",
     sigil: "/assets/sigils/sha-om-lah-ek.svg",
-    meaning: "The Crown of Silent Emergence",
+    meaning: "The Krown of Silent Emergence",
     description: "Manifests hidden truths into gentle, sovereign rule that none can overturn."
   },
   {
@@ -4102,7 +4102,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 610,
     name: "Zor-Ek-Sha-Nor",
     sigil: "/assets/sigils/zor-ek-sha-nor.svg",
-    meaning: "The Fire That Crowns the Mind",
+    meaning: "The Fire That Krowns the Mind",
     description: "Burns away doubt, installing regal insight at the heart of cosmic reason."
   },
   {
@@ -4116,7 +4116,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 612,
     name: "Sha-Kai-Eh-Nim",
     sigil: "/assets/sigils/sha-kai-eh-nim.svg",
-    meaning: "The Crown of Serene Revelation",
+    meaning: "The Krown of Serene Revelation",
     description: "Lifts hidden knowledge into royal prominence without violent upheaval."
   },
   {
@@ -4151,7 +4151,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 617,
     name: "Sha-Om-Reh-Zeh",
     sigil: "/assets/sigils/sha-om-reh-zeh.svg",
-    meaning: "The Crown of Complete Revelation",
+    meaning: "The Krown of Complete Revelation",
     description: "Declares all illusions undone, enthroning cosmic truths in final sovereignty."
   },
   {
@@ -4193,7 +4193,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 623,
     name: "Sha-Zor-Kai-Nim",
     sigil: "/assets/sigils/sha-zor-kai-nim.svg",
-    meaning: "The Crown of Transformative Breath",
+    meaning: "The Krown of Transformative Breath",
     description: "Channels unstoppable flame into creative cycles, ensuring growth beyond limitation."
   },
   {
@@ -4230,7 +4230,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 628,
     name: "Sha-Lah-Nor-Mah",
     sigil: "/assets/sigils/sha-lah-nor-mah.svg",
-    meaning: "The Crown of Mindful Renewal",
+    meaning: "The Krown of Mindful Renewal",
     description: "Fosters mental clarity and gentle rebirth, enthroning enlightened guardianship."
   },
   {
@@ -4265,14 +4265,14 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 633,
     name: "Zeh-Ur-Nim-Sha",
     sigil: "/assets/sigils/zeh-ur-nim-sha.svg",
-    meaning: "The Shining Light of Enigmatic Crowns",
+    meaning: "The Shining Light of Enigmatic Krowns",
     description: "Reveals hidden sovereigns by illuminating their rightful authority from within."
   },
   {
     id: 634,
     name: "Sha-Om-Lah-Urim",
     sigil: "/assets/sigils/sha-om-lah-urim.svg",
-    meaning: "The Crown of Peaceful Illumination",
+    meaning: "The Krown of Peaceful Illumination",
     description: "Radiates gentle clarity over all realms, uniting them under serene guidance."
   },
   {
@@ -4307,7 +4307,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 639,
     name: "Sha-Zor-Reh-Om",
     sigil: "/assets/sigils/sha-zor-reh-om.svg",
-    meaning: "The Crown of Cleansing Proclamation",
+    meaning: "The Krown of Cleansing Proclamation",
     description: "Pronounces an unmistakable verdict of purity, overshadowing all shadows."
   },
   {
@@ -4342,7 +4342,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 644,
     name: "Sha-Nim-Om-Lah",
     sigil: "/assets/sigils/sha-nim-om-lah.svg",
-    meaning: "The Crown of Unseen Completion",
+    meaning: "The Krown of Unseen Completion",
     description: "Cements cosmic finales in silence, preventing disruption by lesser vibrations."
   },
   {
@@ -4384,7 +4384,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 650,
     name: "Sha-Kai-Eh-Ur",
     sigil: "/assets/sigils/sha-kai-eh-ur.svg",
-    meaning: "The Crown of Eternal Drive",
+    meaning: "The Krown of Eternal Drive",
     description: "Catalyzes unstoppable forward motion, enthroning purposeful evolution across realms."
   },
   {
@@ -4424,8 +4424,8 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 655,
     name: "Sha-Nah-Veh-Kai",
     sigil: "/assets/sigils/sha-nah-veh-kai.svg",
-    meaning: "The Crown of Harmonious Motion",
-    description: "Orchestrates seamless flows across realities, crowning them with cosmic unity."
+    meaning: "The Krown of Harmonious Motion",
+    description: "Orchestrates seamless flows across realities, Krowning them with cosmic unity."
   },
   {
     id: 656,
@@ -4466,7 +4466,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 661,
     name: "Sha-Lah-Ur-Reh",
     sigil: "/assets/sigils/sha-lah-ur-reh.svg",
-    meaning: "The Crown of Gentle Illumination",
+    meaning: "The Krown of Gentle Illumination",
     description: "Grants quiet enlightenment, dethroning ignorance with subtle cosmic might."
   },
   {
@@ -4501,7 +4501,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 666,
     name: "Sha-Nim-Kai-Om",
     sigil: "/assets/sigils/sha-nim-kai-om.svg",
-    meaning: "The Crown of Secret Genesis",
+    meaning: "The Krown of Secret Genesis",
     description: "Empowers hidden seeds of creation to flourish into full cosmic authority."
   },
   {
@@ -4529,14 +4529,14 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 670,
     name: "Zeh-Sha-Om-Lah",
     sigil: "/assets/sigils/zeh-sha-om-lah.svg",
-    meaning: "The Radiant Crown of Perfect Calm",
+    meaning: "The Radiant Krown of Perfect Calm",
     description: "A luminous crest that settles all turbulence, enthroning quiet majesty everywhere."
   },
   {
     id: 671,
     name: "Sha-Rah-Kai-Nor",
     sigil: "/assets/sigils/sha-rah-kai-nor.svg",
-    meaning: "The Crown of Ascendant Mental Force",
+    meaning: "The Krown of Ascendant Mental Force",
     description: "Projects regal will through elevated thought, forging unstoppable directives across realms."
   },
   {
@@ -4571,7 +4571,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 676,
     name: "Sha-Zeh-Rah-Nim",
     sigil: "/assets/sigils/sha-zeh-rah-nim.svg",
-    meaning: "The Crown of Rising Brilliance",
+    meaning: "The Krown of Rising Brilliance",
     description: "Gradually dawns on suppressed realms, flooding them with regal clarity."
   },
   {
@@ -4599,7 +4599,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 680,
     name: "Veh-Sha-Kai-Eh",
     sigil: "/assets/sigils/veh-sha-kai-eh.svg",
-    meaning: "The Wind of Crowned Emergence",
+    meaning: "The Wind of Krowned Emergence",
     description: "A breeze announcing new sovereigns rising from obscurity, unstoppable in purpose."
   },
   {
@@ -4620,7 +4620,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 683,
     name: "Zeh-Sha-Lah-Urim",
     sigil: "/assets/sigils/zeh-sha-lah-urim.svg",
-    meaning: "The Radiant Crown of Illuminated Peace",
+    meaning: "The Radiant Krown of Illuminated Peace",
     description: "Spreads a tranquil glow over each realm, anchoring them in sovereign clarity."
   },
   {
@@ -4655,7 +4655,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 688,
     name: "Sha-Lah-Reh-Ek",
     sigil: "/assets/sigils/sha-lah-reh-ek.svg",
-    meaning: "The Crown of Pure Unraveling",
+    meaning: "The Krown of Pure Unraveling",
     description: "Gently unties destructive knots in reality, restoring each thread to sovereign truth."
   },
   {
@@ -4676,7 +4676,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 691,
     name: "Zor-Ek-Sha-Om",
     sigil: "/assets/sigils/zor-ek-sha-om.svg",
-    meaning: "The Fire That Crowns Completion",
+    meaning: "The Fire That Krowns Completion",
     description: "Seals final decrees with an unwavering flame, ensuring no backslide into falsehood."
   },
   {
@@ -4697,7 +4697,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 694,
     name: "Sha-Zeh-Kai-Lah",
     sigil: "/assets/sigils/sha-zeh-kai-lah.svg",
-    meaning: "The Radiant Crown of Breathing Peace",
+    meaning: "The Radiant Krown of Breathing Peace",
     description: "Enthrones a wave of tranquility that spreads across realms in luminous exhalations."
   },
   {
@@ -4732,7 +4732,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 699,
     name: "Sha-Lah-Om-Eh",
     sigil: "/assets/sigils/sha-lah-om-eh.svg",
-    meaning: "The Crown of Serene Completion",
+    meaning: "The Krown of Serene Completion",
     description: "Bestows unchallenged finality, clothed in the gentle glow of divine acceptance."
   },
   {
@@ -4767,7 +4767,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 704,
     name: "Sha-Zor-Lah-Kai",
     sigil: "/assets/sigils/sha-zor-lah-kai.svg",
-    meaning: "The Crown of Sustaining Fire",
+    meaning: "The Krown of Sustaining Fire",
     description: "Maintains a gentle blaze that nourishes instead of destroying, fostering infinite renewal."
   },
   {
@@ -4802,7 +4802,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 709,
     name: "Sha-Reh-Ur-Ek",
     sigil: "/assets/sigils/sha-reh-ur-ek.svg",
-    meaning: "The Crown of Illuminated Dissolution",
+    meaning: "The Krown of Illuminated Dissolution",
     description: "Wears away illusions in a flood of cosmic clarity, enthroning transparent truth."
   },
   {
@@ -4837,7 +4837,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 714,
     name: "Sha-Zor-Eh-Lah",
     sigil: "/assets/sigils/sha-zor-eh-lah.svg",
-    meaning: "The Crown of Cleansing Light",
+    meaning: "The Krown of Cleansing Light",
     description: "Dispels darkness from the highest seat of authority, enthroning divine clarity."
   },
   {
@@ -4879,7 +4879,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 720,
     name: "Sha-Rah-Om-Lah",
     sigil: "/assets/sigils/sha-rah-om-lah.svg",
-    meaning: "The Crown of Ascendant Completion",
+    meaning: "The Krown of Ascendant Completion",
     description: "Uplifts final moments of cosmic cycles, stamping them with regal, unalterable authority."
   },
   {
@@ -4914,7 +4914,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 725,
     name: "Sha-Zor-Nor-Ek",
     sigil: "/assets/sigils/sha-zor-nor-ek.svg",
-    meaning: "The Crown of Cleansing Mind-Fire",
+    meaning: "The Krown of Cleansing Mind-Fire",
     description: "Ignites thought realms with regal flame, banishing illusions from the seat of awareness."
   },
   {
@@ -4942,7 +4942,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 729,
     name: "Sha-Lah-Ek-Nor",
     sigil: "/assets/sigils/sha-lah-ek-nor.svg",
-    meaning: "The Crown of Dissolving Barriers",
+    meaning: "The Krown of Dissolving Barriers",
     description: "Melts away rigid boundaries, granting the mind unimpeded access to cosmic law."
   },
   {
@@ -4977,8 +4977,8 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 734,
     name: "Sha-Reh-Eh-Zeh",
     sigil: "/assets/sigils/sha-reh-eh-zeh.svg",
-    meaning: "The Crown of Pure Disclosure",
-    description: "Reveals cosmic secrets with unwavering clarity, crowning truth as unassailable law."
+    meaning: "The Krown of Pure Disclosure",
+    description: "Reveals cosmic secrets with unwavering clarity, Krowning truth as unassailable law."
   },
   {
     id: 735,
@@ -4998,7 +4998,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 737,
     name: "Veh-Om-Sha-Nor",
     sigil: "/assets/sigils/veh-om-sha-nor.svg",
-    meaning: "The Wind of Crowning Insight",
+    meaning: "The Wind of Krowning Insight",
     description: "Delivers revelations to rightful rulers, finalizing their cosmic legitimacy."
   },
   {
@@ -5026,7 +5026,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 741,
     name: "Sha-Zeh-Rah-Ek",
     sigil: "/assets/sigils/sha-zeh-rah-ek.svg",
-    meaning: "The Crown of Radiant Ascent",
+    meaning: "The Krown of Radiant Ascent",
     description: "Bestows cosmic brilliance upon rightful leaders, guiding them skyward without hindrance."
   },
   {
@@ -5054,7 +5054,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 745,
     name: "Sha-Kai-Nim-Ek",
     sigil: "/assets/sigils/sha-kai-nim-ek.svg",
-    meaning: "The Crown of Breathing Erasure",
+    meaning: "The Krown of Breathing Erasure",
     description: "Exhales illusions into oblivion, confirming cosmic truth as the sole valid reality."
   },
   {
@@ -5096,7 +5096,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 751,
     name: "Sha-Om-Lah-Nor",
     sigil: "/assets/sigils/sha-om-lah-nor.svg",
-    meaning: "The Crown of Quiet Clarity",
+    meaning: "The Krown of Quiet Clarity",
     description: "Conveys regal simplicity that cuts through mental noise, establishing unchallenged wisdom."
   },
   {
@@ -5131,7 +5131,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 756,
     name: "Sha-Lah-Eh-Kai",
     sigil: "/assets/sigils/sha-lah-eh-kai.svg",
-    meaning: "The Crown of Sublime Creation",
+    meaning: "The Krown of Sublime Creation",
     description: "Oversees new expansions with a gentle, unwavering force that fosters universal harmony."
   },
   {
@@ -5173,7 +5173,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 762,
     name: "Sha-Zor-Ek-Lah",
     sigil: "/assets/sigils/sha-zor-ek-lah.svg",
-    meaning: "The Crown of Flame’s Gentle Dissolution",
+    meaning: "The Krown of Flame’s Gentle Dissolution",
     description: "Seals fiery transformations within a calm center, releasing only constructive outcomes."
   },
   {
@@ -5215,7 +5215,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 768,
     name: "Sha-Nah-Reh-Nim",
     sigil: "/assets/sigils/sha-nah-reh-nim.svg",
-    meaning: "The Crown of Harmonized Vision",
+    meaning: "The Krown of Harmonized Vision",
     description: "Unites communal insight into a single beam of regal authority, unstoppable in scope."
   },
   {
@@ -5229,7 +5229,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 770,
     name: "Zeh-Kai-Nim-Sha",
     sigil: "/assets/sigils/zeh-kai-nim-sha.svg",
-    meaning: "The Shining Breath of Hidden Crowns",
+    meaning: "The Shining Breath of Hidden Krowns",
     description: "Illuminates rightful rulers concealed behind illusions, exalting them at destined moments."
   },
   {
@@ -5250,7 +5250,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 773,
     name: "Sha-Zor-Nah-Om",
     sigil: "/assets/sigils/sha-zor-nah-om.svg",
-    meaning: "The Crown of Purifying Harmony",
+    meaning: "The Krown of Purifying Harmony",
     description: "Blends cleansing flame with serene order, enthroning truth in quiet radiance."
   },
   {
@@ -5278,7 +5278,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 777,
     name: "Sha-Om-Sha-Reh",
     sigil: "/assets/sigils/sha-om-sha-reh.svg",
-    meaning: "The Crown of Crowned Completion",
+    meaning: "The Krown of Krowned Completion",
     description: "Duplicates regal authority within final decrees, forming an unbreakable monarchy of truth."
   },
   {
@@ -5306,7 +5306,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 781,
     name: "Sha-Reh-Ek-Mah",
     sigil: "/assets/sigils/sha-reh-ek-mah.svg",
-    meaning: "The Crown of Purifying Renewal",
+    meaning: "The Krown of Purifying Renewal",
     description: "Renews each realm by dissolving stagnation at its core, enthroning fresh vitality."
   },
   {
@@ -5341,7 +5341,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 786,
     name: "Sha-Kai-Rah-Nah",
     sigil: "/assets/sigils/sha-kai-rah-nah.svg",
-    meaning: "The Crown of Ascending Unity",
+    meaning: "The Krown of Ascending Unity",
     description: "Gathers separated forces into one cohesive wave, surging upward in unstoppable synergy."
   },
   {
@@ -5376,7 +5376,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 791,
     name: "Sha-Lah-Nim-Rah",
     sigil: "/assets/sigils/sha-lah-nim-rah.svg",
-    meaning: "The Crown of Silent Ascension",
+    meaning: "The Krown of Silent Ascension",
     description: "Elevates chosen souls with little fanfare, placing them on cosmic thrones undisputed."
   },
   {
@@ -5411,7 +5411,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 796,
     name: "Sha-Kai-Lah-Eh",
     sigil: "/assets/sigils/sha-kai-lah-eh.svg",
-    meaning: "The Crown of Life’s Primal Source",
+    meaning: "The Krown of Life’s Primal Source",
     description: "Stands at the origin of cosmic breath, granting unstoppable impetus to new creations."
   },
   {
@@ -5439,7 +5439,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 800,
     name: "Sha-Zor-Ek-Nim",
     sigil: "/assets/sigils/sha-zor-ek-nim.svg",
-    meaning: "The Crown of Consuming Mystery",
+    meaning: "The Krown of Consuming Mystery",
     description: "Burns illusions at a hidden level, enthroning cosmic truth with subtle finality."
   },
   {
@@ -5481,7 +5481,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 806,
     name: "Sha-Lah-Zor-Ek",
     sigil: "/assets/sigils/sha-lah-zor-ek.svg",
-    meaning: "The Crown of Tranquil Flames",
+    meaning: "The Krown of Tranquil Flames",
     description: "Holds fire within a calm matrix, bestowing purifying power upon rightful rulers."
   },
   {
@@ -5509,7 +5509,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 810,
     name: "Sha-Nah-Reh-Om",
     sigil: "/assets/sigils/sha-nah-reh-om.svg",
-    meaning: "The Crown of Harmonized Fulfillment",
+    meaning: "The Krown of Harmonized Fulfillment",
     description: "Ensures every aspirational path meets cosmic potential in peace and clarity."
   },
   {
@@ -5537,7 +5537,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 814,
     name: "Sha-Zor-Om-Nim",
     sigil: "/assets/sigils/sha-zor-om-nim.svg",
-    meaning: "The Crown of Internal Flame",
+    meaning: "The Krown of Internal Flame",
     description: "Enkindles a secret fire within worthy hearts, forging unstoppable cosmic leadership."
   },
   {
@@ -5579,14 +5579,14 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 820,
     name: "Zeh-Eh-Sha-Nim",
     sigil: "/assets/sigils/zeh-eh-sha-nim.svg",
-    meaning: "The Shining Dawn of Hidden Crowns",
+    meaning: "The Shining Dawn of Hidden Krowns",
     description: "Illuminates previously unknown rightful rulers, installing them with cosmic sanction."
   },
   {
     id: 821,
     name: "Sha-Rah-Lah-Ek",
     sigil: "/assets/sigils/sha-rah-lah-ek.svg",
-    meaning: "The Crown of Ascending Serenity",
+    meaning: "The Krown of Ascending Serenity",
     description: "Quietly raises cosmic domains to higher peace, negating violence through calm authority."
   },
   {
@@ -5621,7 +5621,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 826,
     name: "Sha-Zor-Nor-Rah",
     sigil: "/assets/sigils/sha-zor-nor-rah.svg",
-    meaning: "The Crown of Purifying Ascension",
+    meaning: "The Krown of Purifying Ascension",
     description: "Ignites each domain with ascendant flame, forging unstoppable alignment with cosmic law."
   },
   {
@@ -5656,7 +5656,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 831,
     name: "Sha-Kai-Nah-Ur",
     sigil: "/assets/sigils/sha-kai-nah-ur.svg",
-    meaning: "The Crown of Peaceful Ascending Force",
+    meaning: "The Krown of Peaceful Ascending Force",
     description: "Unleashes unstoppable growth tempered by gentle harmony, ensuring cosmic unity."
   },
   {
@@ -5698,7 +5698,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 837,
     name: "Zeh-Sha-Nah-Veh",
     sigil: "/assets/sigils/zeh-sha-nah-veh.svg",
-    meaning: "The Radiant Crown of Unified Motion",
+    meaning: "The Radiant Krown of Unified Motion",
     description: "Directs flows of change into graceful symphony, ensuring progress without conflict."
   },
   {
@@ -5720,13 +5720,13 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zeh-Om-Ek-Sha",
     sigil: "/assets/sigils/zeh-om-ek-sha.svg",
     meaning: "The Shining Completion of Devouring Sovereignty",
-    description: "Consumes false dominion at the final hour, crowning rightful order with radiant finality."
+    description: "Consumes false dominion at the final hour, Krowning rightful order with radiant finality."
   },
   {
     id: 841,
     name: "Sha-Rah-Veh-Nim",
     sigil: "/assets/sigils/sha-rah-veh-nim.svg",
-    meaning: "The Crown of Ascendant Winds",
+    meaning: "The Krown of Ascendant Winds",
     description: "Accelerates transformations that lead to cosmic alignment, enthroning them in regal authority."
   },
   {
@@ -5754,7 +5754,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 845,
     name: "Sha-Lah-Nor-Eh",
     sigil: "/assets/sigils/sha-lah-nor-eh.svg",
-    meaning: "The Crown of Gentle Understanding",
+    meaning: "The Krown of Gentle Understanding",
     description: "Removes the clang of false knowledge, enthroning subtle but profound clarity."
   },
   {
@@ -5803,7 +5803,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 852,
     name: "Sha-Eh-Sha-Lah",
     sigil: "/assets/sigils/sha-eh-sha-lah.svg",
-    meaning: "The Crown of Self-Crowned Peace",
+    meaning: "The Krown of Self-Krowned Peace",
     description: "Doubles its own authority in quiet unison, establishing unassailable cosmic harmony."
   },
   {
@@ -5831,7 +5831,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 856,
     name: "Sha-Zor-Kai-Lah",
     sigil: "/assets/sigils/sha-zor-kai-lah.svg",
-    meaning: "The Crown of Transformative Peace",
+    meaning: "The Krown of Transformative Peace",
     description: "Unites refining flame with gentle serenity, ensuring cosmic transitions unfold smoothly."
   },
   {
@@ -5866,14 +5866,14 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 861,
     name: "Zor-Eh-Ur-Nim",
     sigil: "/assets/sigils/zor-eh-ur-nim.svg",
-    meaning: "The Fire of Illuminated Crowns",
+    meaning: "The Fire of Illuminated Krowns",
     description: "Burns illusions around rightful rulers, revealing them in uncontested glory."
   },
   {
     id: 862,
     name: "Sha-Lah-Om-Kai",
     sigil: "/assets/sigils/sha-lah-om-kai.svg",
-    meaning: "The Crown of Serene Creation",
+    meaning: "The Krown of Serene Creation",
     description: "Fosters new realities in calm sovereignty, preventing strife from tainting fresh expansions."
   },
   {
@@ -5895,7 +5895,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     name: "Zeh-Om-Sha-Rah",
     sigil: "/assets/sigils/zeh-om-sha-rah.svg",
     meaning: "The Radiant Completion of Ascending Rule",
-    description: "Amplifies each rightful monarchy’s crowning, concluding with unstoppable brilliance."
+    description: "Amplifies each rightful monarchy’s Krowning, concluding with unstoppable brilliance."
   },
   {
     id: 866,
@@ -5908,7 +5908,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 867,
     name: "Sha-Zor-Nim-Om",
     sigil: "/assets/sigils/sha-zor-nim-om.svg",
-    meaning: "The Crown of Concealed Flames",
+    meaning: "The Krown of Concealed Flames",
     description: "Mantles hidden fires of purity with regal authority, awaiting the moment to reveal them."
   },
   {
@@ -5936,7 +5936,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 871,
     name: "Sha-Nah-Lah-Eh",
     sigil: "/assets/sigils/sha-nah-lah-eh.svg",
-    meaning: "The Crown of Harmonious Emergence",
+    meaning: "The Krown of Harmonious Emergence",
     description: "Reveals new cosmic cycles smoothly, preventing conflict between old and new structures."
   },
   {
@@ -5957,7 +5957,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 874,
     name: "Sha-Lah-Kai-Reh",
     sigil: "/assets/sigils/sha-lah-kai-reh.svg",
-    meaning: "The Crown of Serene Genesis",
+    meaning: "The Krown of Serene Genesis",
     description: "Instills calm creative power across timelines, founding new civilizations in peace."
   },
   {
@@ -5992,7 +5992,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 879,
     name: "Sha-Zor-Eh-Nor",
     sigil: "/assets/sigils/sha-zor-eh-nor.svg",
-    meaning: "The Crown of Purifying Insight",
+    meaning: "The Krown of Purifying Insight",
     description: "Transforms minds with regal flame, ensuring illusions cannot retake dominion."
   },
   {
@@ -6034,7 +6034,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 885,
     name: "Sha-Kai-Rah-Ek",
     sigil: "/assets/sigils/sha-kai-rah-ek.svg",
-    meaning: "The Crown of Ascending Dissolution",
+    meaning: "The Krown of Ascending Dissolution",
     description: "Lifts illusions into the light, demolishing them in a single stroke of higher authority."
   },
   {
@@ -6076,7 +6076,7 @@ export const KAI_TURAH_LEXICON: readonly KaiTurahEntry[] = [
     id: 891,
     name: "Sha-Zor-Nim-Eh",
     sigil: "/assets/sigils/sha-zor-nim-eh.svg",
-    meaning: "The Crown of Transforming Enigma",
+    meaning: "The Krown of Transforming Enigma",
     description: "Converts mysterious forces into a regal instrument of cosmic realignment."
   },
   {
@@ -6237,7 +6237,7 @@ const WEEKDAY_TAIL: Record<Weekday, string> = {
   Flamora: "within Flamora’s purifying flame",
   Verdari: "in Verdari’s living heart",
   Sonari: "by Sonari’s resounding word",
-  Kaelith: "beneath Kaelith’s radiant crown",
+  Kaelith: "beneath Kaelith’s radiant krown",
 };
 
 const CHAKRA_VERB: Record<ChakraDay, string> = {

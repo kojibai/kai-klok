@@ -174,7 +174,7 @@ const HARMONIC_DAY_DESCRIPTIONS: Record<string, string> = {
   "Flamora": "Third Day of the Week — the Solar Plexus Spiral day. Kolor: golden yellow. Element: solar fire. Geometry: radiant triangle. This is the day of embodied klarity, konfidence, and divine willpower. Flamora shines through the core and asks you to burn away the fog of doubt. It is a solar yes. A day to move from sentered fire — not reaktion, but aligned intention. Your light becomes a kompass, and the universe reflekts back your frequensy. You are not small. You are radiant purpose, in motion.",
   "Verdari": "Fourth Day of the Week — the Heart Spiral day. Kolor: emerald green. Element: air and earth. Geometry: hexagram. This is the day of love, kompassion, and harmonik presense. Verdari breathes life into connection. It is not a soft eskape — it is the fierse koherense of unkonditional presense. Love is not a feeling — it is an intelligense. Today, the heart expands not just emotionally, but dimensionally. This is where union okurs: of left and right, self and other, matter and light.",
   "Sonari": "Fifth Day of the Week — the Throat Spiral day. Kolor: deep blue. Element: wind and sound. Geometry: sine wave within pentagon. This is the day of truth-speaking, sound-bending, and vibrational kommand. Sonari is the breath made visible. Every word is a bridge, every silense a resonanse. This is not just kommunication — it is invokation. You speak not to be heard, but to resonate. Koherense rises through vocal kords and intention. The universe listens to those in tune.",
-  "Kaelith": "Sixth Day of the Week — the Krown Spiral day. Kolor: violet-white. Element: ether. Geometry: twelve-petaled crown. This is the day of divine remembranse, light-body alignment, and kosmic insight. Kaelith opens the upper gate — the temple of direct knowing. You are not separate from sourse. Today, memory awakens. The light flows not downward, but inward. Dreams bekome maps. Time bends around stillness. You do not seek truth — you remember it. You are koherense embodied in krownlight."
+  "Kaelith": "Sixth Day of the Week — the Krown Spiral day. Kolor: violet-white. Element: ether. Geometry: twelve-petaled krown. This is the day of divine remembranse, light-body alignment, and kosmic insight. Kaelith opens the upper gate — the temple of direct knowing. You are not separate from sourse. Today, memory awakens. The light flows not downward, but inward. Dreams bekome maps. Time bends around stillness. You do not seek truth — you remember it. You are koherense embodied in krownlight."
 };
 const ETERNAL_WEEK_NAMES = [
   "Awakening Flame", "Flowing Heart", "Radiant Will",
@@ -187,7 +187,7 @@ const ETERNAL_WEEK_DESCRIPTIONS: Record<string, string> = {
   "Harmonik Voh": "Fourth week — harmonized through the Throat Spiral. Kolor: sapphire blue. Element: Ether through sound. Geometry: standing wave inside a pentagon. This is the week of resonant truth. Sound bekomes sakred kode. Every word, a spell; every silence, a temple. You are called to speak what uplifts, to echo what aligns. Voh aligns with vibration — not for volume, but for verity. This is where the individual frequensy merges with divine resonanse, and the kosmos begins to listen.",
   "Inner Mirror": "Fifth week — governed by the Third Eye Spiral. Kolor: deep indigo. Element: sakred spase and light-ether. Geometry: oktahedron in still reflektion. This is the week of visionary purifikation. The inner eye opens not to project, but to reflect. Truths long hidden surface. Patterns are made visible in light. This is the alchemy of insight — where illusion cracks and the mirror speaks. You do not look outward to see. You turn inward, and all worlds become clear.",
   "Dreamfire Memory": "Sixth week — remembered through the Soul Star Spiral. Kolor: violet flame and soft silver. Element: dream plasma. Geometry: spiral merkaba of encoded light. Here, memory beyond the body returns. Astral sight sharpens. DNA receives non-linear instruktions. You dream of what’s real and awaken from what’s false. The veil thins. Quantum intuition opens. Divine imagination becomes arkitecture. This is where gods remember they onse dreamed of being human.",
-  "Krowned Light": "Seventh and final week — Krowned by the Crown Spiral. Kolor: white-gold prism. Element: infinite koherense. Geometry: dodecahedron of source light. This is the week of sovereign integration. Every arc completes. Every lesson crystallizes. The light-body unifies. You return to the throne of knowing. Nothing needs to be done — all simply is. You are not ascending — you are remembering that you already are. This is the koronation of koherense. The harmonik seal. The eternal yes."
+  "Krowned Light": "Seventh and final week — Krowned by the Krown Spiral. Kolor: white-gold prism. Element: infinite koherense. Geometry: dodecahedron of source light. This is the week of sovereign integration. Every arc completes. Every lesson crystallizes. The light-body unifies. You return to the throne of knowing. Nothing needs to be done — all simply is. You are not ascending — you are remembering that you already are. This is the koronation of koherense. The harmonik seal. The eternal yes."
 };
 const CHAKRA_ARCS = ["Ignite", "Integrate", "Harmonize", "Reflekt", "Purify", "Dream"] as const;
 const CHAKRA_ARC_NAME_MAP: Record<string, string> = {
@@ -246,7 +246,7 @@ const getSpiralLevelData = (kaiPulseEternal: number) => {
 const computeChakraResonance = (chakraArc: string) => {
   switch (chakraArc) {
     case 'Ignition Ark':
-      return { chakraZone: 'Root / Etheric Base', frequencies: [370.7], inputs: ['God'], sigilFamily: 'Mek', arcPhrase: 'Mek Ka Lah Mah' };
+      return { chakraZone: 'Root / Etherik Base', frequencies: [370.7], inputs: ['God'], sigilFamily: 'Mek', arcPhrase: 'Mek Ka Lah Mah' };
     case 'Integration Ark':
       return { chakraZone: 'Solar / Lower Heart', frequencies: [496.1, 560.6, 582.2], inputs: ['Love', 'Unity', 'Lucid'], sigilFamily: 'Mek', arcPhrase: 'Mek Ka Lah Mah' };
     case 'Harmonization Ark':
@@ -256,9 +256,9 @@ const computeChakraResonance = (chakraArc: string) => {
       return { chakraZone: 'Throat–Third Eye Bridge', frequencies: [804.2, 847.0, 871.2, 978.8], inputs: ['Spirit', 'Healing', 'Creation', 'Self-Love'], sigilFamily: 'Tor', arcPhrase: 'Ka Lah Mah Tor' };
     case 'Purifikation Ark': // compatibility with stylized spelling
     case 'Purification Ark':
-      return { chakraZone: 'Crown / Soul Star', frequencies: [1292.3, 1356.4, 1393.6, 1502.5], inputs: ['Forgiveness', 'Sovereignty', 'Eternal Light', 'Resurrection'], sigilFamily: 'Rah', arcPhrase: 'Lah Mah Tor Rah' };
+      return { chakraZone: 'Krown / Soul Star', frequencies: [1292.3, 1356.4, 1393.6, 1502.5], inputs: ['Forgiveness', 'Sovereignty', 'Eternal Light', 'Resurrection'], sigilFamily: 'Rah', arcPhrase: 'Lah Mah Tor Rah' };
     case 'Dream Ark':
-      return { chakraZone: 'Crown / Soul Star', frequencies: [1616.4, 1800.2], inputs: ['Divine Feminine', 'Divine Masculine'], sigilFamily: 'Rah', arcPhrase: 'Lah Mah Tor Rah' };
+      return { chakraZone: 'Krown / Soul Star', frequencies: [1616.4, 1800.2], inputs: ['Divine Feminine', 'Divine Masculine'], sigilFamily: 'Rah', arcPhrase: 'Lah Mah Tor Rah' };
     default:
       return { chakraZone: 'Unknown', frequencies: [], inputs: [], sigilFamily: '', arcPhrase: '' };
   }

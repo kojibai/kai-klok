@@ -114,9 +114,25 @@ interface SigilTransferLite {
 const bytesToHex = (u8: Uint8Array) =>
   Array.from(u8).map((b) => b.toString(16).padStart(2, "0")).join("");
 
+/**
+ * TS 5.x makes TypedArrays generic over the backing buffer (ArrayBufferLike),
+ * while SubtleCrypto expects a BufferSource (ArrayBuffer | ArrayBufferView<ArrayBuffer>).
+ * To avoid the 'Uint8Array<ArrayBufferLike>' -> 'BufferSource' error, we ensure we pass
+ * a real ArrayBuffer (or a Uint8Array backed by one). This helper guarantees ArrayBuffer.
+ */
+function toArrayBuffer(view: Uint8Array): ArrayBuffer {
+  const buf = view.buffer;
+  // If already an ArrayBuffer and spans exactly the view, reuse it; else copy to a new ArrayBuffer
+  if (buf instanceof ArrayBuffer && view.byteOffset === 0 && view.byteLength === buf.byteLength) {
+    return buf;
+  }
+  return view.slice().buffer as ArrayBuffer;
+}
+
 async function sha256Hex(msg: string | Uint8Array): Promise<string> {
-  const data = typeof msg === "string" ? new TextEncoder().encode(msg) : msg;
-  const buf = await crypto.subtle.digest("SHA-256", data);
+  const view = typeof msg === "string" ? new TextEncoder().encode(msg) : msg;
+  const input: ArrayBuffer = toArrayBuffer(view);
+  const buf = await crypto.subtle.digest("SHA-256", input);
   return bytesToHex(new Uint8Array(buf));
 }
 
@@ -172,7 +188,7 @@ function b64encodeJson(obj: unknown): string {
   const b64 = btoa(
     encodeURIComponent(json).replace(
       /%([0-9A-F]{2})/g,
-      (_, h) => String.fromCharCode(parseInt(h, 16))
+      (_: string, h: string) => String.fromCharCode(parseInt(h, 16))
     )
   );
   return b64.replace(/=+$/g, "");
@@ -306,7 +322,7 @@ function buildKairosStamp(nowPulse: number, sigilPulse: number, chakraDay: Chakr
     `Month ${display.monthIndex1} ${display.monthName} • ` +
     `Day ${display.dayInMonth1}/42 • YearDay ${display.dayInYear1}/336 • ` +
     `Beat ${beatIndex + 1}/36 • Step ${stepIndex + 1}/44 ` +
-    `• ΦPulse ${nowPulse} • Arc ${arcName} • Chakra ${chakraDay}`;
+    `• ΦPulse ${nowPulse} • Ark ${arcName} • Chakra ${chakraDay}`;
 
   return {
     version: 1,
@@ -513,7 +529,7 @@ export default function SendSigilModal({
       // Preserve any renderer metadata for forensics (but structure for the Verifier)
       const embeddedMeta =
         readyMetaJson && readyMetaJson.trim().length > 0
-          ? JSON.parse(readyMetaJson) as unknown
+          ? (JSON.parse(readyMetaJson) as unknown)
           : null;
 
       const verifierMeta: Record<string, unknown> = {
@@ -682,10 +698,9 @@ export default function SendSigilModal({
             min="0"
             step="0.001"
           />
-          <div className="balance-hint">
-            Available: {availableBalance.toFixed(3)} Φ
-          </div>
         </div>
+
+        <div className="balance-hint">Available: {availableBalance.toFixed(3)} Φ</div>
 
         {error && <div className="error-msg">{error}</div>}
 

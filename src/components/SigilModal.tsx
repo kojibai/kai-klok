@@ -129,7 +129,7 @@ const DAY_TO_CHAKRA: Record<HarmonicDay, ChakraName> = {
 
 const ETERNAL_MONTH_NAMES = [
   "Aethon", "Virelai", "Solari", "Amarin",
-  "Kaelus", "Umbriel", "Noctura", "Liora",
+  "Kaelus", "Umbriel", "Noktura", "Liora",
 ] as const;
 
 const ARC_NAMES = [
@@ -303,7 +303,7 @@ function computeLocalKai(date: Date): LocalKai {
   const weekIndex = Math.floor((dayOfMonth - 1) / DAYS_PER_WEEK);
   const weekName = [
     "Awakening Flame","Flowing Heart","Radiant Will",
-    "Harmonic Voice","Inner Mirror","Dreamfire Memory","Krowned Light",
+    "Harmonic Voh","Inner Mirror","Dreamfire Memory","Krowned Light",
   ][weekIndex];
 
   const chakraStepString = `${beat}:${pad2(step)}`; // zero-based display (exact)

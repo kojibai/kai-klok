@@ -29,7 +29,7 @@ import type { SigilMetadataLite } from "../utils/valuation";
 const API_BASE = "https://pay.kaiklok.com"; // <— prod
 
 const STRIPE_PUBLISHABLE_KEY =
-  "pk_live_51JC8PeCnElKewPPGtfJ0uZEs20pxZNgjtmx1c17wOah58ukuaJol6tvxJ8W4R9AXyAKd17qg9f8yLKVP94oZfcOA00FLL9QWCs";
+  "pk_live_51SNLMpRzKZKauLy5RLZFDy8FzHTt50YH1BRbXof1Db79yr1xchPQLzLF43pixjKLUbwKr2nc3WT6eq7TZZInfnhT00IMTw0M8N";
 const BTC_ADDRESS = "1F3b56N1m4eYWNPoaU2ZfmcLSPeDd4cvZz";
 const MIN_BTC_CONFS = 1;
 

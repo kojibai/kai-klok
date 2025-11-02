@@ -27,35 +27,29 @@ import { currency, usd } from "../display";
 import type { ChartPoint } from "../series";
 
 /* ─────────────────────────────────────────────────────────────
- * Extended point fields we may carry alongside core series.
- * (No `any`; all optional and strictly typed.)
+ * Optional extended fields carried on each point
  * ───────────────────────────────────────────────────────────── */
 type WithFXUSD = {
-  fx?: number;         // per-point FX (USD per Φ)
-  usdPerPhi?: number;  // alias of fx
-  usd?: number;        // per-point price in USD
+  fx?: number;         // USD per Φ at this point
+  usdPerPhi?: number;  // alias
+  usd?: number;        // absolute USD value (precomputed), optional
   usdPrice?: number;   // alias
 };
-
 type FXPoint = ChartPoint & WithFXUSD;
 
 /* ─────────────────────────────────────────────────────────────
  * Props
  * ───────────────────────────────────────────────────────────── */
 export type LiveChartProps = {
-  data: ChartPoint[];   // parent model series
-  live: number;         // latest display price in Φ (child Φ if child)
-  pv: number;           // intrinsic PV (in Φ; will scale as needed)
+  data: ChartPoint[];
+  live: number;         // latest Φ (child Φ if child)
+  pv: number;           // intrinsic PV in Φ
   premiumX: number;
   momentX: number;
   colors: string[];
   height?: number;
   reflowKey?: number;
-
-  /** Initial window size in points (from the right). Default: 256 */
   initialWindow?: number;
-
-  /** Percent padding added to Y scale. Default: 7% */
   yPaddingPct?: number;
 
   /** If provided, treat the *last* point as this exact child Φ (6dp). */
@@ -64,7 +58,7 @@ export type LiveChartProps = {
   /** Scale PV line proportionally to child (default: true). */
   scalePvToChild?: boolean;
 
-  /** Live FX (USD per Φ) used when a point lacks its own fx. */
+  /** Live FX (USD per Φ) when a point lacks its own fx. */
   usdPerPhi: number;
 
   /** If you know it's a child glyph, pass true to force USD mode. */
@@ -85,6 +79,8 @@ type StateWithPayload = {
 
 /* Safe Math */
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
+const finitePos = (n: number | undefined | null) =>
+  typeof n === "number" && Number.isFinite(n) && n > 0;
 
 /** Pixel → index: needs container width */
 function useContainerWidth(): [React.MutableRefObject<HTMLDivElement | null>, number] {
@@ -125,10 +121,10 @@ export default function LiveChart({
   usdPerPhi,
   isChildGlyph = false,
 }: LiveChartProps) {
-  // Container & width (for pan/zoom calculations)
+  // Container & width
   const [wrapRef, wrapWidth] = useContainerWidth();
 
-  // Basic guards
+  // Data guards
   const safeData = useMemo<ChartPoint[]>(() => (Array.isArray(data) ? data : []), [data]);
   const hasData = safeData.length > 1;
   const dataMin = hasData ? safeData[0].i : 0;
@@ -145,43 +141,68 @@ export default function LiveChart({
 
   // Force child mode from prop if known
   const isChild = isChildGlyph || childΦ != null;
-  const isUsdMode = isChild; // requirement: child glyph charts in USD; parent in Φ
+  const isUsdMode = isChild; // child charts in USD; parent in Φ
 
-  /* Accessors for per-point FX / USD with strict typing */
+  /* ─────────────────── STABLE FX LATCH ───────────────────
+   * Remember last known positive FX and use it whenever a new
+   * tick passes 0/NaN/∞ or otherwise invalid. Eliminates $0 spikes.
+   */
+  const stableFxRef = useRef<number>(finitePos(usdPerPhi) ? usdPerPhi : 1);
+  useEffect(() => {
+    if (finitePos(usdPerPhi)) stableFxRef.current = usdPerPhi;
+  }, [usdPerPhi]);
+
+  // Accessor for per-point FX with stable fallback
   const fxOf = useCallback(
     (p?: FXPoint): number => {
-      const fx = (p?.fx ?? p?.usdPerPhi);
-      if (typeof fx === "number" && Number.isFinite(fx)) return fx;
-      return Number.isFinite(usdPerPhi) ? usdPerPhi : 0;
+      const candidate = p?.fx ?? p?.usdPerPhi ?? usdPerPhi;
+      return finitePos(candidate) ? (candidate as number) : stableFxRef.current;
     },
     [usdPerPhi]
   );
 
-  /** USD value for a *point* based on that point’s Φ and FX (or point-provided USD). */
+  /** USD for a point based on Φ×FX or provided USD, with stability guard */
   const usdFromPoint = useCallback(
-    (p: FXPoint): number => {
-      if (typeof p.usd === "number" && Number.isFinite(p.usd)) return p.usd;
-      if (typeof p.usdPrice === "number" && Number.isFinite(p.usdPrice)) return p.usdPrice;
-      const phiAtPoint = p.value; // parent series value at that point (Φ)
-      return fxOf(p) * phiAtPoint;
+    (p: FXPoint, prevUsd: number | null): [number, number] => {
+      // prefer per-point USD if sane
+      const direct =
+        finitePos(p.usd) ? (p.usd as number) :
+        finitePos(p.usdPrice) ? (p.usdPrice as number) :
+        NaN;
+
+      let val = direct;
+      if (!finitePos(val)) {
+        const phiAtPoint = typeof p.value === "number" ? p.value : Number(p.value);
+        const fx = fxOf(p);
+        val = phiAtPoint * fx;
+      }
+
+      // coalesce to last good USD if computed is not finite/positive
+      if (!finitePos(val)) {
+        val = prevUsd ?? (finitePos(stableFxRef.current) ? (Number(p.value) || 0) * stableFxRef.current : 0);
+      }
+      const nextPrev = finitePos(val) ? (val as number) : (prevUsd ?? 0);
+      return [val as number, nextPrev];
     },
     [fxOf]
   );
 
-  // Build plot series in the correct units:
-  // - Parent: Φ series as-is (value in Φ)
-  // - Child: USD series (value in USD), derived from per-point Φ * per-point FX (or per-point USD override)
+  // Build plot series in correct units (Φ for parent; USD for child)
   const plotData = useMemo<ChartPoint[]>(() => {
     if (!hasData) return safeData;
-    if (!isUsdMode) return safeData; // Φ mode for parent
+    if (!isUsdMode) return safeData; // parent in Φ
 
-    return safeData.map((p) => {
-      const fp: FXPoint = p; // widen to allow optional fields
-      return { ...p, value: usdFromPoint(fp) };
+    let lastGoodUsd: number | null = null;
+    const out = safeData.map((p) => {
+      const fp: FXPoint = p as FXPoint;
+      const [usdV, nextGood] = usdFromPoint(fp, lastGoodUsd);
+      lastGoodUsd = nextGood;
+      return { ...p, value: usdV };
     });
+    return out;
   }, [hasData, safeData, isUsdMode, usdFromPoint]);
 
-  // PV display (in Φ), optionally scaled by child ratio
+  // PV display in Φ, optionally scaled by child ratio
   const pvPhi = useMemo<number>(() => {
     if (!scalePvToChild || childΦ == null || !Number.isFinite(lastParentValue) || lastParentValue <= 0) {
       return pv;
@@ -193,15 +214,15 @@ export default function LiveChart({
   // PV line in chart units
   const pvChart = useMemo<number>(() => (isUsdMode ? pvPhi * fxOf() : pvPhi), [isUsdMode, pvPhi, fxOf]);
 
-  // Live values in both units
-  const livePhi = live; // Φ (childΦ if child)
-  const liveUsd = useMemo(() => livePhi * (Number.isFinite(usdPerPhi) ? usdPerPhi : 0), [livePhi, usdPerPhi]);
+  // Live values in both units (use stable FX)
+  const livePhi = live;
+  const liveUsd = useMemo(() => livePhi * (finitePos(usdPerPhi) ? usdPerPhi : stableFxRef.current), [livePhi, usdPerPhi]);
 
-  // Viewport (x-domain) state
+  // Viewport (x-domain)
   const [xMin, setXMin] = useState<number>(() => Math.max(dataMin, lastIndex - (initialWindow - 1)));
   const [xMax, setXMax] = useState<number>(() => lastIndex);
 
-  // Auto-follow live when the viewport right edge is at the last index
+  // Auto-follow live when at right edge
   const autoFollowRef = useRef<boolean>(true);
   useEffect(() => {
     if (autoFollowRef.current && hasData) {
@@ -214,7 +235,7 @@ export default function LiveChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastIndex, hasData]);
 
-  // Y-domain padding
+  // Y-domain padding (ignore non-finite)
   const [yMin, yMax] = useMemo<[number, number]>(() => {
     if (!hasData) return [0, 1];
     const lo = Number.MIN_SAFE_INTEGER;
@@ -224,7 +245,8 @@ export default function LiveChart({
     for (let i = 0; i < plotData.length; i += 1) {
       const p = plotData[i];
       if (p.i < xMin || p.i > xMax) continue;
-      const v = p.value;
+      const v = Number(p.value);
+      if (!Number.isFinite(v)) continue;
       if (v < minV) minV = v;
       if (v > maxV) maxV = v;
     }
@@ -234,14 +256,14 @@ export default function LiveChart({
     return [minV - pad, maxV + pad];
   }, [plotData, xMin, xMax, yPaddingPct, hasData]);
 
-  // Hover & pin (cursor / selection)
+  // Hover & pin
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [pinnedIdx, setPinnedIdx] = useState<number | null>(null);
 
   /** Gradient id (stable for chart instance) */
   const areaId = useMemo(() => `grad-${Math.random().toString(36).slice(2)}`, []);
 
-  /** Tiny pill tag factory (H/L/child Φ) — typed for Recharts Label content */
+  /** Tiny pill tag (H/L/child Φ) */
   const tinyTag = useCallback(
     (text: string): LabelProps["content"] =>
       (props: LabelProps) => {
@@ -271,7 +293,7 @@ export default function LiveChart({
     [colors]
   );
 
-  /** Last price tag — typed as LabelProps["content"] */
+  /** Last price tag (Φ + USD lines) */
   const renderPriceTag: LabelProps["content"] = useCallback(
     (props: LabelProps) => {
       const vb = props.viewBox as { x?: number; y?: number } | undefined;
@@ -282,7 +304,7 @@ export default function LiveChart({
       const usdTag = usd(liveUsd);
 
       const w = Math.max(84, Math.max(phiTag.length, usdTag.length) * 8.2) + 12;
-      const h = 38; // two lines
+      const h = 38;
 
       return (
         <g transform={`translate(${x + 10},${y - 12})`} aria-hidden="true">
@@ -297,11 +319,9 @@ export default function LiveChart({
             stroke="rgba(255,255,255,.25)"
             strokeWidth={1}
           />
-          {/* Φ line */}
           <text x={8} y={-h + 14} fontSize={12} fontWeight={800} fill={colors[0]}>
             {phiTag}
           </text>
-          {/* USD line (live) */}
           <text x={8} y={-h + 28} fontSize={11} fontWeight={700} fill="rgba(255,255,255,.85)">
             {usdTag}
           </text>
@@ -317,7 +337,7 @@ export default function LiveChart({
     return s?.activePayload?.[0]?.payload;
   };
 
-  /** Hover, leave, tap/pin (mouse & touch tap) */
+  /** Hover, leave, tap/pin */
   const onMove: MouseMoveFunc = (st) => {
     const p = pickPoint(st);
     if (p?.i != null) setHoverIdx(p.i);
@@ -339,24 +359,21 @@ export default function LiveChart({
     (props: ChartTooltipProps) => {
       const { active, payload } = props;
       if (!active || !payload?.length) return null;
-      const p = payload[0].payload;
+      const p = payload[0].payload as FXPoint;
 
       // Chart value (already in chart units via plotData)
       const chartVal = (p.value as number) ?? 0;
 
       // Derive both units for display
-      const fx = fxOf(p as FXPoint);
+      const fx = fxOf(p);
 
-      // Φ value to show in tooltip:
-      // - parent mode -> Φ at point (chartVal)
-      // - child mode  -> the child’s Φ (fixed), fall back to liveΦ if needed
+      // Φ value to show:
       const phiHere = isUsdMode ? (childΦ ?? livePhi) : chartVal;
 
-      // USD value to show in tooltip:
+      // USD value to show:
       // - parent mode -> parent's USD at point (chartVal * fx)
-      // - child mode  -> **child’s USD** at the hovered point (child Φ × point FX)
-      //    (this is the only change requested; ensures tooltip reflects CHILD USD)
-      const usdHereNum = isUsdMode ? (phiHere * fx) : (chartVal * fx); // ← FIXED
+      // - child mode  -> child’s USD at hovered point (child Φ × point FX)
+      const usdHereNum = isUsdMode ? (phiHere * fx) : (chartVal * fx);
 
       // Change vs first visible in *chart units*
       const firstVisible = plotData.find((pt) => pt.i >= xMin)?.value ?? chartVal;
@@ -439,7 +456,7 @@ export default function LiveChart({
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
       if (!hasData || wrapWidth <= 0) return;
-      const factor = Math.exp(e.deltaY * 0.0015); // +dy => zoom out
+      const factor = Math.exp(e.deltaY * 0.0015);
       const center = pinnedIdx ?? hoverIdx ?? xMax;
       zoomAround(center, factor);
     },
@@ -461,7 +478,7 @@ export default function LiveChart({
     if (pointersRef.current.size === 1) {
       draggingRef.current = true;
       dragStartRef.current = { x: e.clientX, xMin, xMax };
-      autoFollowRef.current = false; // user started to pan
+      autoFollowRef.current = false;
     } else if (pointersRef.current.size === 2) {
       const pts = Array.from(pointersRef.current.values());
       const spanPx = Math.abs(pts[0].x - pts[1].x);
@@ -527,7 +544,7 @@ export default function LiveChart({
     [hasData, dataMin, dataMax, setDomain]
   );
 
-  /** Local window high/low around the active index (in chart units) */
+  /** Local window H/L around active index (chart units) */
   const localHL = useMemo<{ low: number; high: number; start: number; end: number } | null>(() => {
     if (!hasData) return null;
     const activeIdx = pinnedIdx ?? hoverIdx ?? plotData[plotData.length - 1]?.i ?? xMax;
@@ -538,7 +555,8 @@ export default function LiveChart({
     for (let i = 0; i < plotData.length; i += 1) {
       const p = plotData[i];
       if (p.i < start || p.i > end) continue;
-      const v = p.value;
+      const v = Number(p.value);
+      if (!Number.isFinite(v)) continue;
       if (v < low) low = v;
       if (v > high) high = v;
     }
@@ -563,7 +581,9 @@ export default function LiveChart({
     );
   }
 
-  const childBaselineY = isUsdMode ? (childΦ! * fxOf()) : childΦ!;
+  const childBaselineY = isUsdMode
+    ? (childΦ! * (finitePos(usdPerPhi) ? usdPerPhi : stableFxRef.current))
+    : childΦ!;
 
   return (
     <div
@@ -606,7 +626,7 @@ export default function LiveChart({
           <XAxis dataKey="i" type="number" domain={[xMin, xMax]} axisLine={false} tickLine={false} hide />
           <YAxis axisLine={false} tickLine={false} hide domain={[yMin, yMax]} width={0} />
 
-          {/* PV line + label (in chart units) */}
+          {/* PV (chart units) */}
           <ReferenceLine
             y={pvChart}
             stroke="rgba(255,255,255,.55)"
@@ -631,7 +651,7 @@ export default function LiveChart({
             }
           />
 
-          {/* CHILD baseline (Φ constant; draw at USD or Φ according to mode) */}
+          {/* CHILD baseline */}
           {isChild && (
             <ReferenceLine
               y={childBaselineY}
@@ -663,7 +683,7 @@ export default function LiveChart({
             />
           )}
 
-          {/* Area fill + price line (value is Φ for parent; USD for child) */}
+          {/* Area + Price line (Φ for parent; USD for child) */}
           <Area type="monotone" dataKey="value" stroke="none" fill={`url(#${areaId})`} isAnimationActive={false} />
           <Line
             type="monotone"
@@ -675,7 +695,7 @@ export default function LiveChart({
             activeDot={{ r: 5 }}
           />
 
-          {/* Local H/L band around active index (chart units) */}
+          {/* Local H/L band */}
           {localHL && (
             <ReferenceArea
               x1={localHL.start}
@@ -713,7 +733,7 @@ export default function LiveChart({
             );
           })()}
 
-          {/* Last price marker + tag: y in CHART UNITS */}
+          {/* Last price marker + tag */}
           <ReferenceDot
             x={lastIndex}
             y={isUsdMode ? liveUsd : livePhi}
@@ -727,7 +747,7 @@ export default function LiveChart({
             <Label content={renderPriceTag} />
           </ReferenceDot>
 
-          {/* Tiny "child Φ" badge at tail when applicable */}
+          {/* Tiny "child Φ" badge */}
           {isChild && (
             <ReferenceDot x={lastIndex} y={isUsdMode ? liveUsd : livePhi} r={0} ifOverflow="extendDomain">
               <Label content={tinyTag("child Φ")} />

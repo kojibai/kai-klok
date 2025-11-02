@@ -552,19 +552,19 @@ const MONTHS = [
   { name: "Solari",  desc: "Solar ignition: Radiant embodiment" },
   { name: "Amarin",  desc: "Heart bloom: Sacred balance" },
   { name: "Kaelus",  desc: "Voice of stars: Resonant expression" },
-  { name: "Umbriel", desc: "Divine remembrance: Crown alignment" },
-  { name: "Noctura", desc: "Light spiral: Celestial flow" },
+  { name: "Umbriel", desc: "Divine remembrance: Krown alignment" },
+  { name: "Noktura", desc: "Light spiral: Selestial flow" },
   { name: "Liora",   desc: "Eternal mirror: Infinite now" },
 ] as const;
 
 const WEEK_SPIRALS = [
-  { name: "Awakening Flame",  desc: "Root fire of ignition, will, resurrection" },
-  { name: "Flowing Heart",    desc: "Emotional waters, intimacy, surrender" },
-  { name: "Radiant Will",     desc: "Solar clarity, aligned confidence, embodiment" },
-  { name: "Harmonic Voice",   desc: "Spoken truth, vibration, coherence in sound" },
-  { name: "Inner Mirror",     desc: "Reflection, purification, self-seeing" },
-  { name: "Dreamfire Memory", desc: "Lucid vision, divine memory, encoded light" },
-  { name: "Krowned Light",    desc: "Integration, sovereignty, harmonic ascension" },
+  { name: "Awakening Flame",  desc: "Root fire of ignition, will, resurrektion" },
+  { name: "Flowing Heart",    desc: "Emotional waters, intimasy, surrender" },
+  { name: "Radiant Will",     desc: "Solar klarity, aligned konfidence, embodiment" },
+  { name: "Harmonic Voice",   desc: "Spoken truth, vibration, koherense in sound" },
+  { name: "Inner Mirror",     desc: "Reflektion, purifikation, self-seeing" },
+  { name: "Dreamfire Memory", desc: "Lusid vision, divine memory, encoded light" },
+  { name: "Krowned Light",    desc: "Integration, sovereignty, harmonik ascension" },
 ] as const;
 
 // ─────────────────────────────────────────────────────────────

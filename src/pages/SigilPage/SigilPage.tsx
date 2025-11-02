@@ -3265,7 +3265,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              <h3>Resonance Stream</h3>
+              <h3>Resonanse Stream</h3>
 
               <ul className="sp-debits__list">
                 {(payloadD?.debits ?? []).map((d: DebitLoose) => (
@@ -3287,7 +3287,7 @@ useEffect(() => {
             <div className="sp-card sp-lineage" role="region" aria-label="Lineage">
               {payloadLineage.length > 0 && (
                 <>
-                  <h3 className="sp-lineage__title">Ancestry Path</h3>
+                  <h3 className="sp-lineage__title">Ansestry Path</h3>
                   <ol className="sp-lineage__path" aria-label="Ancestor lineage path">
                     {payloadLineage.map((node, idx) => (
                       <li className="sp-lineage__node" key={`${node.token}-${idx}`}>
@@ -3316,7 +3316,7 @@ useEffect(() => {
                         <li className="sp-lineage__desc-item" key={c.token}>
                           <div className="row">
                             <span className="who">
-                              Child <code title={c.token}>{c.token.slice(0, 10)}…</code> → {currency(c.amount)} Φ
+                              Derivative <code title={c.token}>{c.token.slice(0, 10)}…</code> → {currency(c.amount)} Φ
                               {c.recipientPhiKey ? (
                                 <> to <abbr title={c.recipientPhiKey}>{c.recipientPhiKey.slice(0, 10)}…</abbr></>
                               ) : null}
@@ -3430,8 +3430,8 @@ useEffect(() => {
           onWheel={(e: React.WheelEvent<HTMLInputElement>) => e.currentTarget.blur()}
           className="btn-ghost"
           style={{ padding: 10 }}
-          aria-label="Claim window amount"
-          title="How long the recipient has to claim"
+          aria-label="Inhale Step amount"
+          title="How long the resipient has to inhale"
           autoComplete="off"
           spellCheck={false}
         />
@@ -3441,7 +3441,7 @@ useEffect(() => {
           onChange={(e) => setExpiryUnit(e.currentTarget.value as ExpiryUnit)}
           className="btn-ghost"
           style={{ padding: 10 }}
-          aria-label="Claim window unit"
+          aria-label="Inhale time unit"
           title="Breaths or steps"
         >
           <option value="breaths">breaths</option>
@@ -3471,8 +3471,8 @@ useEffect(() => {
         </button>
 
         <div style={{ opacity: 0.85 }}>
-          Logs to the resonance stream, updates the Sigil-Glyph, & exhales a child Φkey with a
-          claim window of <strong>{expiryAmount}</strong> {expiryUnit}.
+          Logs to the resonanse stream, updates the Sigil-Glyph, & exhales a derivative Φkey with a
+          inhale time of <strong>{expiryAmount}</strong> {expiryUnit}.
         </div>
       </div>
     </div>

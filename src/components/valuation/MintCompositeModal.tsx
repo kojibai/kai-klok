@@ -195,9 +195,20 @@ export interface CompositeManifest {
 const bytesToHex = (u8: Uint8Array) =>
   Array.from(u8).map((b) => b.toString(16).padStart(2, "0")).join("");
 
+/** Ensure SubtleCrypto always receives a real ArrayBuffer (not SharedArrayBuffer / generics). */
+function abFromU8(view: Uint8Array): ArrayBuffer {
+  const buf = view.buffer;
+  if (buf instanceof ArrayBuffer && view.byteOffset === 0 && view.byteLength === buf.byteLength) {
+    return buf;
+  }
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(view);
+  return copy.buffer;
+}
+
 async function sha256Hex(msg: string | Uint8Array): Promise<string> {
-  const data = typeof msg === "string" ? new TextEncoder().encode(msg) : msg;
-  const buf = await crypto.subtle.digest("SHA-256", data);
+  const view = typeof msg === "string" ? new TextEncoder().encode(msg) : msg;
+  const buf = await crypto.subtle.digest("SHA-256", abFromU8(view));
   return bytesToHex(new Uint8Array(buf));
 }
 

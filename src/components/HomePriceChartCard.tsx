@@ -1,18 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+"use client";
+
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import KaiPriceChart from "./KaiPriceChart";
+import KaiPriceChart, { type KPricePoint } from "./KaiPriceChart";
 import { DEFAULT_ISSUANCE_POLICY, quotePhiForUsd } from "../utils/phi-issuance";
 import type { SigilMetadataLite } from "../utils/valuation";
 import "./HomePriceChartCard.compact.css";
 
 /* =============================================================
-   HomePriceChartCard — Slim Ticker ↔ Expandable Chart (Parity)
-   • Single source = KaiPriceChart.priceFn(pulse)
-   • Ticker mirrors last chart tick exactly (no separate compute)
-   • Chart stays mounted while collapsed (hidden but running)
-   • Fully closed when collapsed (no visual bleed)
-   • Emits onExpandChange(expanded) so parent can enable scroll
+   HomePriceChartCard — Slim Ticker ↔ Expandable Chart
+   • priceFn is PURE (no setState)
+   • Ticker mirrors chart via onTick (effect-safe)
+   • Chart stays mounted while collapsed (hidden off-screen)
    ============================================================= */
 
 type Props = {
@@ -22,15 +22,32 @@ type Props = {
   chartHeight?: number;
   onError?: (err: unknown) => void;
   stripePk?: string;
-  onExpandChange?: (expanded: boolean) => void; // NEW
+  onExpandChange?: (expanded: boolean) => void;
 };
 
 const API_DEFAULT = "https://pay.kaiklok.com";
 const STRIPE_PUBLISHABLE_KEY =
-  "pk_live_51JC8PeCnElKewPPGtfJ0uZEs20pxZNgjtmx1c17wOah58ukuaJol6tvxJ8W4R9AXyAKd17qg9f8yLKVP94oZfcOA00FLL9QWCs";
+  "pk_live_51SNLMpRzKZKauLy5RLZFDy8FzHTt50YH1BRbXof1Db79yr1xchPQLzLF43pixjKLUbwKr2nc3WT6eq7TZZInfnhT00IMTw0M8N";
 
-const PULSES_PER_DAY = 14400; // 1 pulse = 6s
+const PULSES_PER_DAY = 14400; // bridge label (UI only)
 const FALLBACK_META = { ip: { expectedCashflowPhi: [] } } as unknown as SigilMetadataLite;
+
+// stable constants
+const EMPTY_POINTS: KPricePoint[] = [];
+const QUICK_AMOUNTS = [144, 233, 987] as const;
+const HIDDEN_CHART_STYLE: React.CSSProperties = {
+  position: "fixed",
+  left: -10000,
+  top: -10000,
+  width: 1,
+  height: 1,
+  opacity: 0,
+  visibility: "hidden",
+  pointerEvents: "none",
+  overflow: "hidden",
+  clipPath: "inset(50%)",
+  contain: "layout paint size style",
+};
 
 /* ---------- helpers ---------- */
 function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, ms = 15000): Promise<T> {
@@ -57,7 +74,11 @@ async function createPaymentIntent(apiBase: string, amountUsd: number): Promise<
       credentials: "omit",
       mode: "cors",
       signal,
-      body: JSON.stringify({ amount: Math.max(1, Math.round(amountUsd)), currency: "usd", description: "Kairos Sovereign Inhale" }),
+      body: JSON.stringify({
+        amount: Math.max(1, Math.round(amountUsd)),
+        currency: "usd",
+        description: "Kairos Sovereign Inhale",
+      }),
     });
     if (!res.ok) {
       const msg = (await res.text().catch(() => "")) || `Failed to create payment intent (${res.status})`;
@@ -67,7 +88,7 @@ async function createPaymentIntent(apiBase: string, amountUsd: number): Promise<
   });
 }
 
-/* ---------- Breathing Φ logo using /phi.svg ---------- */
+/* ---------- Breathing Φ logo ---------- */
 function PhiLogo(): React.JSX.Element {
   return (
     <span className="phi-logo" aria-hidden>
@@ -117,7 +138,7 @@ const InlineCardCheckout: React.FC<{
       const { error: err, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",
-        confirmParams: { return_url: window.location.href },
+        confirmParams: { return_url: typeof window !== "undefined" ? window.location.href : undefined },
       });
       if (err) { setError(err.message || "Payment confirmation failed."); return; }
       if (paymentIntent?.status === "succeeded") { onSuccess?.(); return; }
@@ -133,7 +154,9 @@ const InlineCardCheckout: React.FC<{
   return (
     <div className="hp-popover" role="dialog" aria-label="Inline sovereign checkout" data-intent-id={intentId}>
       <div className="hp-pop-head">
-        <div className="hp-pop-title">Inhale {amountUsd.toLocaleString(undefined, { style: "currency", currency: "USD" })}</div>
+        <div className="hp-pop-title">
+          Inhale {amountUsd.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+        </div>
         <button type="button" className="hp-x" onClick={onClose} aria-label="Close checkout">×</button>
       </div>
       <div className="hp-pop-body">
@@ -165,8 +188,10 @@ export default function HomePriceChartCard({
   const [sample, setSample] = useState<number>(ctaAmountUsd);
   const [expanded, setExpanded] = useState<boolean>(false);
 
-  // Let parent know our initial state (false)
-  useEffect(() => { onExpandChange?.(false); }, [onExpandChange]);
+  // Notify parent once on mount (no dependency churn)
+  const onExpandChangeRef = useRef<Props["onExpandChange"]>(onExpandChange);
+  useEffect(() => { onExpandChangeRef.current = onExpandChange; }, [onExpandChange]);
+  useEffect(() => { onExpandChangeRef.current?.(false); }, []);
 
   // Stripe
   const stripePromise = useMemo(() => loadStripe(stripePk), [stripePk]);
@@ -176,7 +201,7 @@ export default function HomePriceChartCard({
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  /* ---------- SINGLE SOURCE OF TRUTH: computePrice (chart only) ---------- */
+  /* ---------- PURE price function for the chart ---------- */
   const computePrice = useCallback(
     (pulse: number): number => {
       if (!meta) return 0;
@@ -190,19 +215,15 @@ export default function HomePriceChartCard({
     [meta, sample]
   );
 
-  // Chart feeds its exact pulse & price into state; ticker mirrors that.
+  const chartPriceFn = useCallback((pulse: number) => computePrice(pulse), [computePrice]);
+
+  // Mirror last chart tick into local state via EFFECT-SAFE callback
   const [chartTick, setChartTick] = useState<{ pulse: number; price: number } | null>(null);
+  const handleTick = useCallback(({ p, price }: { p: number; price: number }) => {
+    setChartTick({ pulse: p, price });
+  }, []);
 
-  const chartPriceFn = useCallback(
-    (pulse: number) => {
-      const price = computePrice(pulse);
-      setChartTick({ pulse, price });
-      return price;
-    },
-    [computePrice]
-  );
-
-  // 24h % = same pulse as last chart tick (lockstep)
+  // 24h %
   const pct24h = useMemo(() => {
     if (!chartTick) return null;
     const prev = computePrice(chartTick.pulse - PULSES_PER_DAY);
@@ -245,40 +266,26 @@ export default function HomePriceChartCard({
     setSuccess(true);
     try {
       const detail = { amount: Number.isFinite(sample) ? Math.max(1, Math.round(sample)) : ctaAmountUsd, method: "card" as const };
-      window.dispatchEvent(new CustomEvent("investor:contribution", { detail }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("investor:contribution", { detail }));
+      }
     } catch (e) { onError?.(e); }
     closeInlineCheckout();
   }, [sample, ctaAmountUsd, onError, closeInlineCheckout]);
 
-  const quick = [144, 233, 987] as const;
-  const regionId = "hp-expand-region";
-
-  // Collapsed hidden style: truly invisible but mounted & ticking.
-  const HIDDEN_CHART_STYLE: React.CSSProperties = {
-    position: "fixed",
-    left: -10000,
-    top: -10000,
-    width: 1,
-    height: 1,
-    opacity: 0,
-    visibility: "hidden",
-    pointerEvents: "none",
-    overflow: "hidden",
-    clipPath: "inset(50%)",
-    contain: "layout paint size style",
-  };
+  const regionId = useId();
 
   const toggleExpanded = useCallback(() => {
     setExpanded((v) => {
       const nv = !v;
-      onExpandChange?.(nv);
+      onExpandChangeRef.current?.(nv);
       return nv;
     });
-  }, [onExpandChange]);
+  }, []);
 
   return (
     <div className={`hp-card ${expanded ? "is-expanded" : "is-collapsed"}`} role="group" aria-label="Sovereign asset">
-      {/* Slim ticker strip */}
+      {/* Slim ticker */}
       <div
         className="hp-ticker"
         role="button"
@@ -300,14 +307,21 @@ export default function HomePriceChartCard({
         </div>
       </div>
 
-      {/* Always-mounted chart engine. When collapsed, it's fully off-screen and invisible. */}
+      {/* Always-mounted chart engine (hidden when collapsed) */}
       <div className="hp-chart-wrap" aria-hidden={!expanded} style={expanded ? { marginTop: 8 } : HIDDEN_CHART_STYLE}>
         <div className="hp-chart">
-          <KaiPriceChart points={[]} autoWidth height={chartHeight} title={undefined} priceFn={chartPriceFn} />
+          <KaiPriceChart
+            points={EMPTY_POINTS}      // typed KPricePoint[] (not ReadonlyArray) to match prop
+            autoWidth
+            height={chartHeight}
+            title={undefined}
+            priceFn={chartPriceFn}     // PURE
+            onTick={handleTick}        // effect-safe -> updates parent state
+          />
         </div>
       </div>
 
-      {/* Expandable region (controls + checkout + toast). Chart itself is not unmounted. */}
+      {/* Expandable region */}
       <div
         id={regionId}
         className={`hp-expand ${expanded ? "is-open" : "is-closed"}`}
@@ -318,20 +332,34 @@ export default function HomePriceChartCard({
         <div className="hp-controls">
           <div className="hp-chips">
             <span className="dim">Exhale:</span>
-            {quick.map((v) => (
-              <button key={v} type="button" className={`chip ${v === sample ? "active" : ""}`}
-                      onClick={(e) => { e.stopPropagation(); setSample(v); }} aria-label={`Set sample to $${v}`}>
+            {QUICK_AMOUNTS.map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={`chip ${v === sample ? "active" : ""}`}
+                onClick={(e) => { e.stopPropagation(); setSample(v); }}
+                aria-label={`Set sample to $${v}`}
+              >
                 ${v.toLocaleString()}
               </button>
             ))}
-            <button type="button" className="chip ghost" aria-label="Increase sample by 5%"
-                    onClick={(e) => { e.stopPropagation(); setSample((s) => Math.max(1, Math.round(s * 1.05))); }}>
+            <button
+              type="button"
+              className="chip ghost"
+              aria-label="Increase sample by 5%"
+              onClick={(e) => { e.stopPropagation(); setSample((s) => Math.max(1, Math.round(s * 1.05))); }}
+            >
               +5%
             </button>
           </div>
 
           <div className="hp-actions-row">
-            <button type="button" className="hp-primary" onClick={(e) => { e.stopPropagation(); openInlineCheckout(); }} aria-haspopup="dialog">
+            <button
+              type="button"
+              className="hp-primary"
+              onClick={(e) => { e.stopPropagation(); openInlineCheckout(); }}
+              aria-haspopup="dialog"
+            >
               Inhale
             </button>
           </div>

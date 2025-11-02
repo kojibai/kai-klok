@@ -1,39 +1,10 @@
-// KaiPriceChart.tsx
-// ────────────────────────────────────────────────────────────
-/*
-  LIVE Kai Price Chart — Pulse-native ticker (ticks every 3+√5 s)
-  - Aligns to integer pulses using Kai epoch (bridge only)
-  - Recomputes price each pulse with the SAME MATH as the inline version:
-      • Try real engine (buildExchangeSeries over last 11 pulses → usdPerPhi)
-      • Else fallback φ-oscillator (uses previous price as base + golden harmonics + sin noise)
-  - Rolling window; cents formatting; VWAP band + bands + crosshair
-  - X axis: numbers only; single "pulse" caption once at the bottom
-
-  Integration:
-  - If you already have globals like fetchSigilMeta, buildExchangeSeries, DEFAULT_ISSUANCE_POLICY
-    on window/globalThis, the component will auto-detect and use them.
-  - Or pass them in as props (optional).
-
-  Props (added):
-    • live?: boolean (default true)
-    • windowPoints?: number (default 240)
-    • basePrice?: number (only used if you also provide priceFn)
-    • priceFn?: (pulse: number) => number   // hard override for price (skips engine/fallback)
-    • volFn?: (pulse: number) => number     // optional volume per pulse (0..1)
-    • tickAlignToPulse?: boolean (default true)
-    • tickMs?: number (override period; default = 3+√5 s)
-    • fetchSigilMeta?: () => Promise<SigilMeta>   // optional; if omitted, tries globalThis.fetchSigilMeta
-    • buildExchangeSeries?: BuildExchangeSeries   // optional; if omitted, tries globalThis.buildExchangeSeries
-    • issuancePolicy?: IssuancePolicy             // optional; if omitted, tries globalThis.DEFAULT_ISSUANCE_POLICY
-*/
-// ────────────────────────────────────────────────────────────
+"use client";
 
 import * as React from "react";
 
-// ---------- Price point ----------
+/** ---------- Public types (imported by other files) ---------- */
 export type KPricePoint = { p: number; price: number; vol: number };
 
-// ---------- Engine hook types (strict, no `any`) ----------
 export type SigilMeta = Readonly<Record<string, unknown>>;
 export type IssuancePolicy = Readonly<Record<string, unknown>>;
 
@@ -51,9 +22,9 @@ export type BuildExchangeSeries = (
   count: number
 ) => ReadonlyArray<BuildSeriesPoint>;
 
-// ---------- Props ----------
+/** ---------- Props ---------- */
 export type KaiPriceChartProps = {
-  points: KPricePoint[]; // seed points (optional; used to bootstrap live series)
+  points?: ReadonlyArray<KPricePoint>;
   width?: number;
   height?: number;
   title?: string;
@@ -64,46 +35,41 @@ export type KaiPriceChartProps = {
   gridYTicks?: number; // default 4
   bandLevels?: number[]; // default [0.236, 0.382, 0.5, 0.618]
   showVWAP?: boolean; // default true
-  autoWidth?: boolean; // default false — if true, width is container width
-  includeStyles?: boolean; // default true — embed minimal CSS
+  autoWidth?: boolean; // default false
+  includeStyles?: boolean; // default true
   onHoverPoint?: (pt: { p: number; price: number } | null) => void;
 
   // Behavioral
   live?: boolean; // default true
-  windowPoints?: number; // default 240 (~21 min of history)
-  basePrice?: number; // only used if priceFn provided
-  priceFn?: (pulse: number) => number; // hard override (skips engine/fallback)
-  volFn?: (pulse: number) => number; // optional, 0..1
-  tickAlignToPulse?: boolean; // default true (snap to next integer pulse)
-  tickMs?: number; // override tick period; default BREATH_MS
+  windowPoints?: number; // default 240
+  basePrice?: number;
+  priceFn?: (pulse: number) => number;
+  volFn?: (pulse: number) => number;
+  tickAlignToPulse?: boolean; // default true
+  tickMs?: number;
 
-  // Optional engine hooks (if not passed, the component will try globalThis)
+  // Engine hooks (optional)
   fetchSigilMeta?: () => Promise<SigilMeta>;
   buildExchangeSeries?: BuildExchangeSeries;
   issuancePolicy?: IssuancePolicy;
+
+  onTick?: (tick: { p: number; price: number }) => void;
 };
 
-// ——— Kai constants (bridge only; rendering stays in pulses) ———
-const KAI_EPOCH_MS = 1715323541888; // 2024-05-10 06:45:41.888 UTC (Sun) • canonical bridge
-const BREATH_S = 3 + Math.sqrt(5); // φ-exact breath period
+/** ---------- Kai constants (bridge only) ---------- */
+const KAI_EPOCH_MS = 1715323541888; // canonical bridge
+const BREATH_S = 3 + Math.sqrt(5);
 const BREATH_MS = BREATH_S * 1000;
 
 const kaiPulseNow = (): number => (Date.now() - KAI_EPOCH_MS) / BREATH_MS;
 
-// ——— helpers ———
+/** ---------- helpers ---------- */
 const clamp = (x: number, min: number, max: number) => Math.max(min, Math.min(max, x));
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const fmtUSD = (n: number | undefined | null) =>
-  n == null
-    ? "—"
-    : n.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+const fmtUSD = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Fallback φ-oscillator — EXACTLY like inline (noise via sin, not PRNG)
+// Fallback φ-oscillator — deterministic
 const phiFallbackPrice = (pulse: number, base: number) => {
   const φ = (1 + Math.sqrt(5)) / 2;
   const slow = Math.sin((2 * Math.PI * pulse) / 44) * 0.85;
@@ -113,11 +79,14 @@ const phiFallbackPrice = (pulse: number, base: number) => {
   return round2(base + slow + fast1 + fast2 + noise);
 };
 
-// Default volume (0..1) varying in Kai rhythm (deterministic)
 const phiVol = (pulse: number) => {
   const v = Math.abs(Math.sin((2 * Math.PI * pulse) / 11));
   return clamp(0.35 + 0.65 * v, 0, 1);
 };
+
+/** ---------- typed empty constants to avoid never[] ---------- */
+const EMPTY_POINTS: ReadonlyArray<KPricePoint> = Object.freeze([] as KPricePoint[]);
+const EMPTY_BANDS: ReadonlyArray<number> = Object.freeze([] as number[]);
 
 const KAI_PRICE_CHART_CSS = `
 .kai-price-wrap { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji"; color: #e7fbf7; }
@@ -186,6 +155,8 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
   fetchSigilMeta,
   buildExchangeSeries,
   issuancePolicy,
+
+  onTick,
 }) => {
   const padding = defaultPadding;
   const wrapRef = React.useRef<HTMLDivElement | null>(null);
@@ -217,9 +188,10 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
   const lastPulseRef = React.useRef<number | null>(null);
   const [meta, setMeta] = React.useState<SigilMeta | null>(null);
 
-  // Auto-width using ResizeObserver (optional)
+  // Auto-width using ResizeObserver (optional; client only)
   React.useLayoutEffect(() => {
     if (!autoWidth || !wrapRef.current) return;
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width || width);
@@ -230,9 +202,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return () => ro.disconnect();
   }, [autoWidth, width]);
 
-  const W = autoWidth ? measuredW : width;
-
-  // Fetch issuance meta once (same as inline)
+  // Fetch issuance meta once
   React.useEffect(() => {
     let alive = true;
     const loader = fetchMetaRef.current;
@@ -241,16 +211,14 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
         .then((m) => {
           if (alive) setMeta(m);
         })
-        .catch(() => {
-          /* graceful fallback */
-        });
+        .catch(() => {});
     }
     return () => {
       alive = false;
     };
   }, []);
 
-  // Helper: compute price+vol for a given integer pulse EXACTLY like inline
+  // Helper: compute price+vol for a given integer pulse
   const computeForPulse = React.useCallback(
     (pInt: number, prevPrice: number | null): { price: number; vol: number } => {
       // 1) Hard override wins
@@ -268,7 +236,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
           const start = Math.max(0, pInt - 11);
           const series = build({ meta, usdSample: 100 }, policy, start, pInt, 11);
           const lastPoint = series?.[series.length - 1];
-          if (lastPoint && typeof lastPoint.usdPerPhi === "number") {
+          if (lastPoint && typeof lastPoint!.usdPerPhi === "number") {
             const vol = lastPoint.choirActive || lastPoint.festivalActive ? 0.5 : 0.25;
             return { price: round2(Math.max(0.0001, lastPoint.usdPerPhi)), vol };
           }
@@ -277,7 +245,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
         }
       }
 
-      // 3) Fallback oscillator — base = last known price (or 1.618), exactly like inline
+      // 3) Fallback oscillator
       const base = prevPrice ?? 1.618;
       const price = Math.max(0.0001, phiFallbackPrice(pInt, base));
       const vol = phiVol(pInt);
@@ -286,7 +254,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     [meta, priceFn, volFn]
   );
 
-  // Seed (or re-seed when meta arrives) to ensure matching price immediately
+  // Seed (or re-seed when meta arrives)
   React.useEffect(() => {
     if (!live) return;
 
@@ -295,8 +263,9 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     const N = Math.max(2, windowPoints);
     const pStart = pEnd - (N - 1);
 
+    const provided: ReadonlyArray<KPricePoint> = points ?? EMPTY_POINTS;
     const seeded: KPricePoint[] = [];
-    let prevPrice: number | null = points?.length ? points[points.length - 1]?.price ?? null : null;
+    let prevPrice: number | null = provided.length > 0 ? provided[provided.length - 1]!.price : null;
 
     for (let p = pStart; p <= pEnd; p++) {
       const { price, vol } = computeForPulse(p, prevPrice);
@@ -306,8 +275,13 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
 
     setLivePts(seeded);
     lastPulseRef.current = pEnd;
+
+    if (onTick && seeded.length > 0) {
+      const lastSeed = seeded[seeded.length - 1]!;
+      onTick({ p: lastSeed.p, price: lastSeed.price });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, windowPoints, computeForPulse, meta]);
+  }, [live, windowPoints, computeForPulse, meta, onTick, points]);
 
   // Pulse-aligned scheduler
   React.useEffect(() => {
@@ -320,14 +294,23 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
       const pInt = Math.floor(pNow);
 
       if (lastPulseRef.current == null || pInt > lastPulseRef.current) {
-        setLivePts((prev) => {
-          const prevLast = prev.length ? prev[prev.length - 1].price : points?.[points.length - 1]?.price ?? null;
-          const { price, vol } = computeForPulse(pInt, prevLast);
-          const next = [...prev, { p: pInt, price, vol }];
+ 
+        setLivePts((prev: KPricePoint[]) => {
+          const prevLastPrice: number | null =
+            prev.length > 0
+              ? prev[prev.length - 1]!.price
+              : points && points.length > 0
+              ? points[points.length - 1]!.price
+              : null;
+
+          const c = computeForPulse(pInt, prevLastPrice);
+          const next = [...prev, { p: pInt, price: c.price, vol: c.vol }];
           return next.length > windowPoints ? next.slice(next.length - windowPoints) : next;
         });
 
         lastPulseRef.current = pInt;
+
+
       }
 
       schedule();
@@ -348,27 +331,35 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return () => {
       if (timer) window.clearTimeout(timer);
     };
-  }, [live, windowPoints, computeForPulse, tickAlignToPulse, tickMs, points]);
+  }, [live, windowPoints, computeForPulse, tickAlignToPulse, tickMs, points, onTick]);
 
-  // Choose which set to render: live series or provided points
-  const pts: KPricePoint[] = live ? livePts : points;
+  /** ---------- Memoized, readonly `pts` (no never[]) ---------- */
+  const pts: ReadonlyArray<KPricePoint> = React.useMemo<ReadonlyArray<KPricePoint>>(
+    () => (live ? (livePts as ReadonlyArray<KPricePoint>) : (points ?? EMPTY_POINTS)),
+    [live, livePts, points]
+  );
 
-  // Dimensions
+  // ---------- Dimensions (compute W ONCE here) ----------
+  const W = autoWidth ? measuredW : width;
   const iw = Math.max(10, W - padding.l - padding.r);
   const ih = Math.max(10, height - padding.t - padding.b);
 
-  // Bounds + VWAP-ish
+  // Bounds + VWAP-ish (fully typed maps/reduces)
   const { minX, maxX, minY, maxY, vwap } = React.useMemo(() => {
-    if (!pts.length) return { minX: 0, maxX: 1, minY: 1, maxY: 2, vwap: 0 };
-    const xs = pts.map((p) => p.p);
-    const ys = pts.map((p) => p.price);
-    const vs = pts.map((p) => p.vol || 0);
+    if (pts.length === 0) return { minX: 0, maxX: 1, minY: 1, maxY: 2, vwap: 0 };
+
+    const xs: number[] = pts.map((p: KPricePoint) => p.p);
+    const ys: number[] = pts.map((p: KPricePoint) => p.price);
+    const vs: number[] = pts.map((p: KPricePoint) => p.vol ?? 0);
+
     const minXv = Math.min(...xs);
     const maxXv = Math.max(...xs);
     const minYv = Math.min(...ys);
     const maxYv = Math.max(...ys);
-    const vSum = vs.reduce((a, b) => a + b, 0) || 1;
-    const vwapVal = pts.reduce((a, p) => a + p.price * (p.vol || 0), 0) / vSum;
+
+    const vSum = vs.reduce<number>((a: number, b: number) => a + b, 0) || 1;
+    const vwapVal = pts.reduce<number>((a: number, p: KPricePoint) => a + p.price * (p.vol ?? 0), 0) / vSum;
+
     const pad = (maxYv - minYv) * 0.12 || 0.5;
     return { minX: minXv, maxX: maxXv, minY: Math.max(0, minYv - pad), maxY: maxYv + pad, vwap: vwapVal };
   }, [pts]);
@@ -380,7 +371,10 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
   const sy = React.useCallback((y: number) => ny(y) * ih + padding.t, [ny, ih, padding.t]);
 
   // Screen points
-  const screenPts = React.useMemo(() => pts.map((pt) => ({ x: sx(pt.p), y: sy(pt.price) })), [pts, sx, sy]);
+  const screenPts = React.useMemo(
+    () => pts.map((pt: KPricePoint) => ({ x: sx(pt.p), y: sy(pt.price) })),
+    [pts, sx, sy]
+  );
 
   // Smoothed path (Catmull-Rom to Bezier)
   const path = React.useMemo(() => {
@@ -398,7 +392,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
       const c2y = p2.y - ((p3.y - p1.y) * t) / 6;
       return { c1x, c1y, c2x, c2y };
     };
-    let d = `M${screenPts[0].x.toFixed(2)} ${screenPts[0].y.toFixed(2)}`;
+    let d = `M${screenPts[0]!.x.toFixed(2)} ${screenPts[0]!.y.toFixed(2)}`;
     for (let i = 0; i < screenPts.length - 1; i++) {
       const p0 = screenPts[i - 1] || screenPts[i];
       const p1 = screenPts[i];
@@ -410,16 +404,16 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return d;
   }, [screenPts]);
 
-  // Area path (close to bottom)
+  // Area path
   const area = React.useMemo(() => {
     if (!path || screenPts.length === 0) return "";
     const bottomY = padding.t + ih;
-    const last = screenPts[screenPts.length - 1];
-    const first = screenPts[0];
+    const last = screenPts[screenPts.length - 1]!;
+    const first = screenPts[0]!;
     return `${path} L${last.x.toFixed(2)} ${bottomY.toFixed(2)} L${first.x.toFixed(2)} ${bottomY.toFixed(2)} Z`;
   }, [path, screenPts, ih, padding.t]);
 
-  // X ticks — numbers only; single "pulse" caption on the axis
+  // X ticks
   const xTicks = React.useMemo(() => {
     const ticks: Array<{ x: number; label: string }> = [];
     const n = Math.max(1, gridXTicks);
@@ -440,13 +434,12 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return ticks;
   }, [minY, maxY, sy, formatter, gridYTicks]);
 
-  // Fibonacci bands
+  // Fibonacci bands (typed)
   const fibBands = React.useMemo(
-    () =>
-      bandLevels.map((level) => {
-        const v = minY + level * (maxY - minY);
-        return { y: sy(v), label: `φ ${level}` };
-      }),
+    () => (bandLevels?.length ? bandLevels : EMPTY_BANDS).map((level: number) => {
+      const v = minY + level * (maxY - minY);
+      return { y: sy(v), label: `φ ${level}` };
+    }),
     [bandLevels, minY, maxY, sy]
   );
 
@@ -457,12 +450,14 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     const x = clamp(e.clientX - rect.left, padding.l, padding.l + iw);
     const t = (x - padding.l) / iw;
     const pVal = minX + t * (maxX - minX);
+
     if (pts.length === 0) {
       setHover(null);
       onHoverPoint?.(null);
       return;
     }
-    let nearest = pts[0];
+
+    let nearest: KPricePoint = pts[0]!;
     let minDist = Math.abs(nearest.p - pVal);
     for (const pt of pts) {
       const d = Math.abs(pt.p - pVal);
@@ -477,14 +472,15 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     setHover(h);
     onHoverPoint?.({ p: nearest.p, price: nearest.price });
   };
+
   const onLeave = () => {
     setHover(null);
     onHoverPoint?.(null);
   };
 
-  // Ticker values
-  const last = pts[pts.length - 1];
-  const prev = pts.length > 1 ? pts[pts.length - 2] : undefined;
+  // Ticker values (guarded)
+  const last = pts.length > 0 ? pts[pts.length - 1]! : undefined;
+  const prev = pts.length > 1 ? pts[pts.length - 2]! : undefined;
   const change = last && prev ? round2(last.price - prev.price) : 0;
   const changePct = last && prev && prev.price !== 0 ? (change / prev.price) * 100 : 0;
 
@@ -576,7 +572,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
               ))}
             </g>
 
-            {/* VWAP-ish “value gravity” band */}
+            {/* VWAP-ish band */}
             {showVWAP && pts.length >= 3 && (
               <g className="kpc-vwap">
                 <rect
@@ -608,7 +604,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
 
               {yTicks.map((t, i) => (
                 <text key={`yl-${i}`} x={padding.l - 10} y={t.y + 4} textAnchor="end" className="kpc-axis-text">
-                  {t.label}
+                {t.label}
                 </text>
               ))}
             </g>

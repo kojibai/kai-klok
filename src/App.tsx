@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
@@ -16,6 +17,7 @@ import EternalKlock from "./components/EternalKlock";
 import SigilGlyphButton from "./components/SigilGlyphButton";
 import WeekKalendarModal from "./components/WeekKalendarModal";
 import InvestorSigilModal from "./components/InvestorSigilModal";
+import KaiVohModal from "./components/KaiVoh/KaiVohModal";
 
 import type { BIPEvent } from "./pwa-shim";
 import HomePriceChartCard from "./components/HomePriceChartCard";
@@ -59,7 +61,6 @@ function useIsStandalone(): boolean {
   });
 
   useEffect(() => {
-    // React to media-query changes (Chromium + some desktop PWAs)
     const mql =
       typeof window !== "undefined"
         ? window.matchMedia?.("(display-mode: standalone)")
@@ -76,7 +77,6 @@ function useIsStandalone(): boolean {
 
     mql?.addEventListener?.("change", onChange);
 
-    // React when install completes
     const onInstalled = () => setStandalone(true);
     window.addEventListener("appinstalled", onInstalled);
 
@@ -89,10 +89,7 @@ function useIsStandalone(): boolean {
   return standalone;
 }
 
-/** One-button CTA that adapts:
- *  - Not installed → shows "Source / Install" pill that opens a small menu (Install, Source)
- *  - Installed (standalone) → shows a simple "Source" pill
- */
+/** The “Source / Install” CTA */
 function SourceOrInstallButton() {
   const isIOS = useIsIOS();
   const isStandalone = useIsStandalone();
@@ -114,7 +111,6 @@ function SourceOrInstallButton() {
       const bip = e as BIPEvent;
       setDeferredPrompt(bip);
       if (window.__bipWaiters && window.__bipWaiters.length) {
-        // flush any waiters awaiting a late event
         window.__bipWaiters.forEach((fn) => fn(bip));
         window.__bipWaiters = [];
       }
@@ -159,10 +155,6 @@ function SourceOrInstallButton() {
     }
   };
 
-  /** Install flow:
-   *  iOS → App Store
-   *  Android/Desktop → prompt via BIP (immediate or wait ~1.5s for a late event)
-   */
   const handleInstall = async () => {
     if (isIOS) {
       window.open(APP_STORE_URL, "_blank", "noopener,noreferrer");
@@ -180,7 +172,6 @@ function SourceOrInstallButton() {
       return;
     }
 
-    // Wait briefly for a late-firing BIP
     const got = await new Promise<BIPEvent | null>((resolve) => {
       let resolved = false;
       const flush = (e: BIPEvent) => {
@@ -207,7 +198,6 @@ function SourceOrInstallButton() {
       return;
     }
 
-    // No prompt available; close menu gracefully
     setMenuOpen(false);
   };
 
@@ -216,7 +206,6 @@ function SourceOrInstallButton() {
     setMenuOpen(false);
   };
 
-  // If already installed as a PWA: show a single "Source" pill (no menu)
   if (isStandalone) {
     return (
       <div className="kairos-dev-cta">
@@ -234,7 +223,6 @@ function SourceOrInstallButton() {
     );
   }
 
-  // Not installed yet → show menu trigger: "Source / Install"
   return (
     <>
       <div className="kairos-dev-cta">
@@ -303,6 +291,50 @@ function SourceOrInstallButton() {
   );
 }
 
+/** Inline SVG icon: breath swirl + keyhole + orbit nodes */
+function KaiVohGlyphIcon(props: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+      focusable="false"
+      className={props.className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Halo */}
+      <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      {/* Breath swirl */}
+      <path
+        d="M10 34c8 0 10-6 22-6s14 6 22 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14 40c6 0 8-5 18-5s12 5 18 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.8"
+      />
+      {/* Orbit nodes */}
+      <circle cx="18" cy="28" r="2" fill="currentColor" />
+      <circle cx="46" cy="36" r="2" fill="currentColor" />
+      <circle cx="26" cy="42" r="2" fill="currentColor" />
+      {/* Keyhole (seal of authorship) */}
+      <g transform="translate(32,20)">
+        <circle cx="0" cy="0" r="7" fill="currentColor" opacity="0.12" />
+        <path
+          d="M0 -4a3 3 0 0 1 3 3v1h-6v-1a3 3 0 0 1 3-3zm-2 7h4v5h-4z"
+          fill="currentColor"
+        />
+      </g>
+    </svg>
+  );
+}
+
 /** Home UI */
 function HomeShell() {
   const [showSplash, setShowSplash] = useState(true);
@@ -310,9 +342,10 @@ function HomeShell() {
   const [mounted, setMounted] = useState(false);
 
   const [showWeekModal, setShowWeekModal] = useState(false);
-
-  // Investor modal state + phi key
   const [showInvestorModal, setShowInvestorModal] = useState(false);
+  const [showKaiVohModal, setShowKaiVohModal] = useState(false);
+
+  // Phi key for investor portal
   const userPhiKey = useMemo(() => {
     try {
       return (typeof localStorage !== "undefined" && localStorage.getItem("userPhiKey")) || "guest";
@@ -321,7 +354,7 @@ function HomeShell() {
     }
   }, []);
 
-  // Kai Pulse (kept as-is from your snippet)
+  // Kai Pulse (kept as in your snippet)
   const calculateKaiPulse = (): number => {
     const moment = new Date(Date.UTC(2024, 4, 10, 6, 45, 40));
     const base = new Date("1990-02-19T00:00:00Z");
@@ -347,6 +380,8 @@ function HomeShell() {
 
   const openWeekModal = () => setShowWeekModal(true);
   const openInvestorModal = () => setShowInvestorModal(true);
+  const openKaiVoh = () => setShowKaiVohModal(true);
+  const closeKaiVoh = () => setShowKaiVohModal(false);
 
   return (
     <div className="app-root">
@@ -363,38 +398,35 @@ function HomeShell() {
               <img src="/logo.png" alt="Kai-Klok Face" className="klok-logo" draggable={false} />
             </div>
           )}
-          
         </div>
       )}
-          
- {/* Live Φ value + inline checkout: UNDER the buttons, INSIDE the panel */}
-            <div style={{ marginTop: "8px" }}>
-              <HomePriceChartCard
-                apiBase="https://pay.kaiklok.com"
-                ctaAmountUsd={144}
-                chartHeight={240}
-                // stripePk={import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY} // optional override
-              />
-              
-            </div>
 
-            
-            
+      {/* Live Φ value + inline checkout: under the buttons, inside the panel */}
+      <div style={{ marginTop: "8px" }}>
+        <HomePriceChartCard
+          apiBase="https://pay.kaiklok.com"
+          ctaAmountUsd={144}
+          chartHeight={240}
+          // stripePk={import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY}
+        />
+      </div>
+
       <div className={`main-ui ${showSplash ? "hidden-behind-splash" : ""}`}>
         <section className="hero-stage"></section>
 
         <div className="eternal-klock-backdrop" role="dialog" aria-modal="false">
-          
           <div className="eternal-klock-panel">
             <EternalKlock />
 
+            {/* Toolbar row — add KaiVoh button to the RIGHT of the Kalendar button */}
             <div
               className="eternal-klock-toolbar"
               style={{ marginTop: "0.75rem", display: "flex", gap: "10px", justifyContent: "center" }}
             >
+              {/* 1) Sigil Mint */}
               <SigilGlyphButton kaiPulse={kaiPulse} />
 
-              {/* Investor Portal */}
+              {/* 2) Investor Portal */}
               <button
                 className="toolbar-btn"
                 onClick={openInvestorModal}
@@ -409,11 +441,39 @@ function HomeShell() {
                 />
               </button>
 
-              <button className="toolbar-btn" onClick={openWeekModal} title="Open Kairos Week Spiral">
-                <img src="/assets/weekkalendar.svg" alt="Kairos Week" className="toolbar-icon" draggable={false} />
+              {/* 3) Week Kalendar */}
+              <button
+                className="toolbar-btn"
+                onClick={openWeekModal}
+                title="Open Kairos Week Spiral"
+                aria-label="Open Kairos Week Spiral"
+              >
+                <img
+                  src="/assets/weekkalendar.svg"
+                  alt="Kairos Week"
+                  className="toolbar-icon"
+                  draggable={false}
+                />
+              </button>
+
+              {/* 4) NEW — KaiVoh Sovereign Posting (placed to the RIGHT of the Kalendar button) */}
+              <button
+                className="toolbar-btn"
+                onClick={openKaiVoh}
+                title="KaiVoh — Sovereign Posting Hub"
+                aria-label="Open KaiVoh Sovereign Posting Hub"
+                style={{
+                  // Subtle emphasis to “pop” without breaking theme
+                  boxShadow: "0 0 0 2px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(99, 102, 241, 0.25)",
+                  borderRadius: "9999px",
+                }}
+              >
+                {/* Inline SVG icon — can be swapped to /assets/kaivoh.svg later */}
+                <KaiVohGlyphIcon className="toolbar-icon" />
               </button>
             </div>
 
+            {/* Modals */}
             {showWeekModal && <WeekKalendarModal onClose={() => setShowWeekModal(false)} />}
 
             {showInvestorModal && (
@@ -424,15 +484,15 @@ function HomeShell() {
               />
             )}
 
-      
+            {/* NEW: KaiVoh full-screen modal */}
+            <KaiVohModal open={showKaiVohModal} onClose={closeKaiVoh} />
           </div>
-             {/* Bottom-center CTA: Source button — chart is above this */}
-             <div className="cta-stack">
-          <SourceOrInstallButton />
-        </div>
-        </div>
 
-      
+          {/* Bottom-center CTA: Source button — chart is above this */}
+          <div className="cta-stack">
+            <SourceOrInstallButton />
+          </div>
+        </div>
       </div>
     </div>
   );
