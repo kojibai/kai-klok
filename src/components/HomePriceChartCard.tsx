@@ -10,9 +10,9 @@ import "./HomePriceChartCard.compact.css";
 
 /* =============================================================
    HomePriceChartCard — Slim Ticker ↔ Expandable Chart
-   • priceFn is PURE (no setState)
-   • Ticker mirrors chart via onTick (effect-safe)
-   • Chart stays mounted while collapsed (hidden off-screen)
+   • Single source of truth: ticker reads from chart's onTick
+   • priceFn is PURE (no setState); chart drives updates
+   • Chart remains mounted while collapsed (hidden off-screen)
    ============================================================= */
 
 type Props = {
@@ -29,12 +29,16 @@ const API_DEFAULT = "https://pay.kaiklok.com";
 const STRIPE_PUBLISHABLE_KEY =
   "pk_live_51SNLMpRzKZKauLy5RLZFDy8FzHTt50YH1BRbXof1Db79yr1xchPQLzLF43pixjKLUbwKr2nc3WT6eq7TZZInfnhT00IMTw0M8N";
 
-const PULSES_PER_DAY = 14400; // bridge label (UI only)
+/** Daily pulse span used for 24h delta (rounded from 17,491.270421) */
+const PULSES_PER_DAY = 17491;
+
 const FALLBACK_META = { ip: { expectedCashflowPhi: [] } } as unknown as SigilMetadataLite;
 
-// stable constants
+/* ---------- typed constants ---------- */
 const EMPTY_POINTS: KPricePoint[] = [];
 const QUICK_AMOUNTS = [144, 233, 987] as const;
+
+/* Hidden but mounted — chart engine keeps ticking */
 const HIDDEN_CHART_STYLE: React.CSSProperties = {
   position: "fixed",
   left: -10000,
@@ -140,8 +144,14 @@ const InlineCardCheckout: React.FC<{
         redirect: "if_required",
         confirmParams: { return_url: typeof window !== "undefined" ? window.location.href : undefined },
       });
-      if (err) { setError(err.message || "Payment confirmation failed."); return; }
-      if (paymentIntent?.status === "succeeded") { onSuccess?.(); return; }
+      if (err) {
+        setError(err.message || "Payment confirmation failed.");
+        return;
+      }
+      if (paymentIntent?.status === "succeeded") {
+        onSuccess?.();
+        return;
+      }
       setError("Payment is not complete yet. Please try again.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unable to confirm payment.";
@@ -157,15 +167,21 @@ const InlineCardCheckout: React.FC<{
         <div className="hp-pop-title">
           Inhale {amountUsd.toLocaleString(undefined, { style: "currency", currency: "USD" })}
         </div>
-        <button type="button" className="hp-x" onClick={onClose} aria-label="Close checkout">×</button>
+        <button type="button" className="hp-x" onClick={onClose} aria-label="Close checkout">
+          ×
+        </button>
       </div>
       <div className="hp-pop-body">
-        <div className="hp-payment" aria-busy={!elements}><PaymentElement /></div>
+        <div className="hp-payment" aria-busy={!elements}>
+          <PaymentElement />
+        </div>
         <div className="hp-actions">
           <button type="button" className="hp-primary" onClick={confirm} disabled={busy || !stripe || !elements}>
             {busy ? "Confirming…" : "Inhale Sigil-Glyph"}
           </button>
-          <button type="button" className="hp-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="hp-secondary" onClick={onClose}>
+            Cancel
+          </button>
         </div>
         {error && <div className="hp-error">{error}</div>}
         <p className="hp-fine">3-D Secure via Stripe (PCI). No securities. No fiat ROI.</p>
@@ -190,8 +206,12 @@ export default function HomePriceChartCard({
 
   // Notify parent once on mount (no dependency churn)
   const onExpandChangeRef = useRef<Props["onExpandChange"]>(onExpandChange);
-  useEffect(() => { onExpandChangeRef.current = onExpandChange; }, [onExpandChange]);
-  useEffect(() => { onExpandChangeRef.current?.(false); }, []);
+  useEffect(() => {
+    onExpandChangeRef.current = onExpandChange;
+  }, [onExpandChange]);
+  useEffect(() => {
+    onExpandChangeRef.current?.(false);
+  }, []);
 
   // Stripe
   const stripePromise = useMemo(() => loadStripe(stripePk), [stripePk]);
@@ -201,7 +221,7 @@ export default function HomePriceChartCard({
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  /* ---------- PURE price function for the chart ---------- */
+  /* ---------- PURE price fn (used by chart engine only) ---------- */
   const computePrice = useCallback(
     (pulse: number): number => {
       if (!meta) return 0;
@@ -217,13 +237,13 @@ export default function HomePriceChartCard({
 
   const chartPriceFn = useCallback((pulse: number) => computePrice(pulse), [computePrice]);
 
-  // Mirror last chart tick into local state via EFFECT-SAFE callback
+  /* ---------- Single source of truth for the bar: chart onTick ---------- */
   const [chartTick, setChartTick] = useState<{ pulse: number; price: number } | null>(null);
   const handleTick = useCallback(({ p, price }: { p: number; price: number }) => {
     setChartTick({ pulse: p, price });
   }, []);
 
-  // 24h %
+  /* ---------- 24h % based on the same pulse index from onTick ---------- */
   const pct24h = useMemo(() => {
     if (!chartTick) return null;
     const prev = computePrice(chartTick.pulse - PULSES_PER_DAY);
@@ -232,9 +252,7 @@ export default function HomePriceChartCard({
   }, [chartTick, computePrice]);
 
   const priceLabel =
-    chartTick && Number.isFinite(chartTick.price) && chartTick.price > 0
-      ? `$${chartTick.price.toFixed(2)} / Φ`
-      : "—";
+    chartTick && Number.isFinite(chartTick.price) && chartTick.price > 0 ? `$${chartTick.price.toFixed(2)} / Φ` : "—";
 
   const pctLabel = (() => {
     if (pct24h == null || !Number.isFinite(pct24h)) return "0.00%";
@@ -250,7 +268,10 @@ export default function HomePriceChartCard({
     try {
       const amt = Number.isFinite(sample) ? Math.max(1, Math.round(sample)) : ctaAmountUsd;
       const { clientSecret: secret, intentId: id } = await createPaymentIntent(apiBase, amt);
-      setClientSecret(secret); setIntentId(id); setElementsKey((k) => k + 1); setSuccess(false);
+      setClientSecret(secret);
+      setIntentId(id);
+      setElementsKey((k) => k + 1);
+      setSuccess(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unable to start checkout.";
       setErrorMsg(msg);
@@ -259,7 +280,9 @@ export default function HomePriceChartCard({
   }, [sample, ctaAmountUsd, apiBase, onError]);
 
   const closeInlineCheckout = useCallback(() => {
-    setClientSecret(null); setIntentId(null); setElementsKey((k) => k + 1);
+    setClientSecret(null);
+    setIntentId(null);
+    setElementsKey((k) => k + 1);
   }, []);
 
   const onSuccess = useCallback(() => {
@@ -269,7 +292,9 @@ export default function HomePriceChartCard({
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("investor:contribution", { detail }));
       }
-    } catch (e) { onError?.(e); }
+    } catch (e) {
+      onError?.(e);
+    }
     closeInlineCheckout();
   }, [sample, ctaAmountUsd, onError, closeInlineCheckout]);
 
@@ -285,7 +310,7 @@ export default function HomePriceChartCard({
 
   return (
     <div className={`hp-card ${expanded ? "is-expanded" : "is-collapsed"}`} role="group" aria-label="Sovereign asset">
-      {/* Slim ticker */}
+      {/* Slim ticker — driven ONLY by chart onTick */}
       <div
         className="hp-ticker"
         role="button"
@@ -293,14 +318,21 @@ export default function HomePriceChartCard({
         aria-expanded={expanded}
         aria-controls={regionId}
         onClick={toggleExpanded}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleExpanded();
+          }
+        }}
       >
         <div className="hp-left">
           <PhiLogo />
           <span className="hp-title">{title}</span>
         </div>
         <div className="hp-right">
-          <span className="hp-price" aria-live="polite">{priceLabel}</span>
+          <span className="hp-price" aria-live="polite">
+            {priceLabel}
+          </span>
           <span className={`hp-pct ${pctClass}`} aria-live="polite">
             {pct24h != null && pct24h >= 0 ? "▲" : "▼"} {pctLabel}
           </span>
@@ -311,12 +343,13 @@ export default function HomePriceChartCard({
       <div className="hp-chart-wrap" aria-hidden={!expanded} style={expanded ? { marginTop: 8 } : HIDDEN_CHART_STYLE}>
         <div className="hp-chart">
           <KaiPriceChart
-            points={EMPTY_POINTS}      // typed KPricePoint[] (not ReadonlyArray) to match prop
+            points={EMPTY_POINTS}      // KPricePoint[] (avoids never[])
             autoWidth
             height={chartHeight}
             title={undefined}
-            priceFn={chartPriceFn}     // PURE
-            onTick={handleTick}        // effect-safe -> updates parent state
+            priceFn={chartPriceFn}     // PURE; same fn that pct24h uses
+            onTick={handleTick}        // SINGLE SOURCE for bar data
+            live                         // explicit
           />
         </div>
       </div>
@@ -337,7 +370,10 @@ export default function HomePriceChartCard({
                 key={v}
                 type="button"
                 className={`chip ${v === sample ? "active" : ""}`}
-                onClick={(e) => { e.stopPropagation(); setSample(v); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSample(v);
+                }}
                 aria-label={`Set sample to $${v}`}
               >
                 ${v.toLocaleString()}
@@ -347,7 +383,10 @@ export default function HomePriceChartCard({
               type="button"
               className="chip ghost"
               aria-label="Increase sample by 5%"
-              onClick={(e) => { e.stopPropagation(); setSample((s) => Math.max(1, Math.round(s * 1.05))); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSample((s) => Math.max(1, Math.round(s * 1.05)));
+              }}
             >
               +5%
             </button>
@@ -357,7 +396,10 @@ export default function HomePriceChartCard({
             <button
               type="button"
               className="hp-primary"
-              onClick={(e) => { e.stopPropagation(); openInlineCheckout(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openInlineCheckout();
+              }}
               aria-haspopup="dialog"
             >
               Inhale

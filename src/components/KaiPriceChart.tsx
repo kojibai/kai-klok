@@ -99,8 +99,6 @@ const KAI_PRICE_CHART_CSS = `
 .kpc-axes .kpc-axis-text { fill:#a2bbb6; font-size:11px; dominant-baseline:middle; }
 .kpc-dot { fill:#37e6d4; stroke:#0a0f12; stroke-width:2; }
 .kpc-badge { fill:#0a0f12cc; stroke:#ffffff22; stroke-width:1; }
-.kpc-badge.up { stroke:#28c76f66; }
-.kpc-badge.down { stroke:#ff4d4f66; }
 .kpc-badge-text { fill:#e7fbf7; font-size:11px; font-weight:600; }
 .kpc-xhair-line { stroke:#ffffff33; stroke-width:1; shape-rendering:crispEdges; }
 .kpc-tip { fill:#0a0f12f2; stroke:#ffffff22; }
@@ -186,6 +184,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
   // ----- Live series state -----
   const [livePts, setLivePts] = React.useState<KPricePoint[]>([]);
   const lastPulseRef = React.useRef<number | null>(null);
+  const lastPriceRef = React.useRef<number | null>(null); // <— NEW: track last price for consistent ticks
   const [meta, setMeta] = React.useState<SigilMeta | null>(null);
 
   // Auto-width using ResizeObserver (optional; client only)
@@ -228,7 +227,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
         return { price: pr, vol: vv };
       }
 
-      // 2) Try real engine math (last 11 pulses → usdPerPhi)
+      // 2) Try real engine math
       const build = buildSeriesRef.current;
       const policy = policyRef.current;
       if (meta && typeof build === "function" && policy) {
@@ -236,7 +235,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
           const start = Math.max(0, pInt - 11);
           const series = build({ meta, usdSample: 100 }, policy, start, pInt, 11);
           const lastPoint = series?.[series.length - 1];
-          if (lastPoint && typeof lastPoint!.usdPerPhi === "number") {
+          if (lastPoint && typeof lastPoint.usdPerPhi === "number") {
             const vol = lastPoint.choirActive || lastPoint.festivalActive ? 0.5 : 0.25;
             return { price: round2(Math.max(0.0001, lastPoint.usdPerPhi)), vol };
           }
@@ -275,6 +274,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
 
     setLivePts(seeded);
     lastPulseRef.current = pEnd;
+    lastPriceRef.current = seeded.length > 0 ? seeded[seeded.length - 1]!.price : null;
 
     if (onTick && seeded.length > 0) {
       const lastSeed = seeded[seeded.length - 1]!;
@@ -283,7 +283,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, windowPoints, computeForPulse, meta, onTick, points]);
 
-  // Pulse-aligned scheduler
+  // Pulse-aligned scheduler — now emits onTick EVERY breath
   React.useEffect(() => {
     if (!live) return;
 
@@ -294,23 +294,23 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
       const pInt = Math.floor(pNow);
 
       if (lastPulseRef.current == null || pInt > lastPulseRef.current) {
- 
-        setLivePts((prev: KPricePoint[]) => {
-          const prevLastPrice: number | null =
-            prev.length > 0
-              ? prev[prev.length - 1]!.price
-              : points && points.length > 0
-              ? points[points.length - 1]!.price
-              : null;
+        // compute next point from last known price
+        const prevPrice = lastPriceRef.current;
+        const c = computeForPulse(pInt, prevPrice);
 
-          const c = computeForPulse(pInt, prevLastPrice);
+        // append + trim window
+        setLivePts((prev: KPricePoint[]) => {
           const next = [...prev, { p: pInt, price: c.price, vol: c.vol }];
           return next.length > windowPoints ? next.slice(next.length - windowPoints) : next;
         });
 
+        // update refs and notify
         lastPulseRef.current = pInt;
+        lastPriceRef.current = c.price;
 
-
+        if (onTick) {
+          onTick({ p: pInt, price: c.price }); // <-- CRITICAL: keep the bar in lock step
+        }
       }
 
       schedule();
@@ -331,7 +331,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return () => {
       if (timer) window.clearTimeout(timer);
     };
-  }, [live, windowPoints, computeForPulse, tickAlignToPulse, tickMs, points, onTick]);
+  }, [live, windowPoints, computeForPulse, tickAlignToPulse, tickMs, onTick]);
 
   /** ---------- Memoized, readonly `pts` (no never[]) ---------- */
   const pts: ReadonlyArray<KPricePoint> = React.useMemo<ReadonlyArray<KPricePoint>>(
@@ -339,12 +339,12 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     [live, livePts, points]
   );
 
-  // ---------- Dimensions (compute W ONCE here) ----------
+  // ---------- Dimensions ----------
   const W = autoWidth ? measuredW : width;
   const iw = Math.max(10, W - padding.l - padding.r);
   const ih = Math.max(10, height - padding.t - padding.b);
 
-  // Bounds + VWAP-ish (fully typed maps/reduces)
+  // Bounds + VWAP-ish
   const { minX, maxX, minY, maxY, vwap } = React.useMemo(() => {
     if (pts.length === 0) return { minX: 0, maxX: 1, minY: 1, maxY: 2, vwap: 0 };
 
@@ -413,35 +413,6 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
     return `${path} L${last.x.toFixed(2)} ${bottomY.toFixed(2)} L${first.x.toFixed(2)} ${bottomY.toFixed(2)} Z`;
   }, [path, screenPts, ih, padding.t]);
 
-  // X ticks
-  const xTicks = React.useMemo(() => {
-    const ticks: Array<{ x: number; label: string }> = [];
-    const n = Math.max(1, gridXTicks);
-    for (let i = 0; i <= n; i++) {
-      const v = minX + (i * (maxX - minX)) / n;
-      ticks.push({ x: sx(v), label: Math.floor(v).toString() });
-    }
-    return ticks;
-  }, [minX, maxX, sx, gridXTicks]);
-
-  const yTicks = React.useMemo(() => {
-    const ticks: Array<{ y: number; label: string }> = [];
-    const n = Math.max(1, gridYTicks);
-    for (let i = 0; i <= n; i++) {
-      const v = minY + (i * (maxY - minY)) / n;
-      ticks.push({ y: sy(v), label: formatter(v) });
-    }
-    return ticks;
-  }, [minY, maxY, sy, formatter, gridYTicks]);
-
-  // Fibonacci bands (typed)
-  const fibBands = React.useMemo(
-    () => (bandLevels?.length ? bandLevels : EMPTY_BANDS).map((level: number) => {
-      const v = minY + level * (maxY - minY);
-      return { y: sy(v), label: `φ ${level}` };
-    }),
-    [bandLevels, minY, maxY, sy]
-  );
 
   // Crosshair
   const [hover, setHover] = React.useState<{ x: number; y: number; p: number; price: number } | null>(null);
@@ -502,7 +473,7 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
 
       {/* CHART */}
       <svg
-        width={W}
+        width={autoWidth ? measuredW : width}
         height={height}
         className="kai-price-chart"
         onMouseMove={onMove}
@@ -544,8 +515,8 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
         {pts.length === 0 ? (
           <g className="kpc-empty">
             <text
-              x={padding.l + iw / 2}
-              y={padding.t + ih + 2}
+              x={padding.l + Math.max(10, (autoWidth ? measuredW : width) - padding.l - padding.r) / 2}
+              y={padding.t + Math.max(10, height - padding.t - padding.b) + 2}
               textAnchor="middle"
               alignmentBaseline="middle"
               className="kpc-axis-text"
@@ -557,19 +528,25 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
           <>
             {/* Grid */}
             <g className="kpc-grid">
-              {xTicks.map((t, i) => (
-                <line key={`x-${i}`} x1={t.x} x2={t.x} y1={padding.t} y2={padding.t + ih} className="kpc-gridline" />
-              ))}
-              {yTicks.map((t, i) => (
-                <line key={`y-${i}`} x1={padding.l} x2={padding.l + iw} y1={t.y} y2={t.y} className="kpc-gridline" />
-              ))}
+              {Array.from({ length: Math.max(1, gridXTicks) + 1 }).map((_, i) => {
+                const v = minX + (i * (maxX - minX)) / Math.max(1, gridXTicks);
+                const x = sx(v);
+                return <line key={`x-${i}`} x1={x} x2={x} y1={padding.t} y2={padding.t + ih} className="kpc-gridline" />;
+              })}
+              {Array.from({ length: Math.max(1, gridYTicks) + 1 }).map((_, i) => {
+                const v = minY + (i * (maxY - minY)) / Math.max(1, gridYTicks);
+                const y = sy(v);
+                return <line key={`y-${i}`} x1={padding.l} x2={padding.l + iw} y1={y} y2={y} className="kpc-gridline" />;
+              })}
             </g>
 
             {/* Fibonacci Kai bands */}
             <g className="kpc-bands">
-              {fibBands.map((b, i) => (
-                <line key={`fb-${i}`} x1={padding.l} x2={padding.l + iw} y1={b.y} y2={b.y} className="kpc-band" />
-              ))}
+              {(bandLevels?.length ? bandLevels : EMPTY_BANDS).map((level, i) => {
+                const v = minY + level * (maxY - minY);
+                const y = sy(v);
+                return <line key={`fb-${i}`} x1={padding.l} x2={padding.l + iw} y1={y} y2={y} className="kpc-band" />;
+              })}
             </g>
 
             {/* VWAP-ish band */}
@@ -592,34 +569,42 @@ const KaiPriceChart: React.FC<KaiPriceChartProps> = ({
 
             {/* Axes labels */}
             <g className="kpc-axes">
-              {xTicks.map((t, i) => (
-                <text key={`xl-${i}`} x={t.x} y={padding.t + ih + 22} textAnchor="middle" className="kpc-axis-text">
-                  {t.label}
-                </text>
-              ))}
-              {/* Single caption for the X axis */}
+              {Array.from({ length: Math.max(1, gridXTicks) + 1 }).map((_, i) => {
+                const v = minX + (i * (maxX - minX)) / Math.max(1, gridXTicks);
+                const x = sx(v);
+                return (
+                  <text key={`xl-${i}`} x={x} y={padding.t + ih + 22} textAnchor="middle" className="kpc-axis-text">
+                    {Math.floor(v)}
+                  </text>
+                );
+              })}
               <text x={padding.l} y={padding.t + ih + 36} textAnchor="start" className="kpc-axis-text">
                 pulse
               </text>
 
-              {yTicks.map((t, i) => (
-                <text key={`yl-${i}`} x={padding.l - 10} y={t.y + 4} textAnchor="end" className="kpc-axis-text">
-                {t.label}
-                </text>
-              ))}
+              {Array.from({ length: Math.max(1, gridYTicks) + 1 }).map((_, i) => {
+                const v = minY + (i * (maxY - minY)) / Math.max(1, gridYTicks);
+                const y = sy(v);
+                return (
+                  <text key={`yl-${i}`} x={padding.l - 10} y={y + 4} textAnchor="end" className="kpc-axis-text">
+                    {formatter(v)}
+                  </text>
+                );
+              })}
             </g>
 
             {/* Last price tag + marker */}
             {last && (
               <g className="kpc-last-tag">
                 <circle cx={sx(last.p)} cy={sy(last.price)} r="4.5" className="kpc-dot" />
+                {/* badge */}
                 <rect
                   x={padding.l + iw - 158}
                   y={sy(last.price) - 12}
                   width="150"
                   height="24"
                   rx="12"
-                  className={`kpc-badge ${change >= 0 ? "up" : "down"}`}
+                  className="kpc-badge"
                 />
                 <text x={padding.l + iw - 150} y={sy(last.price) + 5} className="kpc-badge-text">
                   {formatter(last.price)} {change >= 0 ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
