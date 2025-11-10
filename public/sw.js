@@ -7,7 +7,7 @@
    - Audio/video range support; fonts cached; CDNs handled
 */
 
-const VERSION = "v89.2"; // ⬅️ bump every deploy
+const VERSION = "v91.3"; // ⬅️ bump every deploy
 const PREFIX  = "Kaiklok";
 const PRECACHE = `${PREFIX}-precache-${VERSION}`;
 const RUNTIME  = `${PREFIX}-runtime-${VERSION}`;
@@ -43,6 +43,7 @@ const PRECACHE_URLS = [
   "/assets/verify.svg",
   "/assets/seal.svg",
   "/assets/stargate.svg",
+  "/assets/kai-streams.svg",
   "/assets/spiral-logo.svg",
   "/assets/kai-icon.svg",
   "/assets/kai-logo.svg",

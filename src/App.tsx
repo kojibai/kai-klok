@@ -291,50 +291,6 @@ function SourceOrInstallButton() {
   );
 }
 
-/** Inline SVG icon: breath swirl + keyhole + orbit nodes */
-function KaiVohGlyphIcon(props: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      aria-hidden="true"
-      focusable="false"
-      className={props.className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Halo */}
-      <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      {/* Breath swirl */}
-      <path
-        d="M10 34c8 0 10-6 22-6s14 6 22 6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14 40c6 0 8-5 18-5s12 5 18 5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.8"
-      />
-      {/* Orbit nodes */}
-      <circle cx="18" cy="28" r="2" fill="currentColor" />
-      <circle cx="46" cy="36" r="2" fill="currentColor" />
-      <circle cx="26" cy="42" r="2" fill="currentColor" />
-      {/* Keyhole (seal of authorship) */}
-      <g transform="translate(32,20)">
-        <circle cx="0" cy="0" r="7" fill="currentColor" opacity="0.12" />
-        <path
-          d="M0 -4a3 3 0 0 1 3 3v1h-6v-1a3 3 0 0 1 3-3zm-2 7h4v5h-4z"
-          fill="currentColor"
-        />
-      </g>
-    </svg>
-  );
-}
-
 /** Home UI */
 function HomeShell() {
   const [showSplash, setShowSplash] = useState(true);
@@ -407,7 +363,6 @@ function HomeShell() {
           apiBase="https://pay.kaiklok.com"
           ctaAmountUsd={144}
           chartHeight={240}
-          // stripePk={import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY}
         />
       </div>
 
@@ -418,7 +373,7 @@ function HomeShell() {
           <div className="eternal-klock-panel">
             <EternalKlock />
 
-            {/* Toolbar row — add KaiVoh button to the RIGHT of the Kalendar button */}
+            {/* Toolbar row — rightmost button opens KaiVoh directly; icon swapped to custom Streams SVG */}
             <div
               className="eternal-klock-toolbar"
               style={{ marginTop: "0.75rem", display: "flex", gap: "10px", justifyContent: "center" }}
@@ -456,20 +411,23 @@ function HomeShell() {
                 />
               </button>
 
-              {/* 4) NEW — KaiVoh Sovereign Posting (placed to the RIGHT of the Kalendar button) */}
+              {/* 4) KaiVoh — SAME BEHAVIOR, NEW ICON */}
               <button
                 className="toolbar-btn"
                 onClick={openKaiVoh}
                 title="KaiVoh — Sovereign Posting Hub"
                 aria-label="Open KaiVoh Sovereign Posting Hub"
                 style={{
-                  // Subtle emphasis to “pop” without breaking theme
                   boxShadow: "0 0 0 2px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(99, 102, 241, 0.25)",
                   borderRadius: "9999px",
                 }}
               >
-                {/* Inline SVG icon — can be swapped to /assets/kaivoh.svg later */}
-                <KaiVohGlyphIcon className="toolbar-icon" />
+                <img
+                  src="/assets/kai-streams.svg"
+                  alt="Kai Streams"
+                  className="toolbar-icon"
+                  draggable={false}
+                />
               </button>
             </div>
 
@@ -484,7 +442,7 @@ function HomeShell() {
               />
             )}
 
-            {/* NEW: KaiVoh full-screen modal */}
+            {/* KaiVoh full-screen modal */}
             <KaiVohModal open={showKaiVohModal} onClose={closeKaiVoh} />
           </div>
 

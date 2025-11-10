@@ -1,8 +1,12 @@
 // src/components/VerifierStamper/constants.ts
 /* Constants used across VerifierStamper */
 
-export const PULSE_MS = 5_236 as const;
-export const GENESIS_TS = Date.UTC(2024, 4, 10, 6, 45, 41, 888);
+// KKS v1 — φ-exact breath period and canonical genesis
+export const GENESIS_TS = 1715323541888 as const; // 2024-05-10 06:45:41.888 UTC
+
+// Breath period T = 3 + √5 seconds → milliseconds
+export const PULSE_MS = (3 + Math.sqrt(5)) * 1000; // ≈ 5236.06797749979 ms
+
 
 export const kaiPulseNow = () =>
   Math.floor((Date.now() - GENESIS_TS) / PULSE_MS);

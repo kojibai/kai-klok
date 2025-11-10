@@ -1,0 +1,186 @@
+:root{
+  --pf-size: 220px;
+  --pf-bg: #061022;
+  --pf-panel: #0b1530;
+  --pf-accent: #00ffd0;
+  --pf-accent-2: #8a2be2;
+  --pf-text: #eaf6ff;
+  --pf-dim: #9bb0c9;
+  --pf-danger: #ff6b6b;
+  --pf-success: #67ffb3;
+  --pf-crit: #ffd86b;
+  --pf-shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+
+.pf-wrap{
+  width: 100%;
+  max-width: 760px;
+  margin: 1.25rem auto 2rem auto;
+  padding: 1.25rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  box-shadow: var(--pf-shadow), inset 0 0 0 1px rgba(0,255,208,.15);
+  color: var(--pf-text);
+}
+
+.pf-header{
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.pf-title{
+  font-weight: 900;
+  letter-spacing: .02em;
+  font-size: 1.25rem;
+  background: linear-gradient(90deg, var(--pf-accent), var(--pf-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.pf-sub{
+  font-size: .92rem;
+  color: var(--pf-dim);
+  margin-top: .25rem;
+}
+
+.pf-board{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: center;
+}
+@media (max-width: 640px){
+  .pf-board{ grid-template-columns: 1fr; }
+}
+
+.pf-dial{
+  position: relative;
+  width: var(--pf-size);
+  height: var(--pf-size);
+  margin-inline: auto;
+  border-radius: 9999px;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(255,255,255,.08), rgba(255,255,255,.02)),
+              linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 0 40px rgba(0,255,208,.15);
+  isolation: isolate;
+}
+
+.pf-rim{
+  position: absolute; inset: 0;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 2px rgba(0,255,208,.18), inset 0 0 22px rgba(0,255,208,.12);
+}
+
+.pf-ticks{
+  position: absolute; inset: 0; pointer-events: none;
+}
+.pf-ticks span{
+  position: absolute; left: 50%; top: 0;
+  width: 2px; height: 10px; transform-origin: 50% calc(var(--pf-size) / 2);
+  background: rgba(255,255,255,.25);
+}
+
+/* Target arc using a conic gradient centered on the dial. */
+.pf-arc{
+  --arc-center: 0deg;
+  --arc-half: 30deg;
+  position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(0,0,0,0) calc((var(--arc-center) - var(--arc-half))),
+      rgba(0,255,208,.45) calc((var(--arc-center) - var(--arc-half))),
+      rgba(0,255,208,.22) calc((var(--arc-center))),
+      rgba(0,255,208,.45) calc((var(--arc-center) + var(--arc-half))),
+      rgba(0,0,0,0) calc((var(--arc-center) + var(--arc-half)))
+    );
+  filter: drop-shadow(0 0 12px rgba(0,255,208,.25));
+}
+
+/* Marker needle */
+.pf-marker{
+  position: absolute;
+  inset: 0;
+  transform: rotate(0deg);
+  transition: transform 0.04s linear;
+}
+.pf-marker--lock .pf-marker-head{
+  box-shadow: 0 0 28px rgba(255,216,107,.45), 0 0 12px rgba(0,255,208,.35);
+}
+.pf-marker-head{
+  position: absolute; left: 50%; top: 8px;
+  width: 4px; height: calc(var(--pf-size) / 2 - 12px);
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fff, var(--pf-accent));
+  box-shadow: 0 0 14px rgba(0,255,208,.25);
+}
+
+.pf-hud{
+  display: flex; flex-wrap: wrap; gap: .65rem;
+  justify-content: center;
+}
+.pf-chip{
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .5rem .7rem; border-radius: 9999px;
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.pf-chip__label{
+  font-weight: 700; color: var(--pf-dim); font-size: .9rem;
+}
+.pf-chip__val{
+  font-weight: 900; letter-spacing: .02em;
+}
+
+.pf-cta{
+  margin-top: 1rem; text-align: center;
+}
+.pf-lock-btn{
+  appearance: none; border: none; cursor: pointer;
+  padding: .75rem 1.25rem; border-radius: 12px;
+  font-weight: 900; letter-spacing: .02em;
+  background: linear-gradient(90deg, var(--pf-accent), var(--pf-accent-2));
+  color: #05111f;
+  box-shadow: 0 8px 24px rgba(0,255,208,.25);
+  transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+}
+.pf-lock-btn:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+.pf-lock-btn:active{ transform: translateY(0); filter: brightness(.98); }
+.pf-lock-btn[disabled]{ opacity: .5; cursor: not-allowed; }
+
+.pf-hint{
+  margin-top: .5rem; color: var(--pf-dim); font-size: .9rem;
+}
+.pf-hint kbd{
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  padding: 0 .35rem; border-radius: 6px;
+}
+
+/* Result banner */
+.pf-result{
+  margin-top: 1rem;
+  display: flex; align-items: center; justify-content: center; gap: .6rem;
+  font-weight: 900;
+  padding: .6rem .9rem; border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.pf-result__emoji{ font-size: 1.25rem; }
+.pf-result--hit{
+  background: rgba(103,255,179,.12);
+  color: var(--pf-success);
+}
+.pf-result--crit{
+  background: rgba(255,216,107,.12);
+  color: var(--pf-crit);
+}
+.pf-result--miss{
+  background: rgba(255,107,107,.12);
+  color: var(--pf-danger);
+}
+
+/* Motion safety */
+@media (prefers-reduced-motion: reduce){
+  .pf-marker{ transition: none; }
+  .pf-lock-btn{ transition: none; }
+}

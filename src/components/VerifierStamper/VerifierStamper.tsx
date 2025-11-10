@@ -120,6 +120,51 @@ const S = {
   headerImg: { maxWidth: "64px", height: "auto", flex: "0 0 auto" } as const,
   valueStrip: { overflowX: "auto", whiteSpace: "nowrap" } as const,
 };
+// Auto-shrink text to fit inside its container (down to a floor scale)
+function useAutoShrink<T extends HTMLElement>(
+  deps: React.DependencyList = [],
+  paddingPx = 16,          // visual padding inside the pill
+  minScale = 0.65          // smallest allowed scale
+) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<T | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    const txt = textRef.current;
+    if (!box || !txt) return;
+
+    const recompute = () => {
+      // available width inside the pill minus padding
+      const boxW = Math.max(0, box.clientWidth - paddingPx);
+      const textW = txt.scrollWidth;
+      if (boxW <= 0 || textW <= 0) return setScale(1);
+
+      const next = Math.min(1, Math.max(minScale, boxW / textW));
+      setScale(next);
+    };
+
+    // First compute + observe future changes
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(box);
+    ro.observe(txt);
+
+    // Also adjust on font load / viewport changes
+    window.addEventListener("resize", recompute);
+    const id = window.setInterval(recompute, 250); // cheap safety net
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+      window.clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return { boxRef, textRef, scale };
+}
 
 const KV: React.FC<{ k: React.ReactNode; v: React.ReactNode; wide?: boolean; mono?: boolean; }> = ({ k, v, wide, mono }) => (
   <div className={`kv${wide ? " wide" : ""}`}>
@@ -128,12 +173,45 @@ const KV: React.FC<{ k: React.ReactNode; v: React.ReactNode; wide?: boolean; mon
   </div>
 );
 
-const ValueChip: React.FC<{ kind: "phi" | "usd"; trend: "up" | "down" | "flat"; flash: boolean; title: string; children: React.ReactNode; }> =
-({ kind, trend, flash, title, children }) => (
-  <div className={`value-chip ${kind} ${trend}${flash ? " flash" : ""}`} data-trend={trend} title={title}>
-    <span className="amount">{children}</span>
-  </div>
-);
+const ValueChip: React.FC<{
+  kind: "phi" | "usd";
+  trend: "up" | "down" | "flat";
+  flash: boolean;
+  title: string;
+  children: React.ReactNode;
+}> = ({ kind, trend, flash, title, children }) => {
+  // Recompute when the text changes (children) or trend/flash nudges layout
+  const { boxRef, textRef, scale } = useAutoShrink<HTMLSpanElement>(
+    [children, trend, flash],
+    16,   // padding inside pill (match your CSS)
+    0.65  // minimum scale
+  );
+
+  return (
+    <div
+      ref={boxRef}
+      className={`value-chip ${kind} ${trend}${flash ? " flash" : ""}`}
+      data-trend={trend}
+      title={title}
+    >
+      <span
+        ref={textRef}
+        className="amount"
+        style={{
+          display: "inline-block",
+          whiteSpace: "nowrap",
+          lineHeight: 1,
+          transform: `scale(${scale})`,
+          transformOrigin: "left center",
+          willChange: "transform",
+        }}
+      >
+        {children}
+      </span>
+    </div>
+  );
+};
+
 
 const IconBtn: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { small?: boolean; aria?: string; titleText?: string; path: string; }> =
 ({ small, aria, titleText, path, ...rest }) => (

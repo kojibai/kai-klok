@@ -1,0 +1,213 @@
+/* src/components/KaiRealms/KaiMaze/styles/kai-maze.css */
+
+/* ------------------ Design tokens ------------------ */
+:root {
+  --km-ar: 28 / 31;                      /* stage aspect ratio (width / height) */
+  --km-max-inline: 1100px;               /* maximum width for giant screens */
+  --km-pad: clamp(8px, 1.2vmin, 16px);   /* outer padding */
+  --km-gap: clamp(8px, 1.4vmin, 16px);   /* vertical spacing between sections */
+  --km-radius: 12px;
+  --km-border: rgba(255,255,255,.12);
+  --km-bg: rgba(0,0,0,.35);
+  --km-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.02);
+
+  --km-fg: #fff;
+  --km-fg-dim: rgba(255,255,255,.8);
+  --km-accent: #00ffd0;                  /* used on focus & hover states */
+}
+
+/* Respect user color scheme if the app toggles it */
+@media (prefers-color-scheme: light) {
+  :root {
+    --km-bg: rgba(0,0,0,.06);
+    --km-border: rgba(0,0,0,.12);
+    --km-shadow: 0 8px 24px rgba(0,0,0,.12), inset 0 0 0 1px rgba(0,0,0,.03);
+    --km-fg: #0b0b0e;
+    --km-fg-dim: rgba(10,10,12,.75);
+  }
+}
+
+/* ------------------ Layout shell ------------------ */
+.km-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--km-gap);
+  width: 100%;
+  max-inline-size: min(96vw, var(--km-max-inline));
+  margin-inline: auto;
+  padding: var(--km-pad);
+  color: var(--km-fg);
+  box-sizing: border-box;
+}
+
+/* Header */
+.km-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.km-title {
+  font-weight: 800;
+  font-size: clamp(1.025rem, 0.95rem + 0.6vw, 1.6rem);
+  letter-spacing: .01em;
+  line-height: 1.2;
+}
+.km-sub {
+  opacity: .8;
+  color: var(--km-fg-dim);
+  font-size: clamp(.88rem, .82rem + .3vw, 1rem);
+  line-height: 1.35;
+}
+
+/* ------------------ Stage (responsive, no overlap) ------------------ */
+/* The trick: constrain by the *smaller* of viewport width/height, while keeping aspect ratio.
+   We use orientation queries so height-limited in landscape and width-limited in portrait. */
+
+.km-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: min(96vw, var(--km-max-inline));  /* default width bound */
+  block-size: auto;                               /* height auto when width drives size */
+  aspect-ratio: var(--km-ar);
+  background: var(--km-bg);
+  border: 1px solid var(--km-border);
+  border-radius: var(--km-radius);
+  box-shadow: var(--km-shadow);
+  overflow: hidden;
+  padding: max(0px, calc(env(safe-area-inset-bottom) * 0.25));
+  contain: content; /* avoid layout thrash */
+}
+
+/* Portrait: width first, cap height so it never collides with browser chrome */
+@media (orientation: portrait) {
+  .km-stage {
+    inline-size: min(96vw, var(--km-max-inline));
+    max-block-size: min(78svh, 78dvh, 78vh); /* svh handles iOS URL bar correctly */
+  }
+}
+
+/* Landscape: height first, let aspect ratio determine width */
+@media (orientation: landscape) {
+  .km-stage {
+    block-size: min(78svh, 78dvh, 78vh);
+    inline-size: auto;
+    max-inline-size: min(96vw, var(--km-max-inline));
+  }
+}
+
+/* Canvas always fills the stage box */
+.km-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain; /* future-proof */
+}
+
+/* ------------------ Footer / Controls ------------------ */
+.km-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;           /* wrap on tiny screens so nothing overlaps */
+}
+
+.km-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--km-border);
+  background: color-mix(in srgb, var(--km-fg) 6%, transparent);
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  will-change: transform;
+}
+@supports not (color-mix(in srgb, #000 50%, #fff 50%)) {
+  .km-btn { background: rgba(255,255,255,.06); } /* fallback */
+}
+.km-btn:hover { transform: translateY(-1px); }
+.km-btn:active { transform: translateY(0); }
+
+.km-btn:focus-visible {
+  outline: 2px solid var(--km-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--km-accent) 35%, transparent);
+}
+
+.km-hint {
+  opacity: .75;
+  font-size: clamp(.8rem, .78rem + .25vw, .95rem);
+  line-height: 1.25;
+}
+
+/* Tight phones: stack hint under the button and center-align */
+@media (max-width: 420px) {
+  .km-footer {
+    align-items: flex-start;
+  }
+  .km-btn {
+    padding: 12px 16px;
+  }
+  .km-hint {
+    flex-basis: 100%;
+  }
+}
+
+/* ------------------ Accessibility / Motion ------------------ */
+/* If users prefer less motion, dampen hover transforms and heavy shadows */
+@media (prefers-reduced-motion: reduce) {
+  .km-btn { transition: none; }
+  .km-btn:hover, .km-btn:active { transform: none; }
+  .km-stage { box-shadow: 0 6px 16px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.02); }
+}
+
+/* High-contrast users: strengthen borders and text */
+@media (prefers-contrast: more) {
+  .km-stage { border-color: rgba(255,255,255,.28); }
+  .km-sub, .km-hint { opacity: .95; }
+}
+
+/* ------------------ Aspect-ratio fallback (older browsers) ------------------ */
+@supports not (aspect-ratio: 1 / 1) {
+  .km-stage {
+    /* Maintain ratio with the padding hack when aspect-ratio is missing */
+    height: auto;
+  }
+  .km-stage::before {
+    content: "";
+    float: left;
+    padding-top: calc((31 / 28) * 100%); /* height = width * (h/w) */
+  }
+  .km-stage::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+  .km-canvas {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* ------------------ Optional: host can override accent ------------------ */
+.km-wrap { --accent: var(--km-accent); }
+.km-btn:hover {
+  /* If the app defines --accent globally, this will glow on hover */
+  border-color: var(--accent);
+}
+/* Stage already position:relative via .km-stage container */
+.km-stage { position: relative; width: 100%; aspect-ratio: 28/31; background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.02); overflow: hidden; }
+
+.km-chan-btn, .km-chan-cancel{
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 10px; padding: 10px 16px; border-radius: 12px;
+  border: 1px solid rgba(0,255,208,.35);
+  background: rgba(0,255,208,0.08); color: #eafffb; font-weight: 800; letter-spacing: .04em;
+  backdrop-filter: blur(6px);
+}
+.km-chan-btn:hover { background: rgba(0,255,208,0.12); border-color: rgba(0,255,208,.6); }
+.km-chan-cancel { right: 10px; left: auto; transform: none; bottom: 10px; border-color: rgba(255,80,80,.35); background: rgba(255,80,80,.08); }
+.km-chan-cancel:hover { background: rgba(255,80,80,.12); border-color: rgba(255,80,80,.6); }

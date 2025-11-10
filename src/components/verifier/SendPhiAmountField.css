@@ -1,0 +1,292 @@
+/* ——— Full-width adaptive row layout ——— */
+.phi-send-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;         /* wrap on small screens */
+  width: 100%;
+  min-width: 0;            /* prevent overflow clipping */
+}
+
+/* Toggle group */
+.phi-mode-toggle {
+  display: inline-flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.phi-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #333);
+  background: var(--card, rgba(255,255,255,0.04));
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, opacity .2s;
+  opacity: .6;
+}
+.phi-mode-btn.is-active {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--accent) 60%, #333 40%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 0 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Let the capsule grow and own the row on narrow screens */
+.phi-send-inputShell {
+  flex: 1 1 260px;   /* grows, but doesn’t get too tiny */
+  min-width: 160px;  /* protect readability */
+  width: auto;       /* allow flex to control width */
+  box-sizing: border-box;
+}
+
+/* Readouts (right side) */
+.phi-conv-right {
+  flex: 0 0 auto;
+  min-width: 120px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.phi-remaining {
+  margin-left: auto;     /* push to far right on wide screens */
+  min-width: 160px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* Small screens: stack readouts under the input, left-aligned */
+@media (max-width: 640px) {
+  .phi-conv-right {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+    white-space: normal;
+    text-align: left;
+  }
+  .phi-remaining {
+    order: 4;
+    flex: 1 1 100%;
+    min-width: 0;
+    text-align: left;
+  }
+}
+/* =========================
+   Φ Send Field — Ultra Mode
+   Paste AFTER your current rules
+   ========================= */
+:root {
+  --phi-pulse: 5.236s;             /* breath period */
+  --phi-radius: 12px;
+  --phi-gap: 8px;
+  --phi-glow: color-mix(in srgb, var(--accent) 70%, transparent);
+  --phi-glass: rgba(255,255,255,0.06);
+  --phi-border: color-mix(in srgb, var(--accent) 35%, rgba(255,255,255,0.12));
+  --phi-ring: color-mix(in srgb, var(--accent) 65%, white 10%);
+}
+
+/* Turn the field into a container so container-queries work */
+.phi-send-field { container-type: inline-size; }
+
+/* Upgrade the row: smart gaps, tighter rhythm */
+.phi-send-row {
+  gap: var(--phi-gap);
+  align-items: stretch;
+}
+
+/* ——— Segmented toggle with sliding highlight ——— */
+.phi-mode-toggle {
+  position: relative;
+  isolation: isolate;
+  padding: 3px;
+  border-radius: calc(var(--phi-radius) - 2px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  border: 1px solid var(--phi-border);
+  box-shadow:
+    0 2px 10px rgba(0,0,0,0.35),
+    0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Sliding “liquid” highlight */
+.phi-mode-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  width: calc(50% - 3px);             /* two segments */
+  border-radius: calc(var(--phi-radius) - 4px);
+  background: radial-gradient(80% 140% at 50% 20%, var(--phi-glow), transparent 70%),
+              linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.14),
+    0 0 24px color-mix(in srgb, var(--accent) 30%, transparent);
+  transform: translateX(0%);
+  transition: transform 220ms cubic-bezier(.22,.8,.25,1);
+  z-index: -1;
+}
+
+/* Move highlight when the second button is active (requires :has support) */
+.phi-mode-toggle:has(.phi-mode-btn:nth-child(2).is-active)::before {
+  transform: translateX(100%);
+}
+
+/* Buttons: tactile micro-haptics + sheen */
+.phi-mode-btn {
+  height: 36px;
+  min-width: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;                        /* parent draws the border */
+  opacity: .85;
+  transition: opacity .18s, transform .08s ease;
+  position: relative;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.phi-mode-btn:hover { opacity: 1; }
+.phi-mode-btn:active { transform: translateY(0.5px) scale(.995); }
+.phi-mode-btn.is-active { opacity: 1; }
+
+/* sheen on hover */
+.phi-mode-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg,
+      transparent 0%,
+      rgba(255,255,255,0.12) 10%,
+      transparent 22%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+  pointer-events: none;
+}
+.phi-mode-btn:hover::after { transform: translateX(0%); }
+
+/* ——— Input capsule: breath-synced ring on focus ——— */
+.phi-send-inputShell {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    radial-gradient(120% 180% at 20% 0%, rgba(255,255,255,0.045), transparent 60%),
+    rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  transition: box-shadow .2s, border-color .2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+/* subtle micro-grid texture for instrument feel */
+.phi-send-inputShell::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(255,255,255,0.06), transparent 35%) 0 0/24px 24px,
+    radial-gradient(circle at 60% 80%, rgba(255,255,255,0.03), transparent 40%) 0 0/28px 28px;
+  opacity: .08;
+  pointer-events: none;
+}
+
+/* focus ring breath */
+.phi-send-inputShell:focus-within {
+  border-color: var(--phi-ring);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.phi-send-inputShell:focus-within .phi-input-glow {
+  animation-duration: var(--phi-pulse);
+  opacity: .95;
+}
+
+/* Prefix and input typography polish */
+.phi-prefix {
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px var(--phi-glow));
+}
+
+.phi-send-input {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums lining-nums;
+  caret-color: color-mix(in srgb, var(--accent) 90%, white 10%);
+  text-shadow:
+    0 0 8px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 1px rgba(255,255,255,0.95);
+}
+.phi-send-input::placeholder { opacity: .55; }
+
+/* ——— Conversion chip & Remaining telemetry ——— */
+.phi-conv-right {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--phi-glass);
+  backdrop-filter: blur(8px) saturate(160%);
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 8px 20px rgba(0,0,0,0.35);
+}
+
+/* Remaining with subtle progress underline (set --remaining-ratio inline 0..1) */
+.phi-remaining {
+  position: relative;
+  padding-bottom: 4px;
+}
+.phi-remaining::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 2px; border-radius: 999px;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 70%, white 10%) 0%,
+      color-mix(in srgb, var(--accent) 35%, transparent) 100%);
+  transform-origin: 0 50%;
+  transform: scaleX(var(--remaining-ratio, .5));
+  transition: transform .25s ease;
+  opacity: .9;
+}
+
+/* ——— Responsive intelligence ——— */
+/* At narrow widths, make the capsule own the row; chips flow under */
+@container (inline-size < 600px) {
+  .phi-conv-right,
+  .phi-remaining {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  .phi-remaining { margin-left: 0; }
+}
+
+/* On super-tight devices, let the toggle compress and the input stay dominant */
+@container (inline-size < 420px) {
+  .phi-mode-toggle { scale: .96; }
+  .phi-send-input { font-size: .95rem; }
+}
+
+/* ——— Motion & access ——— */
+@media (prefers-reduced-motion: reduce) {
+  .phi-mode-toggle::before,
+  .phi-mode-btn::after,
+  .phi-input-glow,
+  .phi-remaining::after { animation: none !important; transition: none !important; }
+}

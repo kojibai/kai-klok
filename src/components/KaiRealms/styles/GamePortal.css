@@ -1,0 +1,346 @@
+/* ──────────────────────────────────────────────────────────────
+   GamePortal.css — Kai Realms Entry (Atlantean Glass ✧ 5.236s breath)
+   Uses the same CSS vars as KaiRealms.css; provides component-scoped polish.
+   ────────────────────────────────────────────────────────────── */
+
+:root{
+  /* fallbacks in case KaiRealms.css hasn’t loaded yet */
+  --kai-breath: 5.236s;
+  --kai-phi: 1.61803398875;
+
+  --realms-glass: rgba(10,14,28,0.62);
+  --realms-fg: #e9f7ff;
+  --realms-muted: #9fb3d0;
+
+  --accent-cyan: #00ffd0;
+  --accent-blue: #00b4ff;
+  --accent-violet: #8a2be2;
+  --accent-gold: #ffd86b;
+
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-inset: rgba(99,102,241,0.25);
+
+  --ring-outer: rgba(0,255,208,0.28);
+  --ring-inner: rgba(138,43,226,0.28);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Card shell
+   ────────────────────────────────────────────────────────────── */
+.portal-card{
+  position: relative;
+  width: min(780px, 94vw);
+  padding: clamp(18px, 2.2vw, 24px);
+  border-radius: clamp(16px, 2vw, 22px);
+  color: var(--realms-fg);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)) padding-box,
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08)) border-box,
+    var(--realms-glass);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 12px 52px rgba(0,0,0,.50),
+    inset 0 0 0 1px var(--glass-inset);
+  overflow: hidden;
+  isolation: isolate;
+  animation: pane-in .35s ease-out;
+}
+
+/* inherited from Atlantean glass helpers */
+.glass-omni::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(120% 85% at 50% -12%, rgba(255,255,255,0.14), transparent 60%);
+  mix-blend-mode: overlay; opacity:.55;
+}
+.glass-omni::after{
+  content:""; position:absolute; inset:1px; pointer-events:none; border-radius: inherit;
+  background:
+    conic-gradient(from 180deg, rgba(0,255,208,.09), rgba(0,180,255,.05), rgba(138,43,226,.08), rgba(0,255,208,.09));
+  filter: blur(14px); opacity:.32;
+  mask: linear-gradient(#000 0 0) exclude, radial-gradient(160% 160% at 50% 50%, #0000 49%, #000 50%);
+}
+
+/* Sacred breathing rings + phi grid (same pattern, tuned for card size) */
+.portal-card .breath-ring{
+  position:absolute; inset:0; pointer-events:none; border-radius: inherit;
+  border: 1px solid transparent;
+}
+.portal-card .breath-ring--outer{
+  box-shadow: 0 0 0 1px var(--ring-outer) inset, 0 0 28px rgba(0,255,208,0.22);
+  animation: ring-breathe var(--kai-breath) ease-in-out infinite;
+}
+.portal-card .breath-ring--inner{
+  inset: 10px;
+  box-shadow: 0 0 0 1px var(--ring-inner) inset, 0 0 24px rgba(138,43,226,0.22) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+.portal-card .phi-grid{
+  position:absolute; inset:0; pointer-events:none; opacity:.10;
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size:
+    calc(100% / var(--kai-phi)) 100%,
+    100% calc(100% / var(--kai-phi));
+  mix-blend-mode: screen;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Header
+   ────────────────────────────────────────────────────────────── */
+.portal-header{
+  position:relative;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap: 10px;
+  padding: clamp(6px, 1vw, 12px) 6px 8px;
+}
+
+.header-seals{
+  display:flex; gap: 18px; align-items:center; justify-content:center;
+  filter: drop-shadow(0 0 12px rgba(0,255,208,.25));
+}
+.seal-emblem{ position:relative; width: 34px; height: 34px; display:grid; place-items:center; }
+.seal-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border: 1.25px solid rgba(0,255,208,.35);
+  box-shadow: 0 0 10px rgba(0,255,208,.22) inset;
+}
+.seal-ring--inner{
+  inset: 6px; border-color: rgba(138,43,226,.38);
+  box-shadow: 0 0 12px rgba(138,43,226,.28) inset;
+}
+.seal-core{
+  width: 9px; height: 9px; border-radius:50%;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--accent-cyan));
+  box-shadow: 0 0 12px rgba(0,255,208,.5), 0 0 22px rgba(0,180,255,.35);
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+.emblem--left .seal-ring{ animation: ring-breathe var(--kai-breath) ease-in-out infinite; }
+.emblem--right .seal-ring{ animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse; }
+
+.portal-title{
+  font-size: clamp(1.45rem, 1.8vw, 2rem);
+  font-weight: 900;
+  letter-spacing: .02em;
+  margin: 0;
+  text-align:center;
+  background: linear-gradient(90deg, #fff, #c8f8ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.15));
+}
+.portal-title .title-accent{
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Body
+   ────────────────────────────────────────────────────────────── */
+.portal-body{
+  margin-top: 8px;
+  display:flex; flex-direction:column; gap: 16px;
+}
+
+/* Dropzone */
+.dropzone{
+  position:relative;
+  display:grid; grid-template-columns: auto 1fr; gap: 16px;
+  align-items:center;
+  padding: clamp(14px, 2vw, 18px);
+  border-radius: 16px;
+  cursor: pointer;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.18);
+  box-shadow:
+    0 6px 24px rgba(0,0,0,.35),
+    inset 0 0 0 1px rgba(255,255,255,.06);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+  outline: none;
+}
+.dropzone:hover{
+  transform: translateY(-1px);
+  border-color: rgba(0,255,208,.45);
+  box-shadow: 0 8px 30px rgba(0,255,208,.12), inset 0 0 0 1px rgba(0,255,208,.15);
+}
+.dropzone:focus-visible{
+  box-shadow: 0 0 0 3px rgba(0,180,255,.28), 0 0 0 6px rgba(0,255,208,.22);
+}
+.dropzone--active{
+  border-style: solid;
+  background:
+    linear-gradient(180deg, rgba(0,255,208,.08), rgba(138,43,226,.06)),
+    rgba(255,255,255,0.035);
+  box-shadow:
+    0 10px 36px rgba(0,255,208,.15),
+    inset 0 0 0 1px rgba(0,255,208,.18);
+}
+.dropzone--busy{
+  pointer-events:none;
+  opacity:.85;
+}
+
+/* Decorative breathing ornament inside dropzone */
+.dropzone-ornament{
+  position:absolute; inset: 6px; pointer-events:none;
+  border-radius: 14px;
+}
+.ornament-ring{
+  position:absolute; inset:0; border-radius: inherit;
+  border: 1px solid rgba(0,255,208,.28);
+  box-shadow: 0 0 10px rgba(0,255,208,.16) inset;
+}
+.ornament-ring--inner{
+  inset: 8px;
+  border-color: rgba(138,43,226,.32);
+  box-shadow: 0 0 12px rgba(138,43,226,.24) inset;
+}
+.ornament-ring--outer{ animation: ring-breathe var(--kai-breath) ease-in-out infinite; }
+.ornament-ring--inner{ animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse; }
+.ornament-core{
+  position:absolute; left:50%; top:50%; width: 10px; height: 10px;
+  transform: translate(-50%,-50%);
+  border-radius:50%;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--accent-cyan));
+  filter: drop-shadow(0 0 12px rgba(0,255,208,.45));
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+
+/* Icon + text cluster inside dropzone */
+.dropzone-icon{
+  width: 54px; height: 54px; display:grid; place-items:center;
+  border-radius: 12px;
+  background: radial-gradient(100% 100% at 50% 50%, rgba(0,255,208,.10), rgba(138,43,226,.06));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  filter: drop-shadow(0 0 10px rgba(0,255,208,.2));
+}
+.dropzone-text{ display:flex; flex-direction:column; gap: 6px; line-height:1.35; }
+.dz-title{
+  font-weight: 800; letter-spacing:.02em;
+  background: linear-gradient(90deg, #fff, #c8f8ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: clamp(1.05rem, 1.2vw, 1.2rem);
+}
+.dz-hint{
+  color: var(--realms-muted);
+  font-size: .94rem;
+}
+.dz-file{
+  color:#cdeeff;
+  font-size: .92rem;
+  opacity:.92;
+}
+
+/* Busy state */
+.dz-progress{
+  display:flex; gap:8px; align-items:center; margin-top: 4px;
+  color: #dafff8;
+  text-shadow: 0 0 10px rgba(0,255,208,.35);
+}
+.dz-spinner{
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.25); border-top-color: var(--accent-violet);
+  animation: spin 1s linear infinite;
+}
+
+/* Hidden input */
+.dz-input{
+  position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;
+}
+
+/* Error + note */
+.portal-error{
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255,72,72,.10), rgba(255,72,72,.03));
+  border: 1px solid rgba(255,72,72,.25);
+  color: #ffbdbd;
+  box-shadow: 0 8px 26px rgba(255,72,72,.15), inset 0 0 0 1px rgba(255,72,72,.18);
+}
+.portal-note{
+  margin: 2px 2px 0;
+  color: var(--realms-muted);
+  font-size: .92rem;
+}
+
+/* Actions */
+.portal-actions{
+  display:flex; gap: 10px; align-items:center; justify-content:center;
+  padding-top: 2px;
+}
+.primary-btn{
+  --btn-bg: linear-gradient(90deg, rgba(0,255,208,.18), rgba(0,180,255,.18));
+  --btn-brd: rgba(0,255,208,.45);
+  appearance:none; border:none; cursor:pointer;
+  padding: 12px 18px; border-radius: 9999px;
+  color: #eaffff; font-weight: 800; letter-spacing:.02em;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-brd);
+  box-shadow:
+    0 8px 28px rgba(0,255,208,.16),
+    inset 0 0 0 1px rgba(255,255,255,.08);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease, background .16s ease;
+}
+.primary-btn:hover{
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 36px rgba(0,255,208,.2),
+    inset 0 0 0 1px rgba(255,255,255,.12);
+  filter: saturate(1.05);
+}
+.primary-btn:focus-visible{
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(0,180,255,.28),
+    0 0 0 6px rgba(0,255,208,.22),
+    inset 0 0 0 1px rgba(255,255,255,.12);
+}
+.primary-btn:disabled{
+  opacity:.7; cursor:not-allowed;
+}
+
+/* Footer icons already styled globally; nudge spacing for card context */
+.realms-footer{
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0.02)),
+    radial-gradient(70% 70% at 50% 100%, rgba(0,180,255,.12), transparent 60%);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Animations (shared)
+   ────────────────────────────────────────────────────────────── */
+@keyframes pane-in{
+  from{ opacity:0; transform: translateY(6px) }
+  to{ opacity:1; transform: translateY(0) }
+}
+@keyframes ring-breathe{
+  0%{ opacity:.65; transform: scale(1) }
+  50%{ opacity:1; transform: scale( calc(1 + (0.012 * var(--kai-phi)) ) ) }
+  100%{ opacity:.65; transform: scale(1) }
+}
+@keyframes core-pulse{
+  0%{ transform: scale(.92) }
+  50%{ transform: scale(1.18) }
+  100%{ transform: scale(.92) }
+}
+@keyframes spin{ to{ transform: rotate(360deg) } }
+
+/* ──────────────────────────────────────────────────────────────
+   A11y motion safety
+   ────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Small screens
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 560px){
+  .dropzone{ grid-template-columns: 1fr; }
+  .dropzone-icon{ width: 48px; height: 48px; }
+  .portal-title{ font-size: 1.25rem; }
+}

@@ -1,0 +1,145 @@
+:root {
+  --realm-neon: #00ffd0;
+  --realm-iris: #8a2be2;
+  --realm-bg-a: #020211;
+  --realm-bg-b: #0b0f2a;
+  --realm-chip: rgba(255,255,255,.08);
+}
+
+.realm-wrap {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  color: #e8f5ff;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.realm-canvas-wrap {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.45),
+    0 0 0 1px rgba(138,43,226,.18) inset;
+}
+
+.realm-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: linear-gradient(180deg, var(--realm-bg-a), var(--realm-bg-b));
+  border-radius: 14px;
+  outline: none;
+}
+
+/* HUD */
+.realm-hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hud-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  background: var(--realm-chip);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 0 1px rgba(0,255,208,.1) inset;
+}
+
+.hud-chip--score {
+  background:
+    radial-gradient(80% 120% at 0% 100%, rgba(0,255,208,.16), transparent),
+    var(--realm-chip);
+  border-color: rgba(0,255,208,.25);
+}
+
+.hud-chip__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.8);
+}
+.hud-chip__value {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* HUD button */
+.hud-button {
+  margin-left: auto;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+  border: 1px solid rgba(255,255,255,.16);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.hud-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.25), 0 0 20px rgba(0,255,208,.12);
+}
+
+/* Pause overlay */
+.realm-pause-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(40% 50% at 50% 40%, rgba(0,255,208,.05), rgba(0,0,0,.45));
+  pointer-events: none;
+}
+
+.pause-card {
+  pointer-events: auto;
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: rgba(10,12,22,.65);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow:
+    0 12px 36px rgba(0,0,0,.35),
+    0 0 0 1px rgba(0,255,208,.15) inset;
+  text-align: center;
+}
+.pause-title {
+  font-weight: 900;
+  letter-spacing: .02em;
+  font-size: 18px;
+}
+.pause-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+}
+
+/* Exit button */
+.exit-button {
+  align-self: start;
+  justify-self: start;
+  margin-top: 2px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(255,85,85,.9), rgba(255,85,85,.75));
+  border: 1px solid rgba(255,85,85,.7);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .01em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255,85,85,.23);
+  transition: transform .15s ease, filter .15s ease;
+}
+.exit-button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+
+/* Motion safety */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}

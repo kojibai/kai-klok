@@ -66,3 +66,63 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* ——— Compact, slightly smaller, more refined ——— */
+:root {
+  /* ~6% smaller than default, slightly tighter leading */
+  font-size: 15px;            /* was browser default 16px */
+  line-height: 1.45;          /* was 1.5 */
+
+  /* optional design tokens */
+  --radius: 7px;
+}
+
+/* Body */
+body {
+  /* keep your layout; just ensure text looks a bit tighter globally */
+  -webkit-text-size-adjust: 100%;
+  font-feature-settings: "kern" 1, "liga" 1, "tnum" 1;
+}
+
+/* Type scale — smaller & cleaner */
+h1 {
+  /* from 3.2em -> responsive but capped smaller */
+  font-size: clamp(1.8rem, 3.2vw + 0.5rem, 2.4rem);
+  line-height: 1.1;            /* keep tight headline rhythm */
+  margin: 0 0 0.5em;           /* reduce default spacing */
+}
+
+h2 {
+  font-size: 1.35rem;
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+}
+
+h3 {
+  font-size: 1.1rem;
+  line-height: 1.25;
+  margin: 0 0 0.5em;
+}
+
+/* Paragraph & list spacing a touch tighter */
+p, ul, ol {
+  margin: 0 0 0.75em;
+}
+
+/* Links: keep your color, refine underline for a crisp look */
+a {
+  text-underline-offset: 0.15em;
+  text-decoration-thickness: 0.06em;
+}
+
+/* Buttons: slightly smaller & tighter padding */
+button {
+  border-radius: var(--radius);
+  padding: 0.5em 1em;          /* was 0.6em 1.2em */
+  font-size: 0.95rem;          /* was 1em */
+  line-height: 1.15;
+}
+
+/* Light mode keeps your palette; no change needed */
+@media (prefers-color-scheme: light) {
+  /* your existing block remains */
+}

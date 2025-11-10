@@ -1,5 +1,6 @@
 // src/components/verifier/SendPhiAmountField.tsx
 import React from "react";
+import "./SendPhiAmountField.css";
 
 type Props = {
   amountMode: "USD" | "PHI";
@@ -10,43 +11,10 @@ type Props = {
   setUsdInput: (v: string) => void;
   setPhiInput: (v: string) => void;
 
-  convDisplayRight: string;          // computed display (e.g., "$ 12.34" or "≈ Φ 0.1234")
+  convDisplayRight: string;          // e.g., "$ 12.34" or "≈ Φ 0.1234"
   remainingPhiDisplay4: string;      // e.g., "1.2345"
   canonicalContext: "parent" | "derivative" | null;
   phiFormatter: (s: string) => string;
-};
-
-const btnBase: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  height: 40,
-  padding: "0 10px",
-  borderRadius: 8,
-  border: "1px solid var(--border, #333)",
-  background: "var(--card, rgba(255,255,255,0.04))",
-  color: "inherit",
-  cursor: "pointer",
-};
-
-const wrap: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  flexWrap: "wrap",
-  flex: "1 1 auto",
-  minWidth: 0,
-};
-
-const inputStyle: React.CSSProperties = {
-  height: 40,
-  padding: "0 12px",
-  borderRadius: 8,
-  border: "1px solid var(--border, #333)",
-  background: "var(--card, rgba(255,255,255,0.04))",
-  color: "inherit",
-  minWidth: 120,
-  outline: "none",
 };
 
 const SendPhiAmountField: React.FC<Props> = ({
@@ -61,71 +29,81 @@ const SendPhiAmountField: React.FC<Props> = ({
   canonicalContext,
   phiFormatter,
 }) => {
-  const rightLabel =
-    amountMode === "PHI" ? convDisplayRight : convDisplayRight; // left is controlled by parent
-
   return (
-    <div style={wrap} aria-live="polite">
-      <div role="group" aria-label="Amount mode" style={{ display: "inline-flex", gap: 6 }}>
-        <button
-          type="button"
-          style={{ ...btnBase, opacity: amountMode === "PHI" ? 1 : 0.55 }}
-          onClick={() => setAmountMode("PHI")}
-          title="Send Φ amount"
+    <div className="phi-send-field" aria-live="polite">
+      {/* Row layout that adapts and goes full-width */}
+      <div className="phi-send-row">
+        {/* Mode toggle */}
+        <div className="phi-mode-toggle" role="group" aria-label="Amount mode">
+          <button
+            type="button"
+            className={`phi-mode-btn ${amountMode === "PHI" ? "is-active" : ""}`}
+            onClick={() => setAmountMode("PHI")}
+            title="Send Φ amount"
+          >
+            Φ
+          </button>
+          <button
+            type="button"
+            className={`phi-mode-btn ${amountMode === "USD" ? "is-active" : ""}`}
+            onClick={() => setAmountMode("USD")}
+            title="Send USD amount (converted)"
+          >
+            $
+          </button>
+        </div>
+
+        {/* Input capsule */}
+        <div className="phi-send-inputShell">
+          <span className="phi-prefix" aria-hidden="true">
+            {amountMode === "PHI" ? "Φ" : "$"}
+          </span>
+
+          {amountMode === "PHI" ? (
+            <input
+              className="phi-send-input"
+              inputMode="decimal"
+              pattern="[0-9.]*"
+              placeholder="Φ amount"
+              title="Φ amount to exhale"
+              value={phiInput}
+              onChange={(e) => setPhiInput(phiFormatter(e.target.value))}
+            />
+          ) : (
+            <input
+              className="phi-send-input"
+              inputMode="decimal"
+              pattern="[0-9.]*"
+              placeholder="USD amount"
+              title="USD amount to exhale"
+              value={usdInput}
+              onChange={(e) => setUsdInput(e.target.value.replace(/[^\d.]/g, ""))}
+            />
+          )}
+
+          <div className="phi-input-glow" aria-hidden="true" />
+        </div>
+
+        {/* Conversion readout */}
+        <div
+          className="phi-conv-right"
+          aria-label="Converted display"
+          title="Converted display"
         >
-          Φ
-        </button>
-        <button
-          type="button"
-          style={{ ...btnBase, opacity: amountMode === "USD" ? 1 : 0.55 }}
-          onClick={() => setAmountMode("USD")}
-          title="Send USD amount (converted)"
+          {convDisplayRight}
+        </div>
+
+        {/* Remaining */}
+        <div
+          className="phi-remaining"
+          title={
+            canonicalContext === "derivative"
+              ? "Resonance Φ remaining on this derivative"
+              : "Resonance Φ remaining on this glyph"
+          }
         >
-          $
-        </button>
-      </div>
-
-      {amountMode === "PHI" ? (
-        <input
-          inputMode="decimal"
-          pattern="[0-9]*"
-          placeholder="Φ amount"
-          title="Φ amount to exhale"
-          value={phiInput}
-          onChange={(e) => setPhiInput(phiFormatter(e.target.value))}
-          style={{ ...inputStyle, minWidth: 160 }}
-        />
-      ) : (
-        <input
-          inputMode="decimal"
-          pattern="[0-9]*"
-          placeholder="USD amount"
-          title="USD amount to exhale"
-          value={usdInput}
-          onChange={(e) => setUsdInput(e.target.value.replace(/[^\d.]/g, ""))}
-          style={{ ...inputStyle, minWidth: 160 }}
-        />
-      )}
-
-      <div
-        className="conv-right"
-        style={{ minWidth: 120, fontVariantNumeric: "tabular-nums" }}
-        aria-label="Converted display"
-        title="Converted display"
-      >
-        {rightLabel}
-      </div>
-
-      <div
-        className="remaining"
-        style={{ marginLeft: "auto", minWidth: 160, textAlign: "right" }}
-        title={
-          canonicalContext === "derivative"
-            ? "Resonance Φ remaining on this derivative"
-            : "Resonance Φ remaining on this glyph"
-        }
-      >
-        Remaining: Φ {remainingPhiDisplay4}
+          Remaining: Φ {remainingPhiDisplay4}
+        </div>
       </div>
     </div>
   );

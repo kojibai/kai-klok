@@ -1,0 +1,393 @@
+/* ──────────────────────────────────────────────────────────────
+   KaiRealms.css — Atlantean Glass (Phi lattice, 5.236s breath)
+   Everything breathes on --kai-breath; geometry honors --kai-phi.
+   TSX sets these on <html>, but we provide sane fallbacks here.
+   ────────────────────────────────────────────────────────────── */
+:root{
+  --kai-breath: 5.236s;
+  --kai-phi: 1.61803398875;
+
+  /* Ocean-glass palette + auric accents */
+  --realms-bg: #060915;
+  --realms-glass: rgba(10,14,28,0.62);
+  --realms-fg: #e9f7ff;
+  --realms-muted: #9fb3d0;
+
+  --accent-cyan: #00ffd0;
+  --accent-blue: #00b4ff;
+  --accent-violet: #8a2be2;
+  --accent-gold: #ffd86b;
+
+  /* Rings / halos */
+  --ring-outer: rgba(0,255,208,0.28);
+  --ring-inner: rgba(138,43,226,0.28);
+  --halo-1: radial-gradient(65% 55% at 50% 35%, rgba(0,255,208,0.17), transparent 70%);
+  --halo-2: radial-gradient(55% 50% at 50% 65%, rgba(138,43,226,0.14), transparent 72%);
+
+  /* Borders / glass */
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-inset: rgba(99,102,241,0.25);
+  --border-strong: rgba(99,102,241,0.45);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Backdrop + celestial layers
+   ────────────────────────────────────────────────────────────── */
+.realms-backdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 28px);
+  background:
+    radial-gradient(1200px 800px at 50% 0%, rgba(0,180,255,0.08), transparent 70%),
+    radial-gradient(900px 700px at 50% 100%, rgba(0,255,208,0.06), transparent 70%),
+    rgba(3,6,23,0.66);
+  backdrop-filter: blur(7px) saturate(1.08);
+  animation: portal-fade .42s ease-out both;
+}
+
+.realms-veil::before,
+.realms-veil::after{
+  content:"";
+  position:absolute; inset:0; pointer-events:none;
+}
+.realms-veil::before{
+  background: radial-gradient(60% 45% at 50% 50%, rgba(255,255,255,0.045), transparent 70%);
+  mix-blend-mode: overlay;
+}
+.realms-veil::after{
+  background:
+    radial-gradient(850px 850px at 18% 22%, rgba(0,255,208,0.06), transparent 65%),
+    radial-gradient(850px 850px at 82% 78%, rgba(138,43,226,0.06), transparent 65%);
+  filter: blur(10px);
+  opacity: .9;
+  animation: veil-drift calc(var(--kai-breath) * 2) ease-in-out infinite alternate;
+}
+
+.realms-stars{
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.75), transparent 60%),
+    radial-gradient(1px 1px at 65% 20%, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1px 1px at 80% 70%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(1px 1px at 35% 80%, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,.45), transparent 60%);
+  opacity:.48;
+  animation: stars-twinkle calc(var(--kai-breath) * 1.5) ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,.25));
+}
+
+.realms-halo{
+  position:absolute; inset:0; pointer-events:none;
+  mix-blend-mode: screen; opacity:.75;
+}
+.realms-halo--1{ background: var(--halo-1); animation: halo-orbit var(--kai-breath) ease-in-out infinite alternate; }
+.realms-halo--2{ background: var(--halo-2); animation: halo-orbit calc(var(--kai-breath) * 1.618) ease-in-out infinite alternate-reverse; }
+
+/* ──────────────────────────────────────────────────────────────
+   Container — Atlantean glass
+   ────────────────────────────────────────────────────────────── */
+.realms-container{
+  position: relative;
+  width: min(1100px, 96vw);
+  max-height: 92vh;
+  color: var(--realms-fg);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)) padding-box,
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08)) border-box,
+    var(--realms-glass);
+  border-radius: clamp(16px, 2.2vw, 24px);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 16px 60px rgba(0,0,0,.50),
+    inset 0 0 0 1px var(--glass-inset);
+  overflow: hidden;
+  display:flex; flex-direction:column;
+  isolation:isolate;
+}
+
+.glass-omni::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(120% 85% at 50% -12%, rgba(255,255,255,0.14), transparent 60%);
+  mix-blend-mode: overlay; opacity:.55;
+}
+.glass-omni::after{
+  content:""; position:absolute; inset:1px; pointer-events:none; border-radius: inherit;
+  background:
+    conic-gradient(from 180deg, rgba(0,255,208,.09), rgba(0,180,255,.05), rgba(138,43,226,.08), rgba(0,255,208,.09));
+  filter: blur(14px); opacity:.35;
+  mask: linear-gradient(#000 0 0) exclude, radial-gradient(160% 160% at 50% 50%, #0000 49%, #000 50%);
+}
+
+/* Breathing border rings */
+.breath-ring{
+  position:absolute; inset:0; pointer-events:none; border-radius: inherit;
+  border: 1px solid transparent;
+}
+.breath-ring--outer{
+  box-shadow: 0 0 0 1px var(--ring-outer) inset, 0 0 36px rgba(0,255,208,0.25);
+  animation: ring-breathe var(--kai-breath) ease-in-out infinite;
+}
+.breath-ring--inner{
+  inset: 12px;
+  box-shadow: 0 0 0 1px var(--ring-inner) inset, 0 0 28px rgba(138,43,226,0.25) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+
+/* Phi overlay grid */
+.phi-grid{
+  position:absolute; inset:0; pointer-events:none; opacity:.11;
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size:
+    calc(100% / var(--kai-phi)) 100%,
+    100% calc(100% / var(--kai-phi));
+  mix-blend-mode: screen;
+}
+
+/* Spirals */
+.phi-spiral{
+  position:absolute; pointer-events:none; color: var(--accent-cyan);
+  opacity:.33; filter: drop-shadow(0 0 8px rgba(0,255,208,.25));
+}
+.phi-spiral path{
+  stroke-dasharray: 900; stroke-dashoffset: 900;
+  animation: spiral-dash calc(var(--kai-breath) * 2) ease-in-out infinite;
+}
+.phi-spiral--tl{ top:-12px; left:-18px; transform: rotate(2deg) scale(.95); }
+.phi-spiral--br{ bottom:-12px; right:-14px; transform: rotate(182deg) scale(.95); }
+
+/* ──────────────────────────────────────────────────────────────
+   Header
+   ────────────────────────────────────────────────────────────── */
+.realms-header{
+  position: relative;
+  display:flex; align-items:center; justify-content:center;
+  padding: 12px 14px 4px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0.02)),
+    radial-gradient(70% 70% at 50% 0%, rgba(0,180,255,.10), transparent 60%);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  min-height: 56px;
+}
+
+.realms-close{
+  position:absolute; top:12px; right:12px;
+  display:grid; place-items:center;
+  width: 40px; height: 40px; border-radius: 9999px;
+  background: rgba(255,255,255,.07); color:#fff;
+  border: 1px solid rgba(255,255,255,.12);
+  cursor:pointer;
+  transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+  outline:none;
+  z-index: 3;
+}
+.realms-close:hover{
+  background: rgba(255,255,255,.12);
+  box-shadow: 0 0 0 2px rgba(0,255,208,.25), 0 0 18px rgba(0,255,208,.2) inset;
+  transform: translateY(-1px);
+}
+.realms-close:focus-visible{
+  box-shadow: 0 0 0 3px rgba(0,180,255,.35), 0 0 0 5px rgba(0,255,208,.25);
+}
+
+/* Twin living seals in header */
+.header-seals{
+  position:relative; display:flex; align-items:center; justify-content:center; gap: 18px;
+  filter: drop-shadow(0 0 12px rgba(0,255,208,.25));
+}
+.seal-emblem{
+  position:relative; width: 36px; height: 36px; display:grid; place-items:center;
+}
+.seal-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border: 1.25px solid rgba(0,255,208,.35);
+  box-shadow: 0 0 10px rgba(0,255,208,.22) inset;
+}
+.seal-ring--inner{
+  inset: 6px;
+  border-color: rgba(138,43,226,.38);
+  box-shadow: 0 0 12px rgba(138,43,226,.28) inset;
+}
+.seal-core{
+  width: 9px; height: 9px; border-radius:50%;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--accent-cyan));
+  box-shadow: 0 0 12px rgba(0,255,208,.5), 0 0 22px rgba(0,180,255,.35);
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+.emblem--left .seal-ring{ animation: ring-breathe var(--kai-breath) ease-in-out infinite; }
+.emblem--right .seal-ring{ animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse; }
+
+/* ──────────────────────────────────────────────────────────────
+   Body
+   ────────────────────────────────────────────────────────────── */
+.realms-body{
+  flex:1; min-height: 440px; overflow:auto;
+  padding: clamp(14px, 2.2vw, 18px);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(0,255,208,.05), transparent 65%),
+    radial-gradient(70% 50% at 50% 100%, rgba(138,43,226,.05), transparent 65%);
+}
+.portal-stage, .realm-stage{ animation: pane-in .35s ease-out; }
+
+/* ──────────────────────────────────────────────────────────────
+   Footer — icons only (living)
+   ────────────────────────────────────────────────────────────── */
+.realms-footer{
+  position: relative;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 10px 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0.02)),
+    radial-gradient(70% 70% at 50% 100%, rgba(0,180,255,.12), transparent 60%);
+  border-top: 1px solid rgba(255,255,255,.08);
+  color: var(--realms-muted);
+}
+
+.footer-left, .footer-right{ display:flex; align-items:center; gap:10px; }
+.footer-center{ display:flex; align-items:center; justify-content:center; }
+
+/* Chakra row subtle sway */
+.chakra-row {
+  display: flex; gap: 8px; align-items: center;
+  animation: chakra-sway calc(var(--kai-breath) * 2) ease-in-out infinite alternate;
+}
+@keyframes chakra-sway {
+  0% { transform: translateY(-0.5px) }
+  100% { transform: translateY(0.5px) }
+}
+
+/* Chakra dots */
+.sigil-dot{
+  width: 10px; height: 10px; border-radius: 50%;
+  filter: drop-shadow(0 0 6px currentColor);
+  animation: dot-breathe var(--kai-breath) ease-in-out infinite;
+}
+.sigil-dot--root{ color:#FF0033; }
+.sigil-dot--sacral{ color:#FF8000; }
+.sigil-dot--solar{ color:#FFD700; }
+.sigil-dot--heart{ color:#00FF99; }
+.sigil-dot--throat{ color:#33CCFF; }
+.sigil-dot--third{ color:#9933FF; }
+.sigil-dot--crown{ color:#AA00FF; }
+
+/* Breathing emblem (center) */
+.breath-emblem{
+  position: relative; width: 38px; height: 38px; display: grid; place-items: center;
+  filter: drop-shadow(0 0 10px rgba(0,255,208,.35));
+}
+.breath-emblem__ring{
+  position:absolute; inset:0; border-radius:50%;
+  border: 1.5px solid rgba(0,255,208,.35);
+  box-shadow: 0 0 10px rgba(0,255,208,.25) inset;
+}
+.breath-emblem__ring--1{ animation: ring-breathe var(--kai-breath) ease-in-out infinite; }
+.breath-emblem__ring--2{
+  inset: 6px; border-color: rgba(138,43,226,.38);
+  box-shadow: 0 0 12px rgba(138,43,226,.28) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+.breath-emblem__core{
+  width: 10px; height: 10px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff, #00ffd0);
+  box-shadow: 0 0 16px rgba(0,255,208,.6), 0 0 26px rgba(0,180,255,.35);
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+
+/* Seal coin (right) */
+.seal-coin{ filter: drop-shadow(0 0 10px rgba(255,216,107,.35)); }
+.seal-coin__rotor{
+  transform-origin: 28px 28px;
+  animation: rotor-spin calc(var(--kai-breath) * 2.618) linear infinite;
+}
+.seal-coin__core{
+  fill: url(#coinGlowRealms);
+  filter: drop-shadow(0 0 12px rgba(255,216,107,.5));
+  animation: coin-core var(--kai-breath) ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Helpers
+   ────────────────────────────────────────────────────────────── */
+.auric-btn{ backdrop-filter: blur(6px) saturate(1.08); }
+
+.sr-only{
+  position:absolute !important; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden; clip: rect(0,0,0,0);
+  white-space:nowrap; border:0;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Animations
+   ────────────────────────────────────────────────────────────── */
+@keyframes portal-fade{ from{ opacity:0 } to{ opacity:1 } }
+
+@keyframes veil-drift{
+  0%{ transform: translate3d(0,0,0) }
+  100%{ transform: translate3d(0,-2.5%,0) }
+}
+
+@keyframes stars-twinkle{
+  0%,100%{ opacity:.45; filter: drop-shadow(0 0 1px rgba(255,255,255,.15)); }
+  50%{ opacity:.8; filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
+}
+
+@keyframes halo-orbit{
+  0%{ transform: translateY(-1.2%) scale(1) }
+  100%{ transform: translateY(1.2%) scale(1.012) }
+}
+
+@keyframes ring-breathe{
+  0%{ opacity:.65; transform: scale(1) }
+  50%{ opacity:1; transform: scale( calc(1 + (0.012 * var(--kai-phi)) ) ) }
+  100%{ opacity:.65; transform: scale(1) }
+}
+
+@keyframes spiral-dash{
+  0%{ stroke-dashoffset: 900; opacity:.25 }
+  50%{ opacity:.6 }
+  100%{ stroke-dashoffset: 0; opacity:.25 }
+}
+
+@keyframes pane-in{
+  from{ opacity:0; transform: translateY(6px) }
+  to{ opacity:1; transform: translateY(0) }
+}
+
+@keyframes rotor-spin{ to { transform: rotate(360deg) } }
+
+@keyframes coin-core{
+  0%{ transform: scale(.96) }
+  50%{ transform: scale(1.06) }
+  100%{ transform: scale(.96) }
+}
+
+@keyframes core-pulse{
+  0%{ transform: scale(.92) }
+  50%{ transform: scale(1.18) }
+  100%{ transform: scale(.92) }
+}
+
+@keyframes dot-breathe{
+  0%{ transform: scale(.9); filter: drop-shadow(0 0 3px currentColor) }
+  50%{ transform: scale(1.2); filter: drop-shadow(0 0 8px currentColor) }
+  100%{ transform: scale(.9); filter: drop-shadow(0 0 3px currentColor) }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Motion safety
+   ────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Small screens
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 560px){
+  .phi-spiral{ display:none; }
+  .realms-close{ top:10px; right:10px; }
+}

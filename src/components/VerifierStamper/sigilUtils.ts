@@ -203,3 +203,18 @@ export function genNonce() {
 export async function hashAny(x: unknown): Promise<HashHex> {
   return sha256Hex(stableStringify(x));
 }
+// types.ts (or inline)
+export interface SigilMeta {
+  pulse: number;
+  beat: number;
+  stepIndex: number;
+  chakraDay: string;
+  kaiSignature: string;
+  userPhiKey: string;
+  [key: string]: unknown; // optional: allow future fields
+}
+export async function derivePhiKeyFromMeta(meta: SigilMeta): Promise<string> {
+  const json = JSON.stringify(meta);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json));
+  return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+}

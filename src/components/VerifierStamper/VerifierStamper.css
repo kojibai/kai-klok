@@ -304,7 +304,7 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
   min-width: 0;
 }
 .value-chip .label{
-  font-size: 11px;
+  font-size: 9px;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--ink-dim);
@@ -324,6 +324,8 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
   font-weight: 700;
   margin-right: 4px;
 }
+.value-chip { max-width: 180px; /* or a fixed width if you prefer */ }
+.value-chip .amount { white-space: nowrap; }
 
 /* tasteful chroma accents */
 .value-chip.phi{
@@ -355,6 +357,187 @@ dialog.glass-modal.fullscreen[data-open="true"]{ animation: pop-in .18s ease-out
 /* optional subtle pulse when values update: toggle .flash on the chip */
 @keyframes valFlash{ 0%{ filter: brightness(1.12) saturate(1.12) } 100%{ filter: none } }
 .value-chip.flash{ animation: valFlash .6s ease-out }
+/* ── Strip layout (two pills, responsive) ───────────────────── */
+.value-strip{
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 420px){
+  .value-strip{ grid-template-columns: 1fr; }
+}
+
+/* ── Pill base ──────────────────────────────────────────────── */
+.value-chip{
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  min-width: 0;
+
+  /* glass + border */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+  border: 1px solid var(--border, rgba(255,255,255,0.12));
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.28),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+
+  /* container query so font scales to pill width */
+  container-type: inline-size;
+  container-name: valuechip;
+}
+
+/* label */
+.value-chip .label{
+  font-size: 8px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-dim, rgba(255,255,255,.72));
+  white-space: nowrap;
+}
+
+/* amount — ALWAYS FIT (no cutoffs) using container query units */
+.value-chip .amount{
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+  min-width: 0;
+
+  /* 1cqi = 1% of pill width. This keeps the number inside the pill. */
+  font-size: clamp(10px, 9.5cqi, 16px);
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink, #fff);
+  letter-spacing: 0.005em;
+}
+
+/* symbol tweaks */
+.value-chip .amount .sym{
+  display: inline-block;
+  margin-right: 4px;
+  opacity: .85;
+  font-weight: 700;
+  transform: translateY(0.5px) scale(.96);
+  transform-origin: left center;
+}
+
+/* per-chip responsive downsizing */
+@container valuechip (inline-size < 260px){
+  .value-chip .amount{ font-size: clamp(9.5px, 10.5cqi, 15px); letter-spacing: 0; }
+  .value-chip .label{ font-size: 7.5px; }
+}
+@container valuechip (inline-size < 220px){
+  .value-chip{ padding: 6px 8px; border-radius: 10px; }
+  .value-chip .amount{ font-size: clamp(9px, 11.5cqi, 14px); letter-spacing: -0.005em; }
+}
+@container valuechip (inline-size < 190px){
+  .value-chip{ padding: 5px 7px; border-radius: 9px; }
+  .value-chip .amount{ font-size: clamp(8.5px, 12.5cqi, 13px); letter-spacing: -0.01em; }
+}
+@container valuechip (inline-size < 170px){
+  .value-chip .amount{ font-size: clamp(8px, 13.5cqi, 12px); letter-spacing: -0.012em; }
+}
+@container valuechip (inline-size < 150px){
+  .value-chip .label{ display:none; }
+  .value-chip .amount{ font-size: clamp(8px, 14.5cqi, 12px); }
+}
+
+/* viewport fallback if container queries unsupported */
+@media (max-width: 420px){
+  .value-chip .amount{ font-size: 12px; letter-spacing: 0; }
+}
+/* === Reduce value amounts by 20% (keeps CQI responsiveness) === */
+
+/* Base */
+.value-chip .amount{
+  font-size: clamp(8px, 7.6cqi, 12.8px); /* was 10px, 9.5cqi, 16px */
+}
+
+/* Per-chip downsizing (scaled by 0.8) */
+@container valuechip (inline-size < 260px){
+  .value-chip .amount{ font-size: clamp(7.6px, 8.4cqi, 12px); } /* was 9.5px, 10.5cqi, 15px */
+}
+
+@container valuechip (inline-size < 220px){
+  .value-chip .amount{ font-size: clamp(7.2px, 9.2cqi, 11.2px); } /* was 9px, 11.5cqi, 14px */
+}
+
+@container valuechip (inline-size < 190px){
+  .value-chip .amount{ font-size: clamp(6.8px, 10cqi, 10.4px); } /* was 8.5px, 12.5cqi, 13px */
+}
+
+@container valuechip (inline-size < 170px){
+  .value-chip .amount{ font-size: clamp(6.4px, 10.8cqi, 9.6px); } /* was 8px, 13.5cqi, 12px */
+}
+
+@container valuechip (inline-size < 150px){
+  .value-chip .amount{ font-size: clamp(6.4px, 11.6cqi, 9.6px); } /* was 8px, 14.5cqi, 12px */
+}
+
+/* Fallback for browsers without container queries */
+@media (max-width: 420px){
+  .value-chip .amount{ font-size: 9.6px; } /* was 12px */
+}
+
+/* ── Variants (Φ / USD) with tasteful chroma ────────────────── */
+.value-chip.phi{
+  border-color: color-mix(in srgb, var(--accent, #8af) 32%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent, #8af) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+}
+.value-chip.phi .amount{
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent, #8af) 85%, white 0%),
+    color-mix(in srgb, var(--accent-2, #aef) 55%, white 0%));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 .35px rgba(255,255,255,.35);
+}
+
+.value-chip.usd{
+  border-color: color-mix(in srgb, var(--ok, #5f5) 34%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ok, #5f5) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+}
+.value-chip.usd .amount{
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--ok, #5f5) 90%, white 0%),
+    color-mix(in srgb, var(--accent-3, #7df) 55%, white 0%));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 .35px rgba(255,255,255,.35);
+}
+
+/* ── Trend cues (optional) ──────────────────────────────────── */
+.value-chip.trend-up{
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.28),
+    0 0 20px color-mix(in srgb, var(--ok, #5f5) 26%, transparent),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+}
+.value-chip.trend-down{
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.28),
+    0 0 20px color-mix(in srgb, var(--error, #ff5c77) 26%, transparent),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+/* ── Flash on update (optional) ─────────────────────────────── */
+@keyframes valueFlash {
+  0%   { filter: brightness(1.35); }
+  100% { filter: brightness(1); }
+}
+.value-chip.is-flashing{
+  animation: valueFlash 420ms ease-out;
+}
 
 /* FABs (optional quick actions) */
 .fab-stack{

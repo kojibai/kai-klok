@@ -1,0 +1,43 @@
+/* Subtle animated border glow around the canvas */
+.realm-canvas-wrap {
+  position: relative;
+}
+.realm-canvas-wrap::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(138,43,226,.18),
+    0 0 44px rgba(0,255,208,.14);
+}
+
+/* Neon tweak on HUD chips on hover */
+.hud-chip:hover {
+  box-shadow:
+    0 0 0 1px rgba(0,255,208,.12) inset,
+    0 0 22px rgba(0,255,208,.07);
+}
+
+/* Pause card shine */
+.pause-card {
+  position: relative;
+  overflow: hidden;
+}
+.pause-card::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(from 0deg, transparent 0 65%, rgba(0,255,208,.12) 70%, transparent 75%);
+  animation: card-shine 6s linear infinite;
+}
+@keyframes card-shine {
+  to { transform: rotate(360deg); }
+}
+
+/* Button active press */
+.hud-button:active,
+.exit-button:active {
+  transform: translateY(0);
+  filter: brightness(.98);
+}

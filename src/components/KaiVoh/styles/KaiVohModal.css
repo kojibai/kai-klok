@@ -1,78 +1,561 @@
-.kai-voh-modal-backdrop {
+/* ──────────────────────────────────────────────────────────────
+   KaiVohModal.css — Atlantean Glass (Phi / Breath 5.236s)
+   Everything animates on --kai-breath (default 5.236s) and honors φ.
+   TSX sets these vars on <html>, but we provide fallbacks here.
+   ────────────────────────────────────────────────────────────── */
+:root{
+  --kai-breath: 5.236s;
+  --kai-phi: 1.61803398875;
+
+  /* Palette (deep ocean glass + auric cyan/violet + gold) */
+  --kai-bg: #070a14;
+  --kai-bg-2: #0b0f1a;
+  --kai-fg: #e5f6ff;
+  --kai-muted: #90a7c4;
+  --kai-glass: rgba(14,18,34,0.62);
+  --kai-stroke: rgba(180,200,255,0.22);
+  --kai-accent: #00ffd0;
+  --kai-accent-2: #00b4ff;
+  --kai-violet: #8a2be2;
+  --kai-gold: #ffd86b;
+
+  /* Rings/halos */
+  --ring-outer: rgba(0,255,208,0.28);
+  --ring-inner: rgba(138,43,226,0.28);
+  --halo-1: radial-gradient(60% 60% at 50% 50%, rgba(0,255,208,0.17), transparent 65%);
+  --halo-2: radial-gradient(50% 50% at 50% 50%, rgba(138,43,226,0.14), transparent 70%);
+
+  /* Borders / shadows */
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-inset: rgba(99,102,241,0.25);
+  --border-strong: rgba(99,102,241,0.45);
+
+  /* Tabs */
+  --kai-border: rgba(255,255,255,.15);
+  --kai-fg-2: #e7fdf9;
+
+  /* Layout helpers */
+  --close-size: 40px;
+
+  /* Orb spacing (used to push the tab bar down) */
+  --voh-orb-size: 44px;
+  --voh-orb-top: 12px;
+  --voh-orb-gap: 18px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Backdrop + celestial layers
+   ────────────────────────────────────────────────────────────── */
+.kai-voh-modal-backdrop{
   position: fixed;
   inset: 0;
-  z-index: 2147483646; /* above everything */
+  z-index: 2147483646;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: rgba(3, 6, 23, 0.66);
-  backdrop-filter: blur(3px);
+  padding: clamp(16px, 4vw, 28px);
+  background:
+    radial-gradient(1200px 800px at 50% 0%, rgba(0,180,255,0.08), transparent 70%),
+    radial-gradient(900px 700px at 50% 100%, rgba(0,255,208,0.06), transparent 70%),
+    rgba(3,6,23,0.66);
+  backdrop-filter: blur(6px) saturate(1.08);
+  animation: portal-fade .42s ease-out both;
 }
 
-.kai-voh-container {
+.atlantean-veil::before,
+.atlantean-veil::after{
+  content:"";
+  position:absolute; inset:0;
+  pointer-events:none;
+}
+.atlantean-veil::before{
+  background: radial-gradient(60% 45% at 50% 50%, rgba(255,255,255,0.04), transparent 70%);
+  mix-blend-mode: overlay;
+}
+.atlantean-veil::after{
+  background:
+    radial-gradient(800px 800px at 20% 20%, rgba(0,255,208,0.06), transparent 65%),
+    radial-gradient(800px 800px at 80% 80%, rgba(138,43,226,0.06), transparent 65%);
+  filter: blur(10px);
+  opacity: .9;
+  animation: veil-drift calc(var(--kai-breath) * 2) ease-in-out infinite alternate;
+}
+
+.atlantean-stars{
+  position:absolute; inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.75), transparent 60%),
+    radial-gradient(1px 1px at 65% 20%, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1px 1px at 80% 70%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(1px 1px at 35% 80%, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,.45), transparent 60%);
+  opacity:.5;
+  animation: stars-twinkle calc(var(--kai-breath) * 1.5) ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,.25));
+}
+
+.atlantean-halo{
+  position:absolute; inset:0; pointer-events:none;
+  mix-blend-mode: screen;
+  opacity:.75;
+}
+.atlantean-halo--1{ background: var(--halo-1); animation: halo-orbit var(--kai-breath) ease-in-out infinite alternate; }
+.atlantean-halo--2{ background: var(--halo-2); animation: halo-orbit calc(var(--kai-breath) * 1.618) ease-in-out infinite alternate-reverse; }
+
+/* ──────────────────────────────────────────────────────────────
+   Container — Atlantean glass
+   ────────────────────────────────────────────────────────────── */
+.kai-voh-container{
   position: relative;
-  width: min(980px, 96vw);
+  width: min(1000px, 96vw);
   max-height: 92vh;
-  background: #0b0f1a;
-  color: #e5e7eb;
-  border-radius: 18px;
-  box-shadow: 0 10px 40px rgba(0,0,0,.45), 0 0 0 1px rgba(99,102,241,.25) inset;
+  color: var(--kai-fg);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)) padding-box,
+    linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06)) border-box,
+    var(--kai-glass);
+  border-radius: clamp(16px, 2.1vw, 22px);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 12px 50px rgba(0,0,0,.48),
+    inset 0 0 0 1px var(--glass-inset);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  display:flex; flex-direction:column;
+  isolation:isolate;
 }
 
-.kai-voh-body {
+.glass-omni::before{
+  content:"";
+  position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,0.12), transparent 60%);
+  mix-blend-mode: overlay; opacity:.55;
+}
+.glass-omni::after{
+  content:"";
+  position:absolute; inset:1px; pointer-events:none;
+  border-radius: inherit;
+  background:
+    conic-gradient(from 180deg, rgba(0,255,208,.09), rgba(0,180,255,.05), rgba(138,43,226,.08), rgba(0,255,208,.09));
+  filter: blur(14px);
+  opacity:.35;
+  mask: linear-gradient(#000 0 0) exclude, radial-gradient(160% 160% at 50% 50%, #0000 49%, #000 50%);
+}
+
+/* Animated “breathing” border rings */
+.breath-ring{
+  position:absolute; inset:0; pointer-events:none;
+  border-radius: inherit;
+  border: 1px solid transparent;
+}
+.breath-ring--outer{
+  box-shadow: 0 0 0 1px var(--ring-outer) inset, 0 0 35px rgba(0,255,208,0.25);
+  animation: ring-breathe var(--kai-breath) ease-in-out infinite;
+}
+.breath-ring--inner{
+  inset: 10px;
+  box-shadow: 0 0 0 1px var(--ring-inner) inset, 0 0 28px rgba(138,43,226,0.25) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+
+/* Phi overlay grid */
+.phi-grid{
+  position:absolute; inset:0; pointer-events:none; opacity:.12;
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size:
+    calc(100% / var(--kai-phi)) 100%,
+    100% calc(100% / var(--kai-phi));
+  mix-blend-mode: screen;
+}
+
+/* Decorative golden spirals */
+.phi-spiral{
+  position:absolute; pointer-events:none; color: var(--kai-accent);
+  opacity:.33; filter: drop-shadow(0 0 8px rgba(0,255,208,.25));
+  z-index: 1;
+}
+.phi-spiral path{
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: spiral-dash calc(var(--kai-breath) * 2) ease-in-out infinite;
+}
+.phi-spiral--tl{ top:-10px; left:-20px; transform: rotate(2deg) scale(.95); }
+.phi-spiral--br{ bottom:-10px; right:-16px; transform: rotate(182deg) scale(.95); }
+
+/* Body area */
+.kai-voh-body{
   flex: 1;
-  min-height: 420px;       /* ensures visible area */
+  min-height: 440px;
   overflow: auto;
-  padding: 16px;
+  padding: clamp(14px, 2.2vw, 18px);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(0,255,208,.05), transparent 65%),
+    radial-gradient(70% 50% at 50% 100%, rgba(138,43,226,.05), transparent 65%);
 }
 
-.kai-voh-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
+/* Close button (ensure always clickable above decorations) */
+.kai-voh-close{
+  position:absolute; top:12px; right:12px;
+  z-index: 1000;
+  pointer-events: auto;
+  display:grid; place-items:center;
+  width: var(--close-size); height: var(--close-size);
   border-radius: 9999px;
   background: rgba(255,255,255,.06);
   color: #fff;
-  border: 1px solid rgba(255,255,255,.08);
-  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.12);
+  cursor:pointer;
+  transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+  outline: none;
 }
-.kai-voh-close:hover { background: rgba(255,255,255,.12); }
+.glass-omni::before,
+.glass-omni::after,
+.breath-ring,
+.phi-grid,
+.phi-spiral,
+.atlantean-stars,
+.atlantean-halo,
+.breath-meter { pointer-events: none; }
 
-.kai-pulse-border { outline: 1px solid rgba(99,102,241,.35); }
-
-.kai-voh-center {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  text-align: center;
-  opacity: .92;
+.kai-voh-close:hover{
+  background: rgba(255,255,255,.12);
+  box-shadow: 0 0 0 2px rgba(0,255,208,.25), 0 0 18px rgba(0,255,208,.2) inset;
+  transform: translateY(-1px);
+}
+.kai-voh-close:focus-visible{
+  box-shadow: 0 0 0 3px rgba(0,180,255,.35), 0 0 0 5px rgba(0,255,208,.25);
 }
 
-.kai-voh-spinner {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.25);
-  border-top-color: #8a2be2;
+/* Animated outline helper if needed elsewhere */
+.kai-pulse-border{
+  outline: 1px solid var(--border-strong);
+  box-shadow: 0 0 0 1px rgba(0,255,208,.16) inset;
+}
+
+/* Centered fallback */
+.kai-voh-center{
+  display:grid; place-items:center; height:100%;
+  text-align:center; opacity:.95;
+}
+.kai-voh-spinner{
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.22);
+  border-top-color: var(--kai-violet);
   margin: 0 auto 12px;
-  animation: kaivoh-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
-@keyframes kaivoh-spin { to { transform: rotate(360deg); } }
-
-/* Screen-reader only helper */
-.sr-only {
-  position: absolute !important;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0,0,0,0);
-  white-space: nowrap; border: 0;
+/* ──────────────────────────────────────────────────────────────
+   TOP-CENTER ORB (hard-centered)
+   ────────────────────────────────────────────────────────────── */
+.voh-top-orb{
+  position: absolute;
+  top: var(--voh-orb-top);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;                 /* below close button, above rings */
+  width: var(--voh-orb-size); height: var(--voh-orb-size);
+  display: grid; place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(0,255,208,.35));
 }
+
+/* Minimal emblem styling (mirrors Realms look) */
+.seal-emblem{ position: relative; width: 100%; height: 100%; }
+.seal-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border: 1.5px solid rgba(0,255,208,.35);
+  box-shadow: 0 0 10px rgba(0,255,208,.25) inset;
+  animation: ring-breathe var(--kai-breath) ease-in-out infinite;
+}
+.seal-ring--inner{
+  inset: calc(var(--voh-orb-size) * 0.14);
+  border-color: rgba(138,43,226,.38);
+  box-shadow: 0 0 12px rgba(138,43,226,.28) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+.seal-core{
+  position:absolute; left:50%; top:50%;
+  width: 10px; height:10px; margin-left:-5px; margin-top:-5px;
+  border-radius:50%;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--kai-accent));
+  box-shadow: 0 0 16px rgba(0,255,208,.6), 0 0 26px rgba(0,180,255,.35);
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Tabs + Breath meter
+   ────────────────────────────────────────────────────────────── */
+.kai-voh-tabbar{
+  display:flex; gap:10px;
+  /* push tabbar down to leave room under the orb */
+  padding: calc(var(--voh-orb-size) + var(--voh-orb-top) + var(--voh-orb-gap)) 12px 0;
+  align-items:center; justify-content:center;
+  position: relative;
+}
+
+.kai-voh-tab{
+  padding: 8px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--kai-border);
+  background: rgba(255,255,255,.05);
+  color: var(--kai-fg-2);
+  font-weight: 700; letter-spacing:.02em;
+  font-size: .92rem;
+  transition: transform .14s ease, background .14s ease, border-color .14s ease, box-shadow .14s ease;
+  backdrop-filter: blur(4px);
+}
+.kai-voh-tab:hover{ transform: translateY(-1px); }
+.kai-voh-tab.active{
+  background: linear-gradient(90deg, rgba(0,255,208,.22), rgba(0,180,255,.20));
+  border-color: rgba(0,255,208,.55);
+  box-shadow: 0 6px 18px rgba(0,255,208,.18);
+}
+
+.auric-tab .tab-glyph{
+  margin-right: 6px; filter: drop-shadow(0 0 4px rgba(0,255,208,.4));
+}
+
+/* Breath meter (phi-timed) — keep visible on all screens */
+.breath-meter{
+  position:absolute;
+  right: 12px;                 /* adjusted on small screens */
+  top: 12px;
+  z-index: 850;
+  width: 120px; height: 6px; border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.1);
+  overflow:hidden; pointer-events:none;
+  box-shadow: inset 0 0 8px rgba(0,255,208,.12);
+}
+.breath-meter__dot{
+  width: 18px; height: 18px; border-radius: 9999px;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--kai-accent));
+  position: relative; top: -6px; left: -10px;
+  box-shadow: 0 0 16px rgba(0,255,208,.5), 0 0 26px rgba(0,180,255,.35);
+  animation: meter-move var(--kai-breath) ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Content panes
+   ────────────────────────────────────────────────────────────── */
+.portal-pane{
+  animation: pane-in .35s ease-out;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Footer / seals / chakra dots
+   (grid keeps center *exactly* centered)
+   ────────────────────────────────────────────────────────────── */
+.atlantean-footer{
+  position: relative;
+  display:grid;
+  grid-template-columns: 1fr auto 1fr;  /* left | CENTER | right */
+  align-items:center;
+  padding: 10px 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0.02)),
+    radial-gradient(70% 70% at 50% 100%, rgba(0,180,255,.12), transparent 60%);
+  border-top: 1px solid rgba(255,255,255,.08);
+  color: var(--kai-muted);
+  font-size: .9rem;
+}
+.footer-left, .footer-right{ display:flex; align-items:center; gap:8px; }
+.footer-left{ justify-self: start; }
+.footer-center{ display:flex; align-items:center; justify-content:center; gap:8px; justify-self: center; }
+.footer-right{ justify-self: end; }
+.breath-label{ opacity:.85; }
+.breath-time{ color: var(--kai-gold); font-weight:700; }
+
+/* Chakra dots (glow + slow drift) */
+.sigil-dot{
+  width: 10px; height: 10px; border-radius: 50%;
+  filter: drop-shadow(0 0 6px currentColor);
+  animation: dot-breathe var(--kai-breath) ease-in-out infinite;
+}
+.sigil-dot--root{ color:#FF0033; }
+.sigil-dot--sacral{ color:#FF8000; }
+.sigil-dot--solar{ color:#FFD700; }
+.sigil-dot--heart{ color:#00FF99; }
+.sigil-dot--throat{ color:#33CCFF; }
+.sigil-dot--third{ color:#9933FF; }
+.sigil-dot--crown{ color:#AA00FF; }
+
+/* Seal pulse */
+.seal-pulse{
+  width: 10px; height: 10px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff, var(--kai-violet));
+  box-shadow: 0 0 12px rgba(138,43,226,.55), 0 0 20px rgba(0,255,208,.35);
+  animation: seal-pulse var(--kai-breath) ease-in-out infinite;
+}
+.seal-text{
+  background: linear-gradient(90deg, var(--kai-accent), var(--kai-violet));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-weight: 800; letter-spacing:.03em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Screen-reader helper
+   ────────────────────────────────────────────────────────────── */
+.sr-only{
+  position:absolute !important; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden; clip: rect(0,0,0,0);
+  white-space:nowrap; border:0;
+}
+
+/* Chakra row subtle orbit */
+.chakra-row {
+  display: flex; gap: 8px; align-items: center;
+  animation: chakra-sway calc(var(--kai-breath) * 2) ease-in-out infinite alternate;
+}
+@keyframes chakra-sway {
+  0% { transform: translateY(-0.5px) }
+  100% { transform: translateY(0.5px) }
+}
+
+/* Breathing emblem (center) */
+.breath-emblem{
+  position: relative;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  filter: drop-shadow(0 0 10px rgba(0,255,208,.35));
+}
+.breath-emblem__ring{
+  position:absolute; inset:0; border-radius:50%;
+  border: 1.5px solid rgba(0,255,208,.35);
+  box-shadow: 0 0 10px rgba(0,255,208,.25) inset;
+}
+.breath-emblem__ring--1{
+  animation: ring-breathe var(--kai-breath) ease-in-out infinite;
+}
+.breath-emblem__ring--2{
+  inset: 6px;
+  border-color: rgba(138,43,226,.38);
+  box-shadow: 0 0 12px rgba(138,43,226,.28) inset;
+  animation: ring-breathe calc(var(--kai-breath) * 1.618) ease-in-out infinite reverse;
+}
+.breath-emblem__core{
+  width: 10px; height: 10px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff, #00ffd0);
+  box-shadow: 0 0 16px rgba(0,255,208,.6), 0 0 26px rgba(0,180,255,.35);
+  animation: core-pulse var(--kai-breath) ease-in-out infinite;
+}
+@keyframes core-pulse{
+  0%{ transform: scale(.92) }
+  50%{ transform: scale(1.18) }
+  100%{ transform: scale(.92) }
+}
+
+/* Kai-seal coin motion */
+.seal-coin{ filter: drop-shadow(0 0 10px rgba(255,216,107,.35)); }
+.seal-coin__rotor{
+  transform-origin: 28px 28px;
+  animation: rotor-spin calc(var(--kai-breath) * 2.618) linear infinite;
+}
+.seal-coin__core{
+  fill: url(#coinGlow);
+  filter: drop-shadow(0 0 12px rgba(255,216,107,.5));
+  animation: coin-core var(--kai-breath) ease-in-out infinite;
+}
+@keyframes rotor-spin{
+  to { transform: rotate(360deg) }
+}
+@keyframes coin-core{
+  0%{ transform: scale(.96) }
+  50%{ transform: scale(1.06) }
+  100%{ transform: scale(.96) }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Animations
+   ────────────────────────────────────────────────────────────── */
+@keyframes portal-fade{ from{ opacity:0 } to{ opacity:1 } }
+
+@keyframes veil-drift{
+  0%{ transform: translate3d(0,0,0) }
+  100%{ transform: translate3d(0,-2.5%,0) }
+}
+
+@keyframes stars-twinkle{
+  0%,100%{ opacity:.45; filter: drop-shadow(0 0 1px rgba(255,255,255,.15)); }
+  50%{ opacity:.8; filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
+}
+
+@keyframes halo-orbit{
+  0%{ transform: translateY(-1.2%) scale(1) }
+  100%{ transform: translateY(1.2%) scale(1.012) }
+}
+
+@keyframes ring-breathe{
+  0%{ opacity:.65; transform: scale(1) }
+  50%{ opacity:1; transform: scale( calc(1 + (0.012 * var(--kai-phi)) ) ) }
+  100%{ opacity:.65; transform: scale(1) }
+}
+
+@keyframes spiral-dash{
+  0%{ stroke-dashoffset: 900; opacity:.25 }
+  50%{ opacity:.6 }
+  100%{ stroke-dashoffset: 0; opacity:.25 }
+}
+
+@keyframes spin{ to{ transform: rotate(360deg) } }
+
+@keyframes meter-move{
+  0%{ transform: translateX(0) scale(.9) }
+  50%{ transform: translateX(102px) scale(1.05) }
+  100%{ transform: translateX(0) scale(.9) }
+}
+
+@keyframes dot-breathe{
+  0%{ transform: scale(.9); filter: drop-shadow(0 0 3px currentColor) }
+  50%{ transform: scale(1.2); filter: drop-shadow(0 0 8px currentColor) }
+  100%{ transform: scale(.9); filter: drop-shadow(0 0 3px currentColor) }
+}
+
+@keyframes seal-pulse{
+  0%{ transform: scale(.92); box-shadow: 0 0 8px rgba(138,43,226,.35), 0 0 14px rgba(0,255,208,.25) }
+  50%{ transform: scale(1.12); box-shadow: 0 0 18px rgba(138,43,226,.6), 0 0 28px rgba(0,255,208,.35) }
+  100%{ transform: scale(.92); box-shadow: 0 0 8px rgba(138,43,226,.35), 0 0 14px rgba(0,255,208,.25) }
+}
+
+@keyframes pane-in{
+  from{ opacity:0; transform: translateY(6px) }
+  to{ opacity:1; transform: translateY(0) }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Motion safety
+   ────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Small screens (keep ALL ornaments; scale/reposition instead)
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 560px){
+  :root{
+    --voh-orb-size: 36px;
+    --voh-orb-gap: 12px;
+  }
+
+  .kai-voh-close{ top:10px; right:10px; }
+
+  /* keep the pulse meter; shift left so it doesn't hit the X */
+  .breath-meter{
+    right: calc(10px + var(--close-size) + 8px);
+    top: 10px;
+    width: 96px;
+  }
+
+  /* keep spirals visible; just scale them a touch */
+  .phi-spiral--tl{ top:-8px; left:-12px; transform: rotate(2deg) scale(.78); }
+  .phi-spiral--br{ bottom:-6px; right:-8px; transform: rotate(182deg) scale(.78); }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   (Optional) Utility classes referenced by TSX
+   ────────────────────────────────────────────────────────────── */
+.auric-btn{ backdrop-filter: blur(6px) saturate(1.08); }
