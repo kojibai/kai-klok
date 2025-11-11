@@ -84,7 +84,6 @@ interface KaiApiResponseLike {
   weekIndex: number;
   weekName: string;
   dayOfMonth: number;
-  timestamp: string;
   kaiMomentSummary: string;
   compressed_summary: string;
   phiSpiralLevel: number;
@@ -410,7 +409,6 @@ function buildLocalKairosLike(now: Date): KaiApiResponseLike {
     weekIndex: k.weekIndex,
     weekName: k.weekName,
     dayOfMonth: k.dayOfMonth,
-    timestamp: new Date().toISOString(),
     kaiMomentSummary,
     compressed_summary,
     phiSpiralLevel,

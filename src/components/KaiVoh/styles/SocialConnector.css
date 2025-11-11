@@ -1,0 +1,422 @@
+/* /components/KaiVoh/SocialConnector.css */
+/* v2.0 — Atlantean Composer • Golden-Breath UI (φ = coherence) */
+/* Everything is scoped under .social-connector-container to avoid global bleed. */
+
+:root {
+  /* Golden-breath constants */
+  --phi-breath: 5.236s;                   /* primary breath period */
+  --phi-breath-slow: calc(var(--phi-breath) * 1.618);
+  --phi: 1.61803398875;
+
+  /* Palette — abyssal teal & auric highlights */
+  --ink-0: #000000;
+  --ink-1: #05080d;
+  --ink-2: #0a141e;
+  --ink-3: #0f1d2a;
+  --ink-4: #132535;
+
+  --aqua-1: #00eaff;
+  --aqua-2: #00ffd5;
+  --aqua-3: #9fffe0;
+
+  --auric-1: #ffd166;
+  --auric-2: #fff3b0;
+
+  --rose-1: #ff7b7b;
+
+  --text-1: #eaffff;
+  --text-2: #c9f7ff;
+  --text-3: #a8e7f1;
+
+  --line-1: rgba(0, 255, 255, 0.10);
+  --line-2: rgba(0, 255, 230, 0.22);
+  --line-3: rgba(255, 255, 255, 0.12);
+
+  --glow-aqua-sm: 0 0 12px rgba(0, 255, 230, 0.18);
+  --glow-aqua-md: 0 0 20px rgba(0, 255, 230, 0.22);
+  --glow-aqua-lg: 0 0 36px rgba(0, 255, 230, 0.18);
+
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  --shadow-ambient: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ===== Container Card ===================================================== */
+
+.social-connector-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: stretch;
+  padding: 1.25rem 1.25rem 1.5rem;
+  margin: 0 auto;
+  max-width: 720px;
+
+  color: var(--text-1);
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(0, 238, 255, 0.08), transparent 60%),
+    radial-gradient(800px 600px at 120% 120%, rgba(255, 209, 102, 0.06), transparent 55%),
+    linear-gradient(180deg, var(--ink-3) 0%, var(--ink-1) 100%);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ambient), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  overflow: clip;
+}
+
+/* Breathing auric ring */
+.social-connector-container::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: calc(var(--radius-lg) + 1px);
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 400px at 50% -20%, rgba(255, 209, 102, 0.12), transparent 60%),
+    radial-gradient(900px 300px at 50% 120%, rgba(0, 255, 230, 0.10), transparent 60%);
+  mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  padding: 1px;
+  box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.06);
+  animation: breathGlow var(--phi-breath-slow) ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes breathGlow {
+  0%, 100% { opacity: 0.40; filter: blur(0.5px); }
+  50%      { opacity: 0.70; filter: blur(1.2px); }
+}
+
+/* ===== Titles & Copy ====================================================== */
+
+.social-connector-title {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: var(--text-1);
+  margin: 0.25rem 0 0.25rem;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
+
+.social-connector-sub {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: var(--text-3);
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+
+.social-connector-sub code {
+  padding: 0.05rem 0.35rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-2);
+}
+
+/* Divider beam */
+.divider-aura {
+  width: 100%;
+  height: 1px;
+  margin: 0.75rem 0 0.25rem;
+  background: linear-gradient(90deg, transparent, rgba(0,255,230,0.35), rgba(255,209,102,0.25), transparent);
+  box-shadow: var(--glow-aqua-sm);
+}
+
+/* ===== Composer Grids ===================================================== */
+
+.social-connector-container .composer {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  z-index: 1;
+}
+
+.social-connector-container .composer.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.social-connector-container .composer.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 860px) {
+  .social-connector-container .composer.two,
+  .social-connector-container .composer.three {
+    grid-template-columns: 1fr;
+  }
+}
+
+.social-connector-container .field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+/* ===== Labels, Hints, Muted ============================================== */
+
+.social-connector-container .composer-label {
+  font-size: 0.93rem;
+  color: #bffcff;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.social-connector-container .muted {
+  color: var(--text-3);
+  opacity: 0.85;
+}
+
+.social-connector-container .composer-hint {
+  font-size: 0.86rem;
+  color: var(--text-3);
+  opacity: 0.9;
+  margin-top: 0.1rem;
+}
+
+.social-connector-container .composer-hint.warn {
+  color: #ffe9b3;
+}
+
+/* ===== Inputs ============================================================= */
+
+.social-connector-container .composer-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.social-connector-container .composer-input,
+.social-connector-container .composer-textarea {
+  width: 100%;
+  padding: 0.78rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(10,20,30,0.66), rgba(8,14,20,0.72));
+  color: var(--text-1);
+  border: 1px solid var(--line-2);
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease, transform .12s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.social-connector-container .composer-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.social-connector-container .composer-input:focus,
+.social-connector-container .composer-textarea:focus {
+  border-color: rgba(0,255,230,0.38);
+  box-shadow: var(--glow-aqua-md), inset 0 0 0 1px rgba(255,255,255,0.04);
+  transform: translateY(-0.5px);
+}
+
+.social-connector-container .composer-input.warn {
+  border-color: rgba(255, 209, 102, 0.45);
+  box-shadow: 0 0 14px rgba(255, 209, 102, 0.18);
+}
+
+.social-connector-container .composer-aux {
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-2);
+  background: linear-gradient(135deg, #0c2b33, #071e22);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.social-connector-container .composer-aux:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0,255,230,0.20);
+}
+
+/* ===== Toggles ============================================================ */
+
+.social-connector-container .toggle-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.social-connector-container .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-2);
+}
+
+.social-connector-container .toggle input[type="checkbox"] {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, #0a1b22, #08141a);
+  position: relative;
+  outline: none;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.social-connector-container .toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #eaffff, #bffcff);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.35), 0 0 10px rgba(0,255,230,0.25);
+  transition: transform .22s ease;
+}
+
+.social-connector-container .toggle input[type="checkbox"]:checked {
+  border-color: rgba(0,255,230,0.5);
+  box-shadow: 0 0 18px rgba(0,255,230,0.22);
+  background: linear-gradient(180deg, #0d3b44, #0b2d33);
+  animation: toggleBreath var(--phi-breath) ease-in-out infinite;
+}
+
+.social-connector-container .toggle input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+}
+
+@keyframes toggleBreath {
+  0%, 100% { box-shadow: 0 0 12px rgba(0,255,230,0.16); }
+  50%      { box-shadow: 0 0 26px rgba(0,255,230,0.28); }
+}
+
+/* ===== Errors ============================================================= */
+
+.social-connector-container .composer-error {
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(60,10,10,0.7), rgba(40,6,6,0.8));
+  border: 1px solid rgba(255, 74, 74, 0.35);
+  color: #ffeaea;
+  box-shadow: 0 0 14px rgba(255, 74, 74, 0.16);
+}
+
+/* ===== Actions & Buttons ================================================== */
+
+.social-connector-container .composer-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 0.25rem;
+}
+
+.social-connector-container .composer-submit,
+.social-connector-container .composer-reset,
+.social-connector-container .composer-copy,
+.social-connector-container .composer-open {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-2);
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: transform .16s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+  will-change: transform, box-shadow;
+}
+
+.social-connector-container .composer-submit {
+  background: linear-gradient(135deg, #15616d, #0b3943);
+  color: #e7ffff;
+  box-shadow: 0 0 12px rgba(0,255,230,0.16);
+}
+
+.social-connector-container .composer-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px rgba(0,255,230,0.24);
+}
+
+.social-connector-container .composer-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.social-connector-container .composer-reset {
+  background: linear-gradient(135deg, #18242f, #0f1922);
+  color: var(--text-2);
+}
+
+.social-connector-container .composer-reset:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.18);
+  border-color: rgba(255, 209, 102, 0.28);
+}
+
+.social-connector-container .composer-copy {
+  background: linear-gradient(135deg, #13333a, #0a2226);
+  color: var(--text-2);
+}
+
+.social-connector-container .composer-copy:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0,255,230,0.22);
+}
+
+.social-connector-container .composer-open {
+  background: linear-gradient(135deg, #203044, #14202c);
+  color: var(--aqua-2);
+}
+
+.social-connector-container .composer-open:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0, 238, 255, 0.20);
+}
+
+/* ===== Result Card ======================================================== */
+
+.social-connector-container .composer-result {
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 16px;
+  background:
+    radial-gradient(800px 280px at 100% -20%, rgba(0,255,230,0.10), transparent 60%),
+    linear-gradient(180deg, rgba(14,24,32,0.75), rgba(10,18,26,0.85));
+  border: 1px solid rgba(0,255,230,0.18);
+  box-shadow: var(--glow-aqua-sm);
+}
+
+/* ===== Icon Aura (if any SVG present) ===================================== */
+
+.breath-glow {
+  filter: drop-shadow(0 0 10px rgba(0,255,230,0.22)) drop-shadow(0 0 18px rgba(255,209,102,0.10));
+}
+
+/* ===== Utility ============================================================ */
+
+.social-connector-container .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+@media (max-width: 520px) {
+  .social-connector-title { font-size: 1.28rem; }
+  .social-connector-sub { font-size: 0.95rem; }
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .social-connector-container::before,
+  .social-connector-container .toggle input[type="checkbox"]:checked {
+    animation: none;
+  }
+}

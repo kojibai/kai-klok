@@ -1,3 +1,4 @@
+// src/components/SigilLogin.tsx
 "use client";
 
 /// <reference types="react" />
@@ -8,6 +9,7 @@ import type { ChangeEvent, DragEvent, KeyboardEvent } from "react";
 import { parseSvgFile } from "../VerifierStamper/svg";
 import { computeKaiSignature, derivePhiKeyFromSig } from "../VerifierStamper/sigilUtils";
 import type { SigilMeta } from "../VerifierStamper/types";
+import { useSigilAuth, type SigilAuthMeta } from "./SigilAuthContext";
 
 import "./styles/sigil-login.css";
 
@@ -19,6 +21,8 @@ type SigilMetaCore = SigilMeta & {
   chakraDay: string;
   kaiSignature: string;
   userPhiKey?: string;
+  /** Optional if embedded in your primary <metadata> */
+  sigilId?: string;
 };
 
 export interface SigilLoginProps {
@@ -40,6 +44,15 @@ function isNonEmptyString(v: unknown): v is string {
 }
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
+}
+function isHttpUrl(s: unknown): s is string {
+  if (typeof s !== "string" || !s) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 /** Assert the parsed meta has the exact core fields we need */
@@ -96,8 +109,65 @@ function extractPrimaryMetaFromSvgText(svgText: string): SigilMeta | null {
   }
 }
 
+/** Try to find the canonical sigil action URL inside the SVG text/metas */
+function extractSigilActionUrlFromSvgText(svgText: string, metaCandidate?: Record<string, unknown>): string | null {
+  // 1) Look in the verified meta candidate first
+  const keys = [
+    "sigilActionUrl",
+    "sigilUrl",
+    "actionUrl",
+    "url",
+    "claimedUrl",
+    "loginUrl",
+    "sourceUrl",
+    "originUrl",
+    "link",
+    "href",
+  ];
+  if (metaCandidate) {
+    for (const k of keys) {
+      const v = (metaCandidate as Record<string, unknown>)[k];
+      if (isHttpUrl(v)) return v as string;
+    }
+  }
+
+  try {
+    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
+
+    // 2) Look through ALL <metadata> nodes for JSON containing a URL-ish field
+    for (const el of Array.from(doc.getElementsByTagName("metadata"))) {
+      const raw = (el.textContent ?? "").trim();
+      if (!raw) continue;
+      const peeled = raw.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "");
+
+      try {
+        const obj = JSON.parse(peeled) as unknown;
+        if (typeof obj === "object" && obj !== null) {
+          for (const k of keys) {
+            const v = (obj as Record<string, unknown>)[k];
+            if (isHttpUrl(v)) return v as string;
+          }
+        }
+      } catch {
+        // Not JSON; try to regex a URL out of the text content
+        const m = peeled.match(/https?:\/\/[^\s"'<>)#]+/i);
+        if (m && isHttpUrl(m[0])) return m[0];
+      }
+    }
+
+    // 3) Look for <a href="..."> or xlink:href on anchors
+    for (const a of Array.from(doc.getElementsByTagName("a"))) {
+      const href = a.getAttribute("href") || a.getAttribute("xlink:href");
+      if (isHttpUrl(href)) return href!;
+    }
+  } catch {
+    /* ignore parse errors */
+  }
+
+  return null;
+}
+
 /* ------------------------------ Kai Orb SVG ----------------------------- */
-/** Static, glassy Kai orb (no pulse animation). Scales via --sigil-orb-size. */
 function KaiOrbSVG() {
   return (
     <svg className="kai-orb-svg" viewBox="0 0 88 88" role="img" aria-label="Kai Orb">
@@ -108,24 +178,15 @@ function KaiOrbSVG() {
           <stop offset="100%" stopColor="#00ffd0" stopOpacity="0" />
         </radialGradient>
       </defs>
-
-      {/* Outer ring */}
       <circle cx="44" cy="44" r="41" fill="none" stroke="#00ffd0" strokeOpacity="0.38" strokeWidth="1.6" />
-      {/* Inner violet ring */}
       <circle cx="44" cy="44" r="32" fill="none" stroke="#8a2be2" strokeOpacity="0.45" strokeWidth="1.4" />
-
-      {/* Subtle grid */}
       <g opacity="0.45">
         <circle cx="44" cy="44" r="20" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth=".8" />
         <circle cx="44" cy="44" r="10" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth=".7" />
         <line x1="44" y1="4" x2="44" y2="84" stroke="rgba(255,255,255,.2)" strokeWidth=".8" />
         <line x1="4" y1="44" x2="84" y2="44" stroke="rgba(255,255,255,.2)" strokeWidth=".8" />
       </g>
-
-      {/* Golden core */}
       <circle cx="44" cy="44" r="10" fill="url(#orbGlow)" />
-
-      {/* Phi triangle */}
       <path d="M44 14 L72 68 H16 Z" fill="none" stroke="#00b4ff" strokeOpacity="0.35" strokeWidth="1.2" />
     </svg>
   );
@@ -139,6 +200,9 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [verified, setVerified] = useState<SigilMetaCore | null>(null);
+
+  // Persist verified sigil so other components can auto-populate (e.g., SocialConnector)
+  const { setAuth } = useSigilAuth();
 
   const verifyFile = useCallback(
     async (file: File) => {
@@ -180,6 +244,25 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
           (core as SigilMetaCore).userPhiKey = expectedPhiKey;
         }
 
+        // NEW: Extract canonical action URL from the SVG
+        const actionUrl =
+          extractSigilActionUrlFromSvgText(svgText, core as unknown as Record<string, unknown>) ?? undefined;
+
+        // Persist for app-wide use (now includes sigilActionUrl)
+        const authMeta: SigilAuthMeta = {
+          pulse: core.pulse,
+          beat: core.beat,
+          stepIndex: core.stepIndex,
+          chakraDay: core.chakraDay,
+          kaiSignature: core.kaiSignature,
+          userPhiKey: core.userPhiKey,
+          ...(typeof (core as Record<string, unknown>).sigilId === "string"
+            ? { sigilId: (core as Record<string, string>).sigilId }
+            : {}),
+          ...(actionUrl ? { sigilActionUrl: actionUrl } : {}),
+        };
+        setAuth(svgText, authMeta);
+
         setVerified(core);
         onVerified(svgText, core);
       } catch (err) {
@@ -193,7 +276,7 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [onVerified]
+    [onVerified, setAuth]
   );
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -252,23 +335,19 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
         aria-describedby="sigil-instructions sigil-trustline"
         onClick={() => fileInputRef.current?.click()}
       >
-        {/* Static halo + grid */}
         <div className="sigil-grid" aria-hidden />
         <div className="sigil-ring sigil-ring--outer" aria-hidden />
         <div className="sigil-ring sigil-ring--inner" aria-hidden />
 
-        {/* Center orb + copy */}
         <div className="sigil-center">
           <div className="sigil-orb" aria-hidden>
             <KaiOrbSVG />
           </div>
 
-          {/* NEW: explicit drag/drop instructions (kept above trust line) */}
           <p id="sigil-instructions" className="sigil-instructions">
             Drag & drop your Kai-sealed SVG here, or <span className="sigil-accent">tap to browse</span>.
           </p>
 
-          {/* Inline status feedback (inside the zone) */}
           <div className="sigil-status" aria-live="polite">
             {loading && (
               <div className="sigil-status__row">
@@ -282,13 +361,10 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
                 <span>Verified — Φ-Key bound</span>
               </div>
             )}
-            {!loading && error && (
-              <div className="sigil-status__err">{error}</div>
-            )}
+            {!loading && error && <div className="sigil-status__err">{error}</div>}
           </div>
         </div>
 
-        {/* Hidden input */}
         <input
           ref={fileInputRef}
           type="file"

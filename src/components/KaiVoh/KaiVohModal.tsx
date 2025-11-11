@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import "./styles/KaiVohModal.css";
 import KaiVohBoundary from "./KaiVohBoundary";
+import { SigilAuthProvider } from "./SigilAuthContext";
 
 /** Lazy chunks */
 const KaiVohApp = lazy(() => import("./KaiVohApp"));
@@ -271,53 +272,56 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
         </div>
 
         {/* Body */}
-        <div className="kai-voh-body">
-          <h2 id="kaivoh-title" className="sr-only">
-            Kai Portal
-          </h2>
+        {/* NEW: Wrap both panes with SigilAuthProvider so SigilLogin/useSigilAuth works */}
+        <SigilAuthProvider>
+          <div className="kai-voh-body">
+            <h2 id="kaivoh-title" className="sr-only">
+              Kai Portal
+            </h2>
 
-          <KaiVohBoundary>
-            <section
-              className="portal-pane"
-              style={{ display: view === "voh" ? "block" : "none" }}
-              aria-hidden={view !== "voh"}
-            >
-              {vohMounted && (
-                <Suspense
-                  fallback={
-                    <div className="kai-voh-center">
-                      <div className="kai-voh-spinner" />
-                      <div>Summoning Voh…</div>
-                    </div>
-                  }
-                >
-                  <KaiVohApp />
-                </Suspense>
-              )}
-            </section>
+            <KaiVohBoundary>
+              <section
+                className="portal-pane"
+                style={{ display: view === "voh" ? "block" : "none" }}
+                aria-hidden={view !== "voh"}
+              >
+                {vohMounted && (
+                  <Suspense
+                    fallback={
+                      <div className="kai-voh-center">
+                        <div className="kai-voh-spinner" />
+                        <div>Summoning Voh…</div>
+                      </div>
+                    }
+                  >
+                    <KaiVohApp />
+                  </Suspense>
+                )}
+              </section>
 
-            <section
-              className="portal-pane"
-              style={{ display: view === "realms" ? "block" : "none" }}
-              aria-hidden={view !== "realms"}
-            >
-              {realmsMounted ? (
-                <Suspense
-                  fallback={
-                    <div className="kai-voh-center">
-                      <div className="kai-voh-spinner" />
-                      <div>Opening Kai Realms…</div>
-                    </div>
-                  }
-                >
-                  {/* Realms close: route back to VOH (keeps modal open).
-                     To close the entire modal instead, replace with onClose={onClose}. */}
-                  <KaiRealmsApp onClose={() => switchTo("voh")} />
-                </Suspense>
-              ) : null}
-            </section>
-          </KaiVohBoundary>
-        </div>
+              <section
+                className="portal-pane"
+                style={{ display: view === "realms" ? "block" : "none" }}
+                aria-hidden={view !== "realms"}
+              >
+                {realmsMounted ? (
+                  <Suspense
+                    fallback={
+                      <div className="kai-voh-center">
+                        <div className="kai-voh-spinner" />
+                        <div>Opening Kai Realms…</div>
+                      </div>
+                    }
+                  >
+                    {/* Realms close: route back to VOH (keeps modal open).
+                       To close the entire modal instead, replace with onClose={onClose}. */}
+                    <KaiRealmsApp onClose={() => switchTo("voh")} />
+                  </Suspense>
+                ) : null}
+              </section>
+            </KaiVohBoundary>
+          </div>
+        </SigilAuthProvider>
 
         {/* Footer strip — hide center wheel in Realms to avoid double wheel */}
         <footer className="atlantean-footer" aria-live="polite">

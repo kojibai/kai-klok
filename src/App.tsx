@@ -18,6 +18,7 @@ import SigilGlyphButton from "./components/SigilGlyphButton";
 import WeekKalendarModal from "./components/WeekKalendarModal";
 import InvestorSigilModal from "./components/InvestorSigilModal";
 import KaiVohModal from "./components/KaiVoh/KaiVohModal";
+import { SigilAuthProvider } from "./components/KaiVoh/SigilAuthContext";
 
 import type { BIPEvent } from "./pwa-shim";
 import HomePriceChartCard from "./components/HomePriceChartCard";
@@ -458,16 +459,19 @@ function HomeShell() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/s" element={<SigilPage />} />
-        <Route path="/s/:hash" element={<SigilPage />} />
-        <Route path="/explorer" element={<SigilExplorer />} />
-        <Route path="/feed" element={<SigilFeedPage />} />
-        <Route path="/" element={<HomeShell />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <SigilAuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/s" element={<SigilPage />} />
+          <Route path="/s/:hash" element={<SigilPage />} />
+          <Route path="/explorer" element={<SigilExplorer />} />
+          <Route path="/feed" element={<SigilFeedPage />} />
+          <Route path="/feed/p/:token" element={<SigilFeedPage />} />
+          <Route path="/" element={<HomeShell />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SigilAuthProvider>
   );
 }
 
