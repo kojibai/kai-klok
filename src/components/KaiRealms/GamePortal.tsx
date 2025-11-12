@@ -1,11 +1,10 @@
 // src/components/KaiRealms/GamePortal.tsx
 "use client";
 
-import "./styles/GamePortal.css";
-import "./styles/KaiRealms.css";
+import "./styles/GamePortal.css";   // component-specific polish (Atlantean Glass)
+import "./styles/KaiRealms.css"; 
 import React, {
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -14,10 +13,11 @@ import React, {
   type KeyboardEvent,
 } from "react";
 import { parseSigilGlyph, type GlyphData } from "./GlyphUtils";
-import { announceGameFocus } from "./lib/gameFocus";
 
 /** Props */
-type Props = { onEnter: (data: GlyphData) => void };
+type Props = {
+  onEnter: (data: GlyphData) => void;
+};
 
 /** Accept only SVG sigils */
 const ACCEPT = ".svg,image/svg+xml";
@@ -35,11 +35,6 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
   const hintId = useId();
   const errorId = useId();
 
-  // Pause all games while the portal is in view/active.
-  useEffect(() => {
-    announceGameFocus("portal");
-  }, []);
-
   const resetField = (): void => {
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -50,9 +45,6 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
       setFileName(file.name);
       setLoading(true);
       try {
-        // Keep everything paused while verifying
-        announceGameFocus("portal");
-
         const typeOk =
           file.type === "image/svg+xml" ||
           file.name.toLowerCase().endsWith(".svg");
@@ -126,11 +118,12 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
       <div className="breath-ring breath-ring--inner" aria-hidden />
       <div className="phi-grid" aria-hidden />
 
-      {/* SR-only title for accessibility */}
+      {/* SR-only title for accessibility (no visual header/orbs) */}
       <h1 id={titleId} className="sr-only">
         Drop your Kai Sigil
       </h1>
 
+      {/* body (dropzone ONLY) */}
       <div className="portal-body">
         <div
           className={`dropzone ${dragActive ? "dropzone--active" : ""} ${
@@ -216,6 +209,7 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
         </p>
       </div>
 
+      {/* no footer, no header orbs, no center wheel */}
       <span className="sr-only">Kai Realms sigil gate ready.</span>
     </section>
   );
