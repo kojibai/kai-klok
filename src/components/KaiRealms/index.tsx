@@ -34,6 +34,7 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
       if (e.key === "Escape") onClose?.();
     };
     document.addEventListener("keydown", onKey);
+    // focus the close button when opened
     closeRef.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -58,26 +59,51 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
       aria-modal="true"
       aria-labelledby="kai-realms-title"
       onMouseDown={onBackdropDown}
+      /* Full-screen overlay */
+      style={{ position: "fixed", inset: 0 }}
     >
       {/* Celestial layers */}
       <div className="realms-stars" aria-hidden />
       <div className="realms-halo realms-halo--1" aria-hidden />
       <div className="realms-halo realms-halo--2" aria-hidden />
 
-      {/* Glass container */}
+      {/* Glass container (full-screen, no radius/caps) */}
       <div
         ref={containerRef}
         className="realms-container glass-omni"
         onMouseDown={stopBubble}
         role="document"
+        style={{
+          width: "100vw",
+          height: "100vh",
+          maxWidth: "none",
+          maxHeight: "none",
+          borderRadius: 0,
+          margin: 0,
+          padding: 0,
+          display: "grid",
+          gridTemplateRows: "auto 1fr", // header + body
+          overflow: "hidden",
+        }}
       >
         {/* Sacred border rings + phi grid */}
         <div className="breath-ring breath-ring--outer" aria-hidden />
         <div className="breath-ring breath-ring--inner" aria-hidden />
         <div className="phi-grid" aria-hidden />
 
-        {/* Header — close button + SINGLE orb centered */}
-        <header className="realms-header">
+        {/* Header — close button + SINGLE orb centered (floats above portal) */}
+        <header
+          className="realms-header"
+          /* Keep header clickable above the portal; add internal padding so the X never clips */
+          style={{
+            position: "relative",
+            zIndex: 3, // above GamePortal (z-index: 1)
+            paddingTop: "max(12px, env(safe-area-inset-top))",
+            paddingRight: "max(12px, env(safe-area-inset-right))",
+            paddingLeft: "max(12px, env(safe-area-inset-left))",
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <button
             ref={closeRef}
             type="button"
@@ -95,13 +121,31 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
                 onClose?.();
               }
             }}
+            /* Absolute inside header with safe-area guards so it never goes off-screen */
+            style={{
+              position: "absolute",
+              top: "max(12px, env(safe-area-inset-top))",
+              right: "max(12px, env(safe-area-inset-right))",
+              width: 44,
+              height: 44,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "9999px",
+              /* ensure visible even on bright halos */
+              backdropFilter: "blur(6px)",
+            }}
           >
             <X size={20} aria-hidden />
           </button>
 
           {/* One living orb at top-center */}
-          <div className="header-seals" aria-hidden>
-            <div className="seal-emblem">
+          <div
+            className="header-seals"
+            aria-hidden
+            /* keep seals centered even with the absolute X on the right */
+            style={{ pointerEvents: "none", textAlign: "center" }}
+          >
+            <div className="seal-emblem" style={{ margin: "0 auto" }}>
               <div className="seal-ring" />
               <div className="seal-ring seal-ring--inner" />
               <div className="seal-core" />
@@ -115,68 +159,27 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
         </header>
 
         {/* Body — ONLY the GamePortal by default; RealmView after verify */}
-        <main className="realms-body">
+        <main
+          className="realms-body"
+          style={{ position: "relative", minHeight: 0, zIndex: 2 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {!glyphData ? (
-            <div className="portal-stage">
+            <div className="portal-stage" style={{ height: "100%" }}>
+              {/* GamePortal is full-screen (fixed) with z-index: 1; header stays above */}
               <GamePortal onEnter={handleEnter} />
             </div>
           ) : (
-            <div className="realm-stage">
+            <div className="realm-stage" style={{ height: "100%", overflow: "auto" }}>
               <RealmView glyphData={glyphData} onExit={handleExit} />
             </div>
           )}
         </main>
 
-        {/* Footer — centered “wheel” only (no side ornaments) */}
-        <footer className="realms-footer" aria-hidden>
-          <div className="footer-center" style={{ margin: "0 auto" }}>
-            <SealCoin />
-          </div>
-        </footer>
+        {/* Footer removed to maximize space */}
       </div>
     </div>
   );
 };
 
 export default KaiRealms;
-
-/* ──────────────────────────────────────────────────────────────
-   Inline, stateless SVG for the centered “wheel”
-   (kept here for cohesion; styles come from KaiRealms.css)
-   ────────────────────────────────────────────────────────────── */
-function SealCoin() {
-  return (
-    <svg className="seal-coin" width="56" height="56" viewBox="0 0 56 56" aria-hidden>
-      <defs>
-        <radialGradient id="coinGlowRealms" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="40%" stopColor="#ffd86b" stopOpacity="0.75" />
-          <stop offset="100%" stopColor="#ffd86b" stopOpacity="0.15" />
-        </radialGradient>
-        <linearGradient id="coinEdgeRealms" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00ffd0" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#8a2be2" stopOpacity="0.8" />
-        </linearGradient>
-      </defs>
-
-      <circle
-        cx="28"
-        cy="28"
-        r="26"
-        fill="url(#coinGlowRealms)"
-        stroke="url(#coinEdgeRealms)"
-        strokeWidth="1.5"
-      />
-      <g className="seal-coin__rotor">
-        <circle cx="28" cy="28" r="18" fill="none" stroke="url(#coinEdgeRealms)" strokeWidth="1.25" />
-        <g stroke="rgba(255,255,255,0.35)" strokeWidth="0.6">
-          <line x1="28" y1="10" x2="28" y2="46" />
-          <line x1="10" y1="28" x2="46" y2="28" />
-          <line x1="15" y1="15" x2="41" y2="41" />
-          <line x1="41" y1="15" x2="15" y2="41" />
-        </g>
-      </g>
-      <circle className="seal-coin__core" cx="28" cy="28" r="6.5" />
-    </svg>
-  );
-}

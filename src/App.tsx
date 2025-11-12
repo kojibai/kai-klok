@@ -12,7 +12,7 @@ import "./App.css";
 import "./components/KaiKlock.css";
 import "./components/EternalKlock.css";
 import "./SplashScreen.css";
-
+import PShort from "./pages/PShort";
 import EternalKlock from "./components/EternalKlock";
 import SigilGlyphButton from "./components/SigilGlyphButton";
 import WeekKalendarModal from "./components/WeekKalendarModal";
@@ -467,8 +467,13 @@ function App() {
           <Route path="/explorer" element={<SigilExplorer />} />
           <Route path="/feed" element={<SigilFeedPage />} />
           <Route path="/feed/p/:token" element={<SigilFeedPage />} />
+          <Route path="/stream" element={<SigilFeedPage />} />
+          <Route path="/stream/p/:token" element={<SigilFeedPage />} />
+          <Route path="/p" element={<PShort />} />
           <Route path="/" element={<HomeShell />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+      
+           
         </Routes>
       </BrowserRouter>
     </SigilAuthProvider>

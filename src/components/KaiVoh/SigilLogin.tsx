@@ -331,7 +331,7 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
         role="button"
         tabIndex={0}
         title="Drag & drop your Kai-sealed SVG here, or tap to browse"
-        aria-label="Upload or drop your Kai-sealed SVG sigil"
+        aria-label="inhale or drop your Kai-sealed SVG sigil"
         aria-describedby="sigil-instructions sigil-trustline"
         onClick={() => fileInputRef.current?.click()}
       >
@@ -345,7 +345,7 @@ export default function SigilLogin({ onVerified }: SigilLoginProps) {
           </div>
 
           <p id="sigil-instructions" className="sigil-instructions">
-            Drag & drop your Kai-sealed SVG here, or <span className="sigil-accent">tap to browse</span>.
+            Inhale, <span className="sigil-accent">Φkey here.</span>
           </p>
 
           <div className="sigil-status" aria-live="polite">

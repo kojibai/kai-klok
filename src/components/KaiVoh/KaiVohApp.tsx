@@ -214,12 +214,6 @@ function KaiVohFlow(): ReactElement {
     return (
       <div className="flex flex-col items-center">
         <SocialConnector />
-        <button
-          onClick={() => setStep("compose")}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded"
-        >
-          Compose Post →
-        </button>
       </div>
     );
   }

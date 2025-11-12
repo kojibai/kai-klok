@@ -145,43 +145,6 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
     </svg>
   );
 
-  // Guilloché Kai-seal coin (no text)
-  const SealCoinSVG = ({ className }: { className?: string }) => (
-    <svg className={className} width="56" height="56" viewBox="0 0 56 56" aria-hidden>
-      <defs>
-        <radialGradient id="coinGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="40%" stopColor="#ffd86b" stopOpacity="0.75" />
-          <stop offset="100%" stopColor="#ffd86b" stopOpacity="0.15" />
-        </radialGradient>
-        <linearGradient id="coinEdge" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00ffd0" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#8a2be2" stopOpacity="0.8" />
-        </linearGradient>
-        <pattern id="guilloche" width="56" height="56" patternUnits="userSpaceOnUse">
-          <g stroke="rgba(255,255,255,0.25)" strokeWidth="0.4" fill="none">
-            <path d="M0,28 Q28,0 56,28 Q28,56 0,28Z" />
-            <path d="M0,28 Q28,6 56,28 Q28,50 0,28Z" />
-            <path d="M0,28 Q28,12 56,28 Q28,44 0,28Z" />
-            <path d="M0,28 Q28,18 56,28 Q28,38 0,28Z" />
-          </g>
-        </pattern>
-      </defs>
-      <circle cx="28" cy="28" r="26" fill="url(#coinGlow)" stroke="url(#coinEdge)" strokeWidth="1.5" />
-      <circle cx="28" cy="28" r="22" fill="url(#guilloche)" />
-      <g className="seal-coin__rotor">
-        <circle cx="28" cy="28" r="18" fill="none" stroke="url(#coinEdge)" strokeWidth="1.25" />
-        <g stroke="rgba(255,255,255,0.35)" strokeWidth="0.6">
-          <line x1="28" y1="10" x2="28" y2="46" />
-          <line x1="10" y1="28" x2="46" y2="28" />
-          <line x1="15" y1="15" x2="41" y2="41" />
-          <line x1="41" y1="15" x2="15" y2="41" />
-        </g>
-      </g>
-      <circle className="seal-coin__core" cx="28" cy="28" r="6.5" />
-    </svg>
-  );
-
   // Single living orb emblem (top-center)
   const SealEmblem = ({ className }: { className?: string }) => (
     <div className={`seal-emblem ${className ?? ""}`} aria-hidden>
@@ -212,6 +175,15 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
         onPointerDown={stopBubblePointer}
         onMouseDown={stopBubbleMouse}
         role="document"
+        /* Full-screen, no rounding/caps */
+        style={{
+          width: "100vw",
+          height: "100vh",
+          maxWidth: "none",
+          maxHeight: "none",
+          borderRadius: 0,
+          paddingBottom: 0,
+        }}
       >
         {/* Sacred border rings + phi grid */}
         <div className="breath-ring breath-ring--outer" aria-hidden />
@@ -272,9 +244,9 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
         </div>
 
         {/* Body */}
-        {/* NEW: Wrap both panes with SigilAuthProvider so SigilLogin/useSigilAuth works */}
         <SigilAuthProvider>
-          <div className="kai-voh-body">
+          <div className="kai-voh-body" style={{ height: "calc(100vh - 64px)" }}>
+            {/* ^ ensure body stretches after tabbar; adjust 64px if your tabbar height differs */}
             <h2 id="kaivoh-title" className="sr-only">
               Kai Portal
             </h2>
@@ -282,7 +254,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
             <KaiVohBoundary>
               <section
                 className="portal-pane"
-                style={{ display: view === "voh" ? "block" : "none" }}
+                style={{ display: view === "voh" ? "block" : "none", height: "100%", overflow: "auto", WebkitOverflowScrolling: "touch" as const }}
                 aria-hidden={view !== "voh"}
               >
                 {vohMounted && (
@@ -301,7 +273,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
 
               <section
                 className="portal-pane"
-                style={{ display: view === "realms" ? "block" : "none" }}
+                style={{ display: view === "realms" ? "block" : "none", height: "100%", overflow: "auto", WebkitOverflowScrolling: "touch" as const }}
                 aria-hidden={view !== "realms"}
               >
                 {realmsMounted ? (
@@ -323,32 +295,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
           </div>
         </SigilAuthProvider>
 
-        {/* Footer strip — hide center wheel in Realms to avoid double wheel */}
-        <footer className="atlantean-footer" aria-live="polite">
-          <div className="footer-left" aria-hidden>
-            <div className="chakra-row">
-              <span className="sigil-dot sigil-dot--root" />
-              <span className="sigil-dot sigil-dot--sacral" />
-              <span className="sigil-dot sigil-dot--solar" />
-              <span className="sigil-dot sigil-dot--heart" />
-              <span className="sigil-dot sigil-dot--throat" />
-              <span className="sigil-dot sigil-dot--third" />
-              <span className="sigil-dot sigil-dot--crown" />
-            </div>
-          </div>
-
-          {/* === WHEEL IN THE MIDDLE (hidden in Realms) === */}
-          {view !== "realms" && (
-            <div className="footer-center" aria-hidden>
-              <SealCoinSVG className="seal-coin" />
-            </div>
-          )}
-
-          {/* Right side intentionally minimal to keep the center wheel dominant */}
-          <div className="footer-right" aria-hidden />
-
-          <span className="sr-only">Kai portal ready. Breathing. Sealed.</span>
-        </footer>
+        {/* Footer removed to maximize space */}
       </div>
     </div>
   );

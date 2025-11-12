@@ -22,7 +22,7 @@ type Props = { onEnter: (data: GlyphData) => void };
 /** Accept only SVG sigils */
 const ACCEPT = ".svg,image/svg+xml";
 
-/** Atlantean Glass — Minimal: ONLY the “Drop your Kai Sigil” gate */
+/** Atlantean Glass — Minimal: ONLY the “Drop your Kai Sigil” gate (FULLSCREEN) */
 const GamePortal: React.FC<Props> = ({ onEnter }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -117,9 +117,26 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
 
   return (
     <section
-      className="portal-card glass-omni"
+      className="portal-card glass-omni portal-card--fullscreen"
       aria-labelledby={titleId}
       aria-describedby={hintId}
+      /* Force full-viewport; no radius/caps; safe scroll */
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        maxWidth: "none",
+        maxHeight: "none",
+        borderRadius: 0,
+        margin: 0,
+        padding: "clamp(12px, 3vh, 32px)",
+        overflow: "auto",
+        WebkitOverflowScrolling: "touch",
+        zIndex: 1,
+        display: "grid",
+        gridTemplateRows: "auto 1fr", // title (sr-only) + body
+      }}
     >
       {/* Sacred rings + phi grid */}
       <div className="breath-ring breath-ring--outer" aria-hidden />
@@ -131,7 +148,14 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
         Drop your Kai Sigil
       </h1>
 
-      <div className="portal-body">
+      <div
+        className="portal-body"
+        style={{
+          minHeight: 0,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
         <div
           className={`dropzone ${dragActive ? "dropzone--active" : ""} ${
             loading ? "dropzone--busy" : ""
@@ -145,6 +169,10 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
           onDragLeave={onDragLeave}
           aria-busy={loading}
           aria-describedby={`${hintId}${error ? ` ${errorId}` : ""}`}
+          style={{
+            width: "min(720px, 92vw)",
+            padding: "clamp(20px, 4vh, 36px)",
+          }}
         >
           {/* breathing ornament */}
           <div className="dropzone-ornament" aria-hidden>
@@ -210,10 +238,7 @@ const GamePortal: React.FC<Props> = ({ onEnter }) => {
           </div>
         ) : null}
 
-        {/* Fine print */}
-        <p className="portal-note">
-          Your sigil is verified locally. No upload. No drift. Only truth.
-        </p>
+        {/* (No footer/wheel; lean & full-screen) */}
       </div>
 
       <span className="sr-only">Kai Realms sigil gate ready.</span>

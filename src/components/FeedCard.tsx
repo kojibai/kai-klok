@@ -15,6 +15,7 @@ import type {
   SharePayload,
   ReactionPayload,
 } from "../utils/sigilDecode";
+import "./FeedCard.css";
 
 type Props = { url: string };
 

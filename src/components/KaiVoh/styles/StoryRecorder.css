@@ -1,0 +1,343 @@
+/* src/components/KaiVoh/styles/StoryRecorder.css */
+/* StoryRecorder — full-screen overlay with IG/TikTok vibe */
+
+.story-rec-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(100% 120% at 50% 0%, rgba(10,14,22,0.9) 0%, rgba(10,14,22,0.98) 60%, rgba(5,8,13,1) 100%);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  color: #e7edf3;
+}
+
+.story-rec-video-wrap {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.story-rec-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translateZ(0);
+  will-change: transform;
+  background: #000;
+}
+
+.story-rec-video.mirror {
+  transform: scaleX(-1);
+}
+
+.story-rec-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: env(safe-area-inset-top) 12px 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.story-top-center {
+  display: grid;
+  place-items: center;
+}
+
+.story-timer {
+  font-variant-numeric: tabular-nums;
+  background: rgba(0,0,0,0.35);
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.story-top-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.story-btn {
+  -webkit-tap-highlight-color: transparent;
+  font-size: 18px;
+  line-height: 1;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  cursor: pointer;
+  color: #e7edf3;
+}
+
+.story-btn.active {
+  background: rgba(30,180,255,0.25);
+  border-color: rgba(30,180,255,0.5);
+}
+
+.story-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.story-btn.top.left {
+  justify-self: flex-start;
+}
+
+.story-rec-bottombar {
+  position: relative;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+
+.record-wrap {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+}
+
+.record-btn {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #f04b64; /* ring color via currentColor */
+}
+
+.record-btn .progress-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset;
+  background: conic-gradient(currentColor 0deg, transparent 0);
+}
+
+.record-btn .dot {
+  position: absolute;
+  inset: 10px;
+  border-radius: 20px;
+  background: #f04b64;
+  box-shadow: 0 6px 22px rgba(240,75,100,0.35), 0 0 0 2px rgba(255,255,255,0.12) inset;
+  transition: all 140ms ease;
+}
+
+.record-btn.recording .dot {
+  border-radius: 12px;
+  transform: scale(0.92);
+  background: #ff2d55;
+}
+
+.story-rec-error,
+.story-rec-hint {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+/* StoryRecorder.css — overlay scoped to the recorder, icon-only controls */
+
+/* Overlay */
+.story-rec-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  grid-template-rows: 1fr;
+  background: radial-gradient(100% 100% at 50% 50%, rgba(0,0,0,0.66), rgba(0,0,0,0.88));
+  backdrop-filter: blur(2px);
+}
+
+/* Live video stage */
+.story-rec-video-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.story-rec-video {
+  width: min(100vmin * 9/16 * 16/9, 100%);
+  height: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+.story-rec-video.mirror {
+  transform: scaleX(-1);
+}
+
+/* Topbar */
+.story-rec-topbar {
+  position: absolute;
+  top: 0;
+  left: 0; right: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 10px;
+  pointer-events: none;
+}
+.story-btn.top.left {
+  justify-self: start;
+}
+.story-top-center {
+  justify-self: center;
+  pointer-events: none;
+}
+.story-top-actions {
+  justify-self: end;
+  display: inline-flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+/* Icon button base */
+.story-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,255,230,0.25);
+  background: linear-gradient(135deg, rgba(21,97,109,0.25), rgba(11,57,67,0.25));
+  color: #e7ffff;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+  pointer-events: auto;
+}
+.story-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(0,255,230,0.22);
+}
+.story-btn.active {
+  border-color: rgba(255,209,102,0.45);
+  box-shadow: 0 0 16px rgba(255,209,102,0.22);
+}
+.story-btn.disabled {
+  opacity: 0.5;
+  cursor: default;
+  filter: grayscale(0.3);
+}
+.ico {
+  width: 22px;
+  height: 22px;
+}
+
+/* Timer */
+.story-timer {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #e7ffff;
+  border: 1px solid rgba(0,255,230,0.28);
+  background: linear-gradient(135deg, rgba(20,35,43,0.5), rgba(12,23,29,0.5));
+}
+
+/* Bottom bar */
+.story-rec-bottombar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 16px 10px 18px;
+}
+
+/* Record button */
+.record-wrap {
+  display: grid;
+  place-items: center;
+}
+.record-btn {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  border: 2px solid rgba(0,255,230,0.28);
+  color: #00ffd5;
+  background: radial-gradient(120% 120% at 50% 50%, rgba(0,255,230,0.14), rgba(0,0,0,0.2));
+  box-shadow: 0 0 28px rgba(0,255,230,0.15);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.record-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 36px rgba(0,255,230,0.20);
+}
+.record-btn.recording {
+  color: #ff7b7b;
+  border-color: rgba(255,123,123,0.45);
+  box-shadow: 0 0 36px rgba(255,123,123,0.22);
+}
+.progress-ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 999px;
+  background: conic-gradient(currentColor 0deg, transparent 0);
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 62%, black 63%);
+          mask: radial-gradient(circle at 50% 50%, transparent 62%, black 63%);
+}
+.dot {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.06), rgba(0,0,0,0.22));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.ico.rec { width: 24px; height: 24px; }
+.ico.rec circle { fill: currentColor; }
+.ico.rec.on circle { fill: #ff4a4a; }
+
+/* Errors/Hints (compact) */
+.story-rec-error {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(60,10,10,0.7), rgba(40,6,6,0.8));
+  border: 1px solid rgba(255, 74, 74, 0.35);
+  color: #ffeaea;
+  font-size: 0.9rem;
+}
+.story-rec-hint {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20,30,36,0.6), rgba(14,22,28,0.75));
+  border: 1px solid rgba(0,255,230,0.25);
+  color: #e7ffff;
+  font-size: 0.9rem;
+}
+
+/* Screen-reader-only input */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Torch icon accent when ON */
+.ico.on { filter: drop-shadow(0 0 10px rgba(255,209,102,0.25)); }
