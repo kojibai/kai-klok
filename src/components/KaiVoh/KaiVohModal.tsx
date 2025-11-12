@@ -145,6 +145,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
     </svg>
   );
 
+
   // Single living orb emblem (top-center)
   const SealEmblem = ({ className }: { className?: string }) => (
     <div className={`seal-emblem ${className ?? ""}`} aria-hidden>
@@ -175,15 +176,6 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
         onPointerDown={stopBubblePointer}
         onMouseDown={stopBubbleMouse}
         role="document"
-        /* Full-screen, no rounding/caps */
-        style={{
-          width: "100vw",
-          height: "100vh",
-          maxWidth: "none",
-          maxHeight: "none",
-          borderRadius: 0,
-          paddingBottom: 0,
-        }}
       >
         {/* Sacred border rings + phi grid */}
         <div className="breath-ring breath-ring--outer" aria-hidden />
@@ -244,9 +236,9 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
         </div>
 
         {/* Body */}
+        {/* NEW: Wrap both panes with SigilAuthProvider so SigilLogin/useSigilAuth works */}
         <SigilAuthProvider>
-          <div className="kai-voh-body" style={{ height: "calc(100vh - 64px)" }}>
-            {/* ^ ensure body stretches after tabbar; adjust 64px if your tabbar height differs */}
+          <div className="kai-voh-body">
             <h2 id="kaivoh-title" className="sr-only">
               Kai Portal
             </h2>
@@ -254,7 +246,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
             <KaiVohBoundary>
               <section
                 className="portal-pane"
-                style={{ display: view === "voh" ? "block" : "none", height: "100%", overflow: "auto", WebkitOverflowScrolling: "touch" as const }}
+                style={{ display: view === "voh" ? "block" : "none" }}
                 aria-hidden={view !== "voh"}
               >
                 {vohMounted && (
@@ -273,7 +265,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
 
               <section
                 className="portal-pane"
-                style={{ display: view === "realms" ? "block" : "none", height: "100%", overflow: "auto", WebkitOverflowScrolling: "touch" as const }}
+                style={{ display: view === "realms" ? "block" : "none" }}
                 aria-hidden={view !== "realms"}
               >
                 {realmsMounted ? (
@@ -295,7 +287,7 @@ export default function KaiVohModal({ open, onClose }: KaiVohModalProps) {
           </div>
         </SigilAuthProvider>
 
-        {/* Footer removed to maximize space */}
+ 
       </div>
     </div>
   );

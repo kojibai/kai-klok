@@ -34,7 +34,6 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
       if (e.key === "Escape") onClose?.();
     };
     document.addEventListener("keydown", onKey);
-    // focus the close button when opened
     closeRef.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -59,8 +58,7 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
       aria-modal="true"
       aria-labelledby="kai-realms-title"
       onMouseDown={onBackdropDown}
-      /* Full-screen overlay */
-      style={{ position: "fixed", inset: 0 }}
+      style={{ position: "fixed", inset: 0 }} // full-screen overlay
     >
       {/* Celestial layers */}
       <div className="realms-stars" aria-hidden />
@@ -83,7 +81,6 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
           padding: 0,
           display: "grid",
           gridTemplateRows: "auto 1fr", // header + body
-          overflow: "hidden",
         }}
       >
         {/* Sacred border rings + phi grid */}
@@ -94,14 +91,7 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
         {/* Header — close button + SINGLE orb centered (floats above portal) */}
         <header
           className="realms-header"
-          /* Keep header clickable above the portal; add internal padding so the X never clips */
-          style={{
-            position: "relative",
-            zIndex: 3, // above GamePortal (z-index: 1)
-            paddingTop: "max(12px, env(safe-area-inset-top))",
-            paddingRight: "max(12px, env(safe-area-inset-right))",
-            paddingLeft: "max(12px, env(safe-area-inset-left))",
-          }}
+          style={{ position: "relative", zIndex: 3 }} // above GamePortal (z-index: 1)
           onMouseDown={(e) => e.stopPropagation()}
         >
           <button
@@ -121,31 +111,13 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
                 onClose?.();
               }
             }}
-            /* Absolute inside header with safe-area guards so it never goes off-screen */
-            style={{
-              position: "absolute",
-              top: "max(12px, env(safe-area-inset-top))",
-              right: "max(12px, env(safe-area-inset-right))",
-              width: 44,
-              height: 44,
-              display: "grid",
-              placeItems: "center",
-              borderRadius: "9999px",
-              /* ensure visible even on bright halos */
-              backdropFilter: "blur(6px)",
-            }}
           >
             <X size={20} aria-hidden />
           </button>
 
           {/* One living orb at top-center */}
-          <div
-            className="header-seals"
-            aria-hidden
-            /* keep seals centered even with the absolute X on the right */
-            style={{ pointerEvents: "none", textAlign: "center" }}
-          >
-            <div className="seal-emblem" style={{ margin: "0 auto" }}>
+          <div className="header-seals" aria-hidden>
+            <div className="seal-emblem">
               <div className="seal-ring" />
               <div className="seal-ring seal-ring--inner" />
               <div className="seal-core" />
@@ -166,7 +138,7 @@ const KaiRealms: React.FC<Props> = ({ onClose }) => {
         >
           {!glyphData ? (
             <div className="portal-stage" style={{ height: "100%" }}>
-              {/* GamePortal is full-screen (fixed) with z-index: 1; header stays above */}
+              {/* GamePortal is full-screen (fixed) with z-index:1; header stays above */}
               <GamePortal onEnter={handleEnter} />
             </div>
           ) : (

@@ -1,6 +1,6 @@
 /* ──────────────────────────────────────────────────────────────
    GamePortal.css — Kai Realms Entry (Atlantean Glass ✧ 5.236s breath)
-   Updated for FULL-SCREEN portal (no footer/wheel)
+   Uses the same CSS vars as KaiRealms.css; provides component-scoped polish.
    ────────────────────────────────────────────────────────────── */
 
 :root{
@@ -22,9 +22,6 @@
 
   --ring-outer: rgba(0,255,208,0.28);
   --ring-inner: rgba(138,43,226,0.28);
-
-  /* full-screen paddings */
-  --portal-pad: clamp(12px, 3vh, 32px);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -47,33 +44,6 @@
   overflow: hidden;
   isolation: isolate;
   animation: pane-in .35s ease-out;
-}
-
-/* FULL-SCREEN modifier (matches component update) */
-.portal-card--fullscreen{
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;       /* fallback */
-  max-width: none;
-  max-height: none;
-  border-radius: 0;
-  margin: 0;
-  padding: var(--portal-pad);
-  /* honor safe areas (iOS) */
-  padding-top: calc(var(--portal-pad) + env(safe-area-inset-top));
-  padding-right: calc(var(--portal-pad) + env(safe-area-inset-right));
-  padding-bottom: calc(var(--portal-pad) + env(safe-area-inset-bottom));
-  padding-left: calc(var(--portal-pad) + env(safe-area-inset-left));
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  z-index: 1;          /* header in parent sits at z-index: 3 */
-  display: grid;
-  grid-template-rows: auto 1fr; /* (sr-only title) + body */
-}
-
-@supports (height: 100dvh){
-  .portal-card--fullscreen{ height: 100dvh; }
 }
 
 /* inherited from Atlantean glass helpers */
@@ -116,7 +86,7 @@
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Header (if used)
+   Header
    ────────────────────────────────────────────────────────────── */
 .portal-header{
   position:relative;
@@ -169,9 +139,6 @@
 .portal-body{
   margin-top: 8px;
   display:flex; flex-direction:column; gap: 16px;
-  min-height: 0; /* allow scrolling children in full-screen grid */
-  align-items: center;
-  justify-content: center;
 }
 
 /* Dropzone */
@@ -180,7 +147,6 @@
   display:grid; grid-template-columns: auto 1fr; gap: 16px;
   align-items:center;
   padding: clamp(14px, 2vw, 18px);
-  width: min(720px, 92vw);
   border-radius: 16px;
   cursor: pointer;
   background:
@@ -334,7 +300,15 @@
   opacity:.7; cursor:not-allowed;
 }
 
-/* (Footer styles removed — no footer/wheel in full-screen portal) */
+/* Footer icons already styled globally; nudge spacing for card context */
+.realms-footer{
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0.02)),
+    radial-gradient(70% 70% at 50% 100%, rgba(0,180,255,.12), transparent 60%);
+}
 
 /* ──────────────────────────────────────────────────────────────
    Animations (shared)
