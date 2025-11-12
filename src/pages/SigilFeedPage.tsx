@@ -3,7 +3,7 @@
 
 /**
  * Glyph Stream — payload-aware stream + Reply Composer + Link Inhaler + Attachments
- * v3.3 — Kopy-only sharing; beautiful attachment gallery (URLs, videos, files)
+ * v4.0 — Eternal-Klok μpulse core + boundary-locked scheduler + Kopy-only + rich attachments
  *
  * - Canonical:   /stream/p/<token>[?add=<parentUrl>]
  * - Short alias: /p#t=<token>  (and /p?t=<token> for iOS robustness)
@@ -34,14 +34,359 @@ import {
   type FeedPostPayload,
 } from "../utils/feedPayload";
 
-import {
-  momentFromPulse,
-  momentFromUTC,
-  type KaiMoment,
-} from "../utils/kai_pulse";
-
-import { useSigilAuth } from "../components/KaiVoh/SigilAuthContext";
 import SigilLogin from "../components/KaiVoh/SigilLogin";
+import { useSigilAuth } from "../components/KaiVoh/SigilAuthContext";
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Kai-Klok Eternal Core (μpulse math + constants) — local, no drift
+   Mirrors SigilModal’s logic to keep live “now” identical across surfaces.
+   ──────────────────────────────────────────────────────────────────────────── */
+const GENESIS_TS = Date.UTC(2024, 4, 10, 6, 45, 41, 888);
+
+// Breath unit (seconds) — φ-exact: 3 + √5
+const KAI_PULSE_SEC = 3 + Math.sqrt(5);
+const PULSE_MS = KAI_PULSE_SEC * 1000;
+
+const ONE_PULSE_MICRO = 1_000_000n; // 1 pulse = 1e6 μpulses
+const N_DAY_MICRO = 17_491_270_421n; // exact closure per canon
+const PULSES_PER_STEP_MICRO = 11_000_000n; // 11 pulses/step
+const STEPS_BEAT = 44 as const;
+
+/* round(N_DAY_MICRO/36) safely in integers (ties-to-even intent) */
+const MU_PER_BEAT_EXACT = (N_DAY_MICRO + 18n) / 36n; // 485,868,623 μpulses
+
+type HarmonicDay =
+  | "Solhara"
+  | "Aquaris"
+  | "Flamora"
+  | "Verdari"
+  | "Sonari"
+  | "Kaelith";
+const WEEKDAY = [
+  "Solhara",
+  "Aquaris",
+  "Flamora",
+  "Verdari",
+  "Sonari",
+  "Kaelith",
+] as const satisfies readonly HarmonicDay[];
+
+type ChakraName =
+  | "Root"
+  | "Sacral"
+  | "Solar Plexus"
+  | "Heart"
+  | "Throat"
+  | "Third Eye"
+  | "Crown";
+const DAY_TO_CHAKRA: Record<HarmonicDay, ChakraName> = {
+  Solhara: "Root",
+  Aquaris: "Sacral",
+  Flamora: "Solar Plexus",
+  Verdari: "Heart",
+  Sonari: "Throat",
+  Kaelith: "Crown",
+};
+
+const DAYS_PER_WEEK = 6;
+const DAYS_PER_MONTH = 42;
+const MONTHS_PER_YEAR = 8;
+const DAYS_PER_YEAR = DAYS_PER_MONTH * MONTHS_PER_YEAR;
+const ETERNAL_MONTH_NAMES = [
+  "Aethon",
+  "Virelai",
+  "Solari",
+  "Amarin",
+  "Kaelus",
+  "Umbriel",
+  "Noktura",
+  "Liora",
+] as const;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const imod = (n: bigint, m: bigint) => ((n % m) + m) % m;
+function floorDiv(n: bigint, d: bigint): bigint {
+  // BigInt division truncates toward 0; this is a sign-safe floor.
+  const q = n / d;
+  const r = n % d;
+  return r !== 0n && (r > 0n) !== (d > 0n) ? q - 1n : q;
+}
+function roundTiesToEvenBigInt(x: number): bigint {
+  if (!Number.isFinite(x)) return 0n;
+  const s = x < 0 ? -1 : 1;
+  const ax = Math.abs(x);
+  const i = Math.trunc(ax);
+  const frac = ax - i;
+  if (frac < 0.5) return BigInt(s * i);
+  if (frac > 0.5) return BigInt(s * (i + 1));
+  return BigInt(s * (i % 2 === 0 ? i : i + 1));
+}
+function microPulsesSinceGenesis(date: Date): bigint {
+  const deltaSec = (date.getTime() - GENESIS_TS) / 1000;
+  const pulses = deltaSec / KAI_PULSE_SEC;
+  const micro = pulses * 1_000_000;
+  return roundTiesToEvenBigInt(micro);
+}
+
+/** Canonical live moment (from Date) */
+type LocalKai = {
+  pulse: number;
+  beat: number;
+  step: number; // 0..43
+  stepPct: number; // 0..1
+  pulsesIntoBeat: number;
+  pulsesIntoDay: number;
+  harmonicDay: HarmonicDay;
+  chakraDay: ChakraName;
+  chakraStepString: string; // "beat:SS"
+  dayOfMonth: number;
+  monthIndex0: number;
+  monthIndex1: number;
+  monthName: string;
+  yearIndex: number;
+  weekIndex: number;
+  weekName: string;
+  _pμ_in_day: bigint;
+  _pμ_in_beat: bigint;
+};
+
+/** Strict Kai moment from an absolute pulse index (NOT from time) */
+type KaiMomentStrict = {
+  beat: number; // 0..35
+  stepIndex: number; // 0..43
+  weekday: HarmonicDay;
+  chakraDay: ChakraName;
+};
+
+function computeLocalKai(date: Date): LocalKai {
+  const pμ_total = microPulsesSinceGenesis(date);
+  const pμ_in_day = imod(pμ_total, N_DAY_MICRO);
+  const dayIndex = floorDiv(pμ_total, N_DAY_MICRO);
+
+  const beat = Number(floorDiv(pμ_in_day, MU_PER_BEAT_EXACT)); // 0..35
+  const _pμ_in_beat = pμ_in_day - BigInt(beat) * MU_PER_BEAT_EXACT;
+
+  const rawStep = Number(_pμ_in_beat / PULSES_PER_STEP_MICRO);
+  const step = Math.min(Math.max(rawStep, 0), STEPS_BEAT - 1);
+  const pμ_in_step = _pμ_in_beat - BigInt(step) * PULSES_PER_STEP_MICRO;
+  const stepPct = Number(pμ_in_step) / Number(PULSES_PER_STEP_MICRO);
+
+  const pulse = Number(floorDiv(pμ_total, ONE_PULSE_MICRO));
+  const pulsesIntoBeat = Number(_pμ_in_beat / ONE_PULSE_MICRO);
+  const pulsesIntoDay = Number(pμ_in_day / ONE_PULSE_MICRO);
+
+  const harmonicDayIndex = Number(imod(dayIndex, BigInt(DAYS_PER_WEEK)));
+  const harmonicDay = WEEKDAY[harmonicDayIndex];
+  const chakraDay = DAY_TO_CHAKRA[harmonicDay];
+
+  const dayIndexNum = Number(dayIndex);
+  const dayOfMonth =
+    ((dayIndexNum % DAYS_PER_MONTH) + DAYS_PER_MONTH) % DAYS_PER_MONTH + 1;
+
+  const monthsSinceGenesis = Math.floor(dayIndexNum / DAYS_PER_MONTH);
+  const monthIndex0 =
+    ((monthsSinceGenesis % MONTHS_PER_YEAR) + MONTHS_PER_YEAR) %
+    MONTHS_PER_YEAR;
+  const monthIndex1 = monthIndex0 + 1;
+  const monthName = ETERNAL_MONTH_NAMES[monthIndex0];
+
+  const yearIndex = Math.floor(dayIndexNum / DAYS_PER_YEAR);
+  const weekIndex = Math.floor((dayOfMonth - 1) / DAYS_PER_WEEK);
+  const weekName = [
+    "Awakening Flame",
+    "Flowing Heart",
+    "Radiant Will",
+    "Harmonic Voh",
+    "Inner Mirror",
+    "Dreamfire Memory",
+    "Krowned Light",
+  ][weekIndex];
+
+  const chakraStepString = `${beat}:${pad2(step)}`;
+  return {
+    pulse,
+    beat,
+    step,
+    stepPct,
+    pulsesIntoBeat,
+    pulsesIntoDay,
+    harmonicDay,
+    chakraDay,
+    chakraStepString,
+    dayOfMonth,
+    monthIndex0,
+    monthIndex1,
+    monthName,
+    yearIndex,
+    weekIndex,
+    weekName,
+    _pμ_in_day: pμ_in_day,
+    _pμ_in_beat,
+  };
+}
+
+/** μ-pulse strict: absolute pulse → Kai moment (beat/step/weekday/chakra) */
+function kaiMomentFromAbsolutePulse(pulse: number): KaiMomentStrict {
+  const pμ_total = BigInt(pulse) * ONE_PULSE_MICRO;
+  const pμ_in_day = imod(pμ_total, N_DAY_MICRO);
+  const dayIndex = floorDiv(pμ_total, N_DAY_MICRO);
+
+  const beat = Number(floorDiv(pμ_in_day, MU_PER_BEAT_EXACT)); // 0..35
+  const pμ_in_beat = pμ_in_day - BigInt(beat) * MU_PER_BEAT_EXACT;
+
+  const stepIndex = Number(pμ_in_beat / PULSES_PER_STEP_MICRO); // 0..43 (floor)
+  const stepClamped = Math.min(Math.max(stepIndex, 0), STEPS_BEAT - 1);
+
+  const weekday = WEEKDAY[Number(imod(dayIndex, 6n)) as 0 | 1 | 2 | 3 | 4 | 5];
+  const chakraDay = DAY_TO_CHAKRA[weekday];
+
+  return { beat, stepIndex: stepClamped, weekday, chakraDay };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Boundary-locked scheduler + countdown (sleep-resilient, no jitter)
+   ──────────────────────────────────────────────────────────────────────────── */
+function useKaiPulseCountdown(active: boolean) {
+  const [secsLeft, setSecsLeft] = React.useState<number | null>(
+    active ? KAI_PULSE_SEC : null,
+  );
+  const nextRef = React.useRef<number>(0);
+  const rafRef = React.useRef<number | null>(null);
+  const intRef = React.useRef<number | null>(null);
+
+  const epochNow = () => performance.timeOrigin + performance.now();
+  const computeNextBoundary = (nowMs: number) => {
+    const elapsed = nowMs - GENESIS_TS;
+    const periods = Math.ceil(elapsed / PULSE_MS);
+    return GENESIS_TS + periods * PULSE_MS;
+  };
+
+  React.useEffect(() => {
+    if (!active) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (intRef.current) clearInterval(intRef.current);
+      rafRef.current = null;
+      intRef.current = null;
+      setSecsLeft(null);
+      return;
+    }
+
+    const root = document.documentElement;
+    root.style.setProperty("--kai-pulse", `${PULSE_MS}ms`);
+
+    nextRef.current = computeNextBoundary(epochNow());
+
+    const tick = () => {
+      const now = epochNow();
+      if (now >= nextRef.current) {
+        const missed = Math.floor((now - nextRef.current) / PULSE_MS) + 1;
+        nextRef.current += missed * PULSE_MS;
+      }
+      setSecsLeft(Math.max(0, (nextRef.current - now) / 1000));
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+        if (!intRef.current) {
+          intRef.current = window.setInterval(() => {
+            const now = Date.now();
+            if (now >= nextRef.current) {
+              const missed = Math.floor((now - nextRef.current) / PULSE_MS) + 1;
+              nextRef.current += missed * PULSE_MS;
+            }
+            setSecsLeft(Math.max(0, (nextRef.current - now) / 1000));
+          }, 33);
+        }
+      } else {
+        if (intRef.current) {
+          clearInterval(intRef.current);
+          intRef.current = null;
+        }
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        nextRef.current = computeNextBoundary(epochNow());
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (intRef.current) clearInterval(intRef.current);
+    };
+  }, [active]);
+
+  return secsLeft;
+}
+
+function useAlignedKaiTicker() {
+  const [kai, setKai] = React.useState<LocalKai>(() =>
+    computeLocalKai(new Date()),
+  );
+  const timeoutRef = React.useRef<number | null>(null);
+  const targetBoundaryRef = React.useRef<number>(0);
+
+  const epochNow = () => performance.timeOrigin + performance.now();
+  const computeNextBoundary = (nowMs: number) => {
+    const elapsed = nowMs - GENESIS_TS;
+    const periods = Math.ceil(elapsed / PULSE_MS);
+    return GENESIS_TS + periods * PULSE_MS;
+  };
+  const clearAlignedTimer = () => {
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+  const syncGlobalPulseVars = (nowMs: number) => {
+    const root = document.documentElement;
+    const elapsed = ((nowMs - GENESIS_TS) % PULSE_MS + PULSE_MS) % PULSE_MS;
+    const lag = PULSE_MS - elapsed;
+    root.style.setProperty("--pulse-dur", `${PULSE_MS}ms`);
+    root.style.setProperty("--pulse-offset", `-${Math.round(lag)}ms`);
+  };
+
+  const schedule = React.useCallback(() => {
+    clearAlignedTimer();
+    const now = epochNow();
+    targetBoundaryRef.current = computeNextBoundary(now);
+    syncGlobalPulseVars(now);
+
+    const fire = () => {
+      const nowMs = epochNow();
+      const missed = Math.floor((nowMs - targetBoundaryRef.current) / PULSE_MS);
+      const runs = Math.max(0, missed) + 1;
+      for (let i = 0; i < runs; i++) {
+        setKai(computeLocalKai(new Date()));
+        targetBoundaryRef.current += PULSE_MS;
+      }
+      const delay = Math.max(0, targetBoundaryRef.current - epochNow());
+      timeoutRef.current = window.setTimeout(fire, delay) as unknown as number;
+    };
+
+    const delay = Math.max(0, targetBoundaryRef.current - now);
+    timeoutRef.current = window.setTimeout(fire, delay) as unknown as number;
+  }, []);
+
+  React.useEffect(() => {
+    schedule();
+    return () => clearAlignedTimer();
+  }, [schedule]);
+
+  React.useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [schedule]);
+
+  return kai;
+}
 
 /** ---------- Globals / ambient ---------- */
 declare global {
@@ -87,14 +432,18 @@ const shortBase = (): URL => {
   }
   return new URL(
     "/",
-    typeof window !== "undefined" ? window.location.href : "https://example.com",
+    typeof window !== "undefined"
+      ? window.location.href
+      : "https://example.com",
   );
 };
 
 const canonicalBase = (): URL =>
   new URL(
     "/",
-    typeof window !== "undefined" ? window.location.href : "https://example.com",
+    typeof window !== "undefined"
+      ? window.location.href
+      : "https://example.com",
   );
 
 /** ---------- Local types & constants ---------- */
@@ -129,7 +478,8 @@ async function loadLinksJson(): Promise<Source[]> {
     if (
       Array.isArray(data) &&
       data.every(
-        (row) => row && typeof row === "object" && typeof (row as Source).url === "string",
+        (row) =>
+          row && typeof row === "object" && typeof (row as Source).url === "string",
       )
     ) {
       return data as Source[];
@@ -153,9 +503,9 @@ function prependUniqueToStorage(urls: string[]): void {
   }
 }
 
-function kaiLabel(k: KaiMoment): string {
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  return `Kai ${k.beat}:${pad2(k.stepIndex)} — ${k.weekday} • ${k.chakraDay}`;
+/** Local label builder (strict type — no utils dependency) */
+function kaiLabel(k: KaiMomentStrict): string {
+  return `Kairos ${k.beat}:${pad2(k.stepIndex)} — ${k.weekday} • ${k.chakraDay}`;
 }
 
 function buildStreamUrl(token: string): string {
@@ -185,7 +535,10 @@ function isUrl(u: string): boolean {
 function isLikelySigilUrl(u: string): boolean {
   try {
     const url = new URL(u);
-    return (url.protocol === "https:" || url.protocol === "http:") && url.search.includes("p=");
+    return (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      url.search.includes("p=")
+    );
   } catch {
     return false;
   }
@@ -265,7 +618,10 @@ function extractSigilActionUrlFromSvgText(
           }
         }
       } catch (e) {
-        report("extractSigilActionUrlFromSvgText metadata JSON.parse failed", e);
+        report(
+          "extractSigilActionUrlFromSvgText metadata JSON.parse failed",
+          e,
+        );
         const m = peeled.match(/https?:\/\/[^\s"'<>)#]+/i);
         if (m && isHttp(m[0])) return m[0];
       }
@@ -314,10 +670,8 @@ function isAttachmentUrl(v: unknown): v is AttachmentUrl {
   if (!isRecord(v)) return false;
   if (v["kind"] !== "url") return false;
   if (typeof v["url"] !== "string") return false;
-
-  // title is optional but must be a string if present
-  if ("title" in v && typeof (v as Record<string, unknown>)["title"] !== "string") return false;
-
+  if ("title" in v && typeof (v as Record<string, unknown>)["title"] !== "string")
+    return false;
   return true;
 }
 
@@ -343,7 +697,9 @@ function isAttachmentFileRef(v: unknown): v is AttachmentFileRef {
   );
 }
 function isAttachmentItem(v: unknown): v is AttachmentItem {
-  return isAttachmentUrl(v) || isAttachmentFileInline(v) || isAttachmentFileRef(v);
+  return (
+    isAttachmentUrl(v) || isAttachmentFileInline(v) || isAttachmentFileRef(v)
+  );
 }
 function isAttachmentManifest(v: unknown): v is AttachmentManifest {
   return (
@@ -357,7 +713,9 @@ function isAttachmentManifest(v: unknown): v is AttachmentManifest {
 }
 
 /** Pull `attachments` off an arbitrary decoded payload (cast-through-unknown). */
-function getAttachmentsFromPayload(payload: FeedPostPayload | null): AttachmentManifest | null {
+function getAttachmentsFromPayload(
+  payload: FeedPostPayload | null,
+): AttachmentManifest | null {
   if (!payload) return null;
   const candidate = (payload as unknown as { attachments?: unknown }).attachments;
   return isAttachmentManifest(candidate) ? candidate : null;
@@ -390,7 +748,10 @@ function useHarmonicToasts(): ToastApi {
 type VibrateLike = (pattern: number | number[] | Iterable<number>) => boolean;
 
 function hasVibrate(nav: Navigator): nav is Navigator & { vibrate: VibrateLike } {
-  return "vibrate" in nav && typeof (nav as unknown as { vibrate: unknown }).vibrate === "function";
+  return (
+    "vibrate" in nav &&
+    typeof (nav as unknown as { vibrate: unknown }).vibrate === "function"
+  );
 }
 
 function tryHaptic(pattern: number | number[]) {
@@ -407,13 +768,11 @@ let _audioCtx: AudioContext | null = null;
 function getAudio(): AudioContext | null {
   try {
     if (typeof window === "undefined") return null;
-    if (!_audioCtx) {
-      type AudioCtor = new (...args: never[]) => AudioContext;
-      const ctor =
-        ((window.AudioContext as unknown) as AudioCtor | undefined) ??
-        (window.webkitAudioContext as AudioCtor | undefined);
-      _audioCtx = ctor ? new ctor() : null;
-    }
+    type AudioCtor = new (...args: never[]) => AudioContext;
+    const ctor =
+      ((window.AudioContext as unknown) as AudioCtor | undefined) ??
+      (window.webkitAudioContext as AudioCtor | undefined);
+    if (!_audioCtx) _audioCtx = ctor ? new ctor() : null;
     return _audioCtx;
   } catch {
     return null;
@@ -466,7 +825,9 @@ function sparkBurstAt(clientX: number, clientY: number) {
       const dx = (Math.random() - 0.5) * 180;
       const dy = (Math.random() - 0.5) * 180 - 40;
       requestAnimationFrame(() => {
-        el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${0.6 + Math.random() * 0.6}) rotate(${(Math.random() - 0.5) * 90}deg)`;
+        el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${
+          0.6 + Math.random() * 0.6
+        }) rotate(${(Math.random() - 0.5) * 90}deg)`;
         el.style.opacity = "0";
       });
       window.setTimeout(() => el.remove(), 700);
@@ -481,7 +842,13 @@ function sparkBurstAt(clientX: number, clientY: number) {
 function ToastsProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const push: ToastApi["push"] = ({ kind, title, detail, urlPreview, ttl = 4200 }) => {
+  const push: ToastApi["push"] = ({
+    kind,
+    title,
+    detail,
+    urlPreview,
+    ttl = 4200,
+  }) => {
     const id = Math.floor(Math.random() * 1_000_000_000);
     const t: Toast = { id, kind, title, detail, urlPreview, created: Date.now() };
     setToasts((prev) => [t, ...prev].slice(0, 5));
@@ -537,56 +904,140 @@ function ToastsProvider({ children }: { children: React.ReactNode }) {
               <div aria-hidden style={{ fontSize: 18, lineHeight: 1 }}>
                 {t.kind === "success" ? (
                   <svg
-                    width="1em" height="1em" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                    width="1em"
+                    height="1em"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <defs>
-                      <filter id="kaiGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="0.9" result="blur1" />
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="blur2" />
-                        <feMerge><feMergeNode in="blur2" /><feMergeNode in="blur1" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      <filter
+                        id="kaiGlow"
+                        x="-50%"
+                        y="-50%"
+                        width="200%"
+                        height="200%"
+                      >
+                        <feGaussianBlur
+                          in="SourceGraphic"
+                          stdDeviation="0.9"
+                          result="blur1"
+                        />
+                        <feGaussianBlur
+                          in="SourceGraphic"
+                          stdDeviation="1.8"
+                          result="blur2"
+                        />
+                        <feMerge>
+                          <feMergeNode in="blur2" />
+                          <feMergeNode in="blur1" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
                       </filter>
                       <linearGradient id="kaiSheen" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="currentColor" stopOpacity=".95"/>
-                        <stop offset="100%" stopColor="currentColor" stopOpacity=".35"/>
+                        <stop offset="0%" stopColor="currentColor" stopOpacity=".95" />
+                        <stop
+                          offset="100%"
+                          stopColor="currentColor"
+                          stopOpacity=".35"
+                        />
                       </linearGradient>
                     </defs>
                     <g transform="translate(12 12)" filter="url(#kaiGlow)">
                       <g stroke="url(#kaiSheen)">
                         <g>
-                          <line x1="0" y1="-8.5" x2="0" y2="8.5"/>
-                          <line x1="-8.5" y1="0" x2="8.5" y2="0"/>
-                          <line x1="-6" y1="-6" x2="6" y2="6"/>
-                          <line x1="-6" y1="6" x2="6" y2="-6"/>
-                          <line x1="-3.2" y1="-8" x2="3.2" y2="8"/>
-                          <line x1="-8" y1="-3.2" x2="8" y2="3.2"/>
-                          <line x1="-3.2" y1="8" x2="3.2" y2="-8"/>
-                          <line x1="-8" y1="3.2" x2="8" y2="-3.2"/>
+                          <line x1="0" y1="-8.5" x2="0" y2="8.5" />
+                          <line x1="-8.5" y1="0" x2="8.5" y2="0" />
+                          <line x1="-6" y1="-6" x2="6" y2="6" />
+                          <line x1="-6" y1="6" x2="6" y2="-6" />
+                          <line x1="-3.2" y1="-8" x2="3.2" y2="8" />
+                          <line x1="-8" y1="-3.2" x2="8" y2="3.2" />
+                          <line x1="-3.2" y1="8" x2="3.2" y2="-8" />
+                          <line x1="-8" y1="3.2" x2="8" y2="-3.2" />
                         </g>
-                        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="5.236s" repeatCount="indefinite"/>
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0"
+                          to="360"
+                          dur="5.236s"
+                          repeatCount="indefinite"
+                        />
                       </g>
-                      <path d="M0 -5.5 L1.6 -1.6 L5.5 0 L1.6 1.6 L0 5.5 L-1.6 1.6 L-5.5 0 L-1.6 -1.6 Z" vectorEffect="non-scaling-stroke" opacity=".95"/>
+                      <path
+                        d="M0 -5.5 L1.6 -1.6 L5.5 0 L1.6 1.6 L0 5.5 L-1.6 1.6 L-5.5 0 L-1.6 -1.6 Z"
+                        vectorEffect="non-scaling-stroke"
+                        opacity=".95"
+                      />
                       <circle r="6.6" strokeDasharray="1.2 2.4" strokeOpacity=".55">
-                        <animate attributeName="r" values="6.2;7.0;6.2" dur="5.236s" repeatCount="indefinite"/>
+                        <animate
+                          attributeName="r"
+                          values="6.2;7.0;6.2"
+                          dur="5.236s"
+                          repeatCount="indefinite"
+                        />
                       </circle>
                       <g>
-                        <circle r="0.9" fill="currentColor" stroke="none" opacity=".95" />
-                        <animateMotion dur="5.236s" repeatCount="indefinite" rotate="auto" path="M 0 -9 A 9 9 0 1 1 0.01 -9"/>
+                        <circle
+                          r="0.9"
+                          fill="currentColor"
+                          stroke="none"
+                          opacity=".95"
+                        />
+                        <animateMotion
+                          dur="5.236s"
+                          repeatCount="indefinite"
+                          rotate="auto"
+                          path="M 0 -9 A 9 9 0 1 1 0.01 -9"
+                        />
                       </g>
                     </g>
                   </svg>
                 ) : t.kind === "error" ? (
-                  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 3L2 20h20L12 3z" /><path d="M12 9v5" /><circle cx="12" cy="17" r="1" />
+                  <svg
+                    width="1em"
+                    height="1em"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3L2 20h20L12 3z" />
+                    <path d="M12 9v5" />
+                    <circle cx="12" cy="17" r="1" />
                   </svg>
                 ) : t.kind === "warn" ? (
-                  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="1em"
+                    height="1em"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M12 3c-3 2-6 2.5-9 3v5c0 5.2 3.6 9.6 9 11 5.4-1.4 9-5.8 9-11V6c-3-.5-6-1-9-3z" />
-                    <path d="M12 8v6" /><circle cx="12" cy="17" r="1" />
+                    <path d="M12 8v6" />
+                    <circle cx="12" cy="17" r="1" />
                   </svg>
                 ) : (
-                  <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="1em"
+                    height="1em"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M3 12h10a3 3 0 1 0 0-6" />
                     <path d="M5 16h9a2 2 0 1 1 0 4" />
                     <path d="M3 8h7" />
@@ -595,15 +1046,22 @@ function ToastsProvider({ children }: { children: React.ReactNode }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{t.title}</div>
-                {t.detail && <div style={{ opacity: 0.9, marginTop: 2 }}>{t.detail}</div>}
+                {t.detail && (
+                  <div style={{ opacity: 0.9, marginTop: 2 }}>{t.detail}</div>
+                )}
                 {t.urlPreview && t.kind !== "success" && (
                   <div
                     style={{
-                      marginTop: 8, display: "flex", alignItems: "center", gap: 6,
+                      marginTop: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
                       background: "rgba(255,255,255,.06)",
                       border: "1px dashed rgba(255,255,255,.15)",
-                      borderRadius: 10, padding: "6px 8px",
-                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                      borderRadius: 10,
+                      padding: "6px 8px",
+                      fontFamily:
+                        "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                       wordBreak: "break-all",
                     }}
                   >
@@ -697,8 +1155,11 @@ function spotifyEmbedFromUrl(url: string): string | null {
   try {
     const u = new URL(url);
     if (!u.hostname.includes("spotify.com")) return null;
-    // Convert open.spotify.com/track/ID → embed
-    if (u.pathname.startsWith("/track/") || u.pathname.startsWith("/album/") || u.pathname.startsWith("/playlist/")) {
+    if (
+      u.pathname.startsWith("/track/") ||
+      u.pathname.startsWith("/album/") ||
+      u.pathname.startsWith("/playlist/")
+    ) {
       return `https://open.spotify.com/embed${u.pathname}${u.search}`;
     }
     return null;
@@ -723,9 +1184,13 @@ function PrettyBytes({ n }: { n: number }) {
   const MB = KB * 1024;
   const GB = MB * 1024;
   const text =
-    n >= GB ? `${(n / GB).toFixed(2)} GB` :
-    n >= MB ? `${(n / MB).toFixed(2)} MB` :
-    n >= KB ? `${(n / KB).toFixed(2)} KB` : `${n} B`;
+    n >= GB
+      ? `${(n / GB).toFixed(2)} GB`
+      : n >= MB
+      ? `${(n / MB).toFixed(2)} MB`
+      : n >= KB
+      ? `${(n / KB).toFixed(2)} KB`
+      : `${n} B`;
   return <>{text}</>;
 }
 
@@ -740,14 +1205,20 @@ function Favicon({ host }: { host: string }) {
       loading="lazy"
       decoding="async"
       style={{ borderRadius: 3, filter: "drop-shadow(0 0 0 rgba(0,0,0,0))" }}
-      onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+      }}
     />
   );
 }
 
 function LinkCard({ url, title }: { url: string; title?: string }) {
   let host = "";
-  try { host = new URL(url).host; } catch { /* ignore */ }
+  try {
+    host = new URL(url).host;
+  } catch {
+    /* ignore */
+  }
   return (
     <a className="sf-att-link" href={url} target="_blank" rel="noopener noreferrer">
       <div className="sf-att-link__row">
@@ -807,7 +1278,6 @@ function UrlEmbed({ url, title }: { url: string; title?: string }) {
     );
   }
 
-  // Fallback to a pretty link card
   return <LinkCard url={url} title={title} />;
 }
 
@@ -819,8 +1289,15 @@ function InlineFileCard({ it }: { it: AttachmentFileInline }) {
     return (
       <div className="sf-media sf-media--image">
         <img src={dataUrl} alt={it.name} loading="lazy" decoding="async" />
-        <div className="sf-file-meta"><span>{it.name}</span><span><PrettyBytes n={it.size} /></span></div>
-        <a className="sf-file-dl" href={dataUrl} download={it.name}>Download</a>
+        <div className="sf-file-meta">
+          <span>{it.name}</span>
+          <span>
+            <PrettyBytes n={it.size} />
+          </span>
+        </div>
+        <a className="sf-file-dl" href={dataUrl} download={it.name}>
+          Download
+        </a>
       </div>
     );
   }
@@ -829,8 +1306,15 @@ function InlineFileCard({ it }: { it: AttachmentFileInline }) {
     return (
       <div className="sf-media sf-media--video">
         <video src={dataUrl} controls playsInline preload="metadata" />
-        <div className="sf-file-meta"><span>{it.name}</span><span><PrettyBytes n={it.size} /></span></div>
-        <a className="sf-file-dl" href={dataUrl} download={it.name}>Download</a>
+        <div className="sf-file-meta">
+          <span>{it.name}</span>
+          <span>
+            <PrettyBytes n={it.size} />
+          </span>
+        </div>
+        <a className="sf-file-dl" href={dataUrl} download={it.name}>
+          Download
+        </a>
       </div>
     );
   }
@@ -839,16 +1323,24 @@ function InlineFileCard({ it }: { it: AttachmentFileInline }) {
     return (
       <div className="sf-media sf-media--audio">
         <audio src={dataUrl} controls preload="metadata" />
-        <div className="sf-file-meta"><span>{it.name}</span><span><PrettyBytes n={it.size} /></span></div>
-        <a className="sf-file-dl" href={dataUrl} download={it.name}>Download</a>
+        <div className="sf-file-meta">
+          <span>{it.name}</span>
+          <span>
+            <PrettyBytes n={it.size} />
+          </span>
+        </div>
+        <a className="sf-file-dl" href={dataUrl} download={it.name}>
+          Download
+        </a>
       </div>
     );
   }
 
-  // Text-y preview
   const isTextLike =
     mime.startsWith("text/") ||
-    ["application/json", "application/xml", "application/svg+xml"].includes(mime);
+    ["application/json", "application/xml", "application/svg+xml"].includes(
+      mime,
+    );
 
   const previewText = (() => {
     if (!isTextLike) return null;
@@ -865,17 +1357,21 @@ function InlineFileCard({ it }: { it: AttachmentFileInline }) {
     <div className="sf-file">
       <div className="sf-file-head">
         <div className="sf-file-name">{it.relPath || it.name}</div>
-        <div className="sf-file-size"><PrettyBytes n={it.size} /></div>
+        <div className="sf-file-size">
+          <PrettyBytes n={it.size} />
+        </div>
       </div>
       {previewText && (
         <pre className="sf-file-pre" aria-label={`${it.name} preview`}>
-{previewText}
-{previewText.length >= 1200 ? "\n… (truncated preview)" : ""}
+          {previewText}
+          {previewText.length >= 1200 ? "\n… (truncated preview)" : ""}
         </pre>
       )}
       <div className="sf-file-foot">
         <code className="sf-hash mono">sha256:{it.sha256}</code>
-        <a className="sf-file-dl" href={dataUrl} download={it.name}>Download</a>
+        <a className="sf-file-dl" href={dataUrl} download={it.name}>
+          Download
+        </a>
       </div>
     </div>
   );
@@ -886,13 +1382,20 @@ function FileRefCard({ it }: { it: AttachmentFileRef }) {
     <div className="sf-fileref">
       <div className="sf-file-head">
         <div className="sf-file-name">{it.relPath || it.name}</div>
-        <div className="sf-file-size"><PrettyBytes n={it.size} /></div>
+        <div className="sf-file-size">
+          <PrettyBytes n={it.size} />
+        </div>
       </div>
       <div className="sf-file-foot">
-        <div className="sf-file-type">{it.type || "application/octet-stream"}</div>
+        <div className="sf-file-type">
+          {it.type || "application/octet-stream"}
+        </div>
         <code className="sf-hash mono">sha256:{it.sha256}</code>
       </div>
-      <div className="sf-note">Large file not inlined. Host by hash anywhere and add the public URL as an attachment link.</div>
+      <div className="sf-note">
+        Large file not inlined. Host by hash anywhere and add the public URL as
+        an attachment link.
+      </div>
     </div>
   );
 }
@@ -907,7 +1410,9 @@ function AttachmentGallery({ manifest }: { manifest: AttachmentManifest }) {
   if (!manifest.items.length) return null;
   return (
     <section className="sf-attachments" aria-labelledby="sf-att-title">
-      <h3 id="sf-att-title" className="sf-att-title">Attachments</h3>
+      <h3 id="sf-att-title" className="sf-att-title">
+        Attachments
+      </h3>
       <div className="sf-att-grid">
         {manifest.items.map((it, i) => (
           <div className="sf-att-item" key={i}>
@@ -916,9 +1421,14 @@ function AttachmentGallery({ manifest }: { manifest: AttachmentManifest }) {
         ))}
       </div>
       <div className="sf-att-foot">
-        <span>Total: <strong><PrettyBytes n={manifest.totalBytes} /></strong></span>
+        <span>
+          Total: <strong><PrettyBytes n={manifest.totalBytes} /></strong>
+        </span>
         {manifest.inlinedBytes > 0 && (
-          <span> • Inlined: <strong><PrettyBytes n={manifest.inlinedBytes} /></strong></span>
+          <span>
+            {" "}
+            • Inlined: <strong><PrettyBytes n={manifest.inlinedBytes} /></strong>
+          </span>
         )}
       </div>
     </section>
@@ -938,14 +1448,22 @@ export default function SigilFeedPage() {
 function SigilFeedPageInner() {
   const toasts = useHarmonicToasts();
 
+  // μpulse-accurate live Kai clock
+  const kaiNow = useAlignedKaiTicker();
+  const secsLeft = useKaiPulseCountdown(true);
+  const beatStepDisp = `${kaiNow.beat}:${pad2(kaiNow.step)}`;
+
   /** ---------- Data ---------- */
   const [sources, setSources] = useState<Source[]>([]);
 
   // Payload context if we arrived via /stream/p/<token>
   const [payload, setPayload] = useState<FeedPostPayload | null>(null);
-  const [payloadKai, setPayloadKai] = useState<KaiMoment | null>(null);
+  const [payloadKai, setPayloadKai] = useState<KaiMomentStrict | null>(null);
   const [payloadError, setPayloadError] = useState<string | null>(null);
-  const payloadAttachments = useMemo(() => getAttachmentsFromPayload(payload), [payload]);
+  const payloadAttachments = useMemo(
+    () => getAttachmentsFromPayload(payload),
+    [payload],
+  );
 
   /** ---------- Auth (session-gated identity) ---------- */
   const rawSigilAuth = useSigilAuth() as unknown;
@@ -959,7 +1477,10 @@ function SigilFeedPageInner() {
 
   const [verifiedThisSession, setVerifiedThisSession] = useState<boolean>(() => {
     try {
-      return typeof window !== "undefined" && sessionStorage.getItem(sessionKey) === "1";
+      return (
+        typeof window !== "undefined" &&
+        sessionStorage.getItem(sessionKey) === "1"
+      );
     } catch (e) {
       report("sessionStorage.getItem failed", e);
       return false;
@@ -976,11 +1497,13 @@ function SigilFeedPageInner() {
   );
 
   const composerPhiKey = useMemo(
-    () => (composerMeta ? readStringProp(composerMeta, "userPhiKey") : undefined),
+    () =>
+      composerMeta ? readStringProp(composerMeta, "userPhiKey") : undefined,
     [composerMeta],
   );
   const composerKaiSig = useMemo(
-    () => (composerMeta ? readStringProp(composerMeta, "kaiSignature") : undefined),
+    () =>
+      composerMeta ? readStringProp(composerMeta, "kaiSignature") : undefined,
     [composerMeta],
   );
 
@@ -1056,10 +1579,11 @@ function SigilFeedPageInner() {
 
     setPayload(decoded);
     try {
-      const k = momentFromPulse(decoded.pulse);
+      // ✅ μ-pulse strict pulse→Kai (no legacy utils)
+      const k = kaiMomentFromAbsolutePulse(decoded.pulse);
       setPayloadKai(k);
     } catch (e) {
-      report("momentFromPulse failed", e);
+      report("kaiMomentFromAbsolutePulse failed", e);
       setPayloadKai(null);
     }
 
@@ -1126,15 +1650,18 @@ function SigilFeedPageInner() {
 
       const actionUrl = (sigilActionUrl || "").trim();
       if (!actionUrl || !isLikelySigilUrl(actionUrl)) {
-        setReplyWarn("No canonical sigil auth URL detected; proceeding with provided/fallback link.");
+        setReplyWarn(
+          "No canonical sigil auth URL detected; proceeding with provided/fallback link.",
+        );
       }
 
-      const pulse = momentFromUTC(new Date()).pulse;
+      // Use Eternal-Klok live pulse to seal reply
+      const pulseNow = computeLocalKai(new Date()).pulse;
 
       const payloadObj: FeedPostPayload = {
         v: 1,
         url: actionUrl || canonicalBase().origin,
-        pulse,
+        pulse: pulseNow,
         caption: replyText.trim() ? replyText.trim() : undefined,
         author: replyAuthor.trim() ? replyAuthor.trim() : undefined,
         source: "manual",
@@ -1164,7 +1691,10 @@ function SigilFeedPageInner() {
 
       requestAnimationFrame(() => {
         try {
-          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          resultRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
         } catch (e) {
           report("scrollIntoView failed", e);
         }
@@ -1179,9 +1709,14 @@ function SigilFeedPageInner() {
         ttl: 5200,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to exhale reply link.";
+      const msg =
+        e instanceof Error ? e.message : "Failed to exhale reply link.";
       setReplyErr(msg);
-      toasts.push({ kind: "error", title: "Could not seal reply.", detail: String(msg) });
+      toasts.push({
+        kind: "error",
+        title: "Could not seal reply.",
+        detail: String(msg),
+      });
     } finally {
       setReplyBusy(false);
     }
@@ -1203,7 +1738,11 @@ function SigilFeedPageInner() {
       return prev;
     });
     setInhaleValue("");
-    toasts.push({ kind: "success", title: "Link inhaled.", detail: "Added to your local stream." });
+    toasts.push({
+      kind: "success",
+      title: "Link inhaled.",
+      detail: "Added to your local stream.",
+    });
   };
 
   const onGrabClipboard = async () => {
@@ -1232,14 +1771,17 @@ function SigilFeedPageInner() {
     const onKopy = async (ev: React.MouseEvent) => {
       const clientX = ev.clientX;
       const clientY = ev.clientY;
-      // Expand any short alias to canonical first
       const canonicalUrl = expandShortAliasToCanonical(url || "");
       try {
         await navigator.clipboard.writeText(canonicalUrl);
         tryHaptic([16]);
         void phiChime();
         sparkBurstAt(clientX, clientY);
-        toasts.push({ kind: "success", title: "Link kopied.", detail: "Kai-sealed." });
+        toasts.push({
+          kind: "success",
+          title: "Link kopied.",
+          detail: "Kai-sealed.",
+        });
       } catch (e) {
         report("clipboard.writeText(canonicalUrl) failed (Kopy button)", e);
         toasts.push({
@@ -1264,13 +1806,46 @@ function SigilFeedPageInner() {
       style={{
         maxWidth: "100vw",
         overflowX: "clip",
-        paddingInline: "max(var(--space-2, 13px), env(safe-area-inset-left, 0px))",
+        paddingInline:
+          "max(var(--space-2, 13px), env(safe-area-inset-left, 0px))",
       }}
     >
       <header className="sf-head" role="region" aria-labelledby="glyph-stream-title">
         <h1 id="glyph-stream-title" style={{ wordBreak: "break-word" }}>
           Memory Stream
         </h1>
+
+        {/* Kai status — μpulse-true, boundary-locked */}
+     <div
+  className="kai-feed-status"
+  data-kai-beat={kaiNow.beat}
+  data-kai-step={kaiNow.step}
+  data-kai-bsi={beatStepDisp}
+  data-kai-pulse={kaiNow.pulse}
+  style={{
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    margin: "8px 12px 6px",
+    fontVariantNumeric: "tabular-nums",
+  }}
+>
+  <span>
+    <strong>Kairos:</strong> {beatStepDisp} • {kaiNow.harmonicDay} • {kaiNow.chakraDay}
+    {" • "}
+    <strong>pulse</strong> {kaiNow.pulse}
+  </span>
+  <span>
+    next pulse in{" "}
+    <strong>{secsLeft !== null ? secsLeft.toFixed(6) : "—"}</strong>s
+  </span>
+</div>
+
 
         {/* Payload banner + ATTACHMENTS */}
         {payload ? (
@@ -1282,9 +1857,19 @@ function SigilFeedPageInner() {
               <span className="sf-pill sf-pill--source">
                 {payload.source === "x" ? "From X" : "Manual"}
               </span>
-              {payload.author && <span className="sf-pill sf-pill--author">{payload.author}</span>}
-              {payload.sigilId && <span className="sf-pill sf-pill--sigil">Sigil {payload.sigilId}</span>}
-              {payload.phiKey && <span className="sf-pill sf-pill--phikey">ΦKey {payload.phiKey}</span>}
+              {payload.author && (
+                <span className="sf-pill sf-pill--author">{payload.author}</span>
+              )}
+              {payload.sigilId && (
+                <span className="sf-pill sf-pill--sigil">
+                  Sigil {payload.sigilId}
+                </span>
+              )}
+              {payload.phiKey && (
+                <span className="sf-pill sf-pill--phikey">
+                  ΦKey {payload.phiKey}
+                </span>
+              )}
             </div>
 
             <div
@@ -1292,8 +1877,12 @@ function SigilFeedPageInner() {
               style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
             >
               <strong>Pulse</strong>&nbsp;{payload.pulse}
-              {payloadKai && <span className="sf-kai-label"> • {kaiLabel(payloadKai)}</span>}
-              {payload.caption && <span className="sf-caption"> — “{payload.caption}”</span>}
+              {payloadKai && (
+                <span className="sf-kai-label"> • {kaiLabel(payloadKai)}</span>
+              )}
+              {payload.caption && (
+                <span className="sf-caption"> — “{payload.caption}”</span>
+              )}
             </div>
 
             {/* Kopy current payload page */}
@@ -1305,21 +1894,38 @@ function SigilFeedPageInner() {
             </div>
 
             {/* NEW: Attachment gallery */}
-            {payloadAttachments && <AttachmentGallery manifest={payloadAttachments} />}
+            {payloadAttachments && (
+              <AttachmentGallery manifest={payloadAttachments} />
+            )}
           </div>
         ) : payloadError ? (
-          <div className="sf-error" role="alert">{payloadError}</div>
+          <div className="sf-error" role="alert">
+            {payloadError}
+          </div>
         ) : (
           <>
-            <p className="sf-sub" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
-              Open a payload link at <code>/stream/p/&lt;token&gt;</code>. Replies are Kai-sealed and
-              automatically add themselves to the stream; threads include sources via <code>?add=</code>.
+            <p
+              className="sf-sub"
+              style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+            >
+              Open a payload link at <code>/stream/p/&lt;token&gt;</code>.
+              Replies are Kai-sealed and automatically add themselves to the
+              stream; threads include sources via <code>?add=</code>.
             </p>
 
             {/* -------- Link Inhaler -------- */}
-            <section className="sf-inhaler" aria-labelledby="inhaler-title" style={{ marginTop: "1rem" }}>
-              <h2 id="inhaler-title" className="sf-reply-title">Inhale a memory</h2>
-              <div className="sf-reply-row" style={{ display: "grid", gap: ".5rem" }}>
+            <section
+              className="sf-inhaler"
+              aria-labelledby="inhaler-title"
+              style={{ marginTop: "1rem" }}
+            >
+              <h2 id="inhaler-title" className="sf-reply-title">
+                Inhale a memory
+              </h2>
+              <div
+                className="sf-reply-row"
+                style={{ display: "grid", gap: ".5rem" }}
+              >
                 <input
                   ref={inhaleInputRef}
                   className="sf-input"
@@ -1332,11 +1938,28 @@ function SigilFeedPageInner() {
                   spellCheck={false}
                   inputMode="url"
                 />
-                <div className="sf-reply-actions" style={{ gap: ".5rem", display: "flex", flexWrap: "wrap" }}>
-                  <button className="sf-btn" onClick={() => onInhaleLink(inhaleValue)}>Inhale</button>
-                  <button className="sf-btn sf-btn--ghost" onClick={onGrabClipboard}>Grab from Klipboard</button>
+                <div
+                  className="sf-reply-actions"
+                  style={{ gap: ".5rem", display: "flex", flexWrap: "wrap" }}
+                >
+                  <button
+                    className="sf-btn"
+                    onClick={() => onInhaleLink(inhaleValue)}
+                  >
+                    Inhale
+                  </button>
+                  <button
+                    className="sf-btn sf-btn--ghost"
+                    onClick={onGrabClipboard}
+                  >
+                    Grab from Klipboard
+                  </button>
                 </div>
-                {inhaleErr && <div className="sf-error" role="alert">{inhaleErr}</div>}
+                {inhaleErr && (
+                  <div className="sf-error" role="alert">
+                    {inhaleErr}
+                  </div>
+                )}
               </div>
             </section>
           </>
@@ -1345,7 +1968,9 @@ function SigilFeedPageInner() {
         {/* Reply Composer (session-gated) */}
         {payload && (
           <section className="sf-reply" aria-labelledby="reply-title">
-            <h2 id="reply-title" className="sf-reply-title">Reply</h2>
+            <h2 id="reply-title" className="sf-reply-title">
+              Reply
+            </h2>
 
             {!verifiedThisSession ? (
               <div className="sf-reply-login">
@@ -1359,14 +1984,38 @@ function SigilFeedPageInner() {
             ) : (
               <>
                 {/* Identity preview */}
-                <div className="sf-reply-id" style={{ rowGap: ".4rem", columnGap: ".4rem", display: "flex", flexWrap: "wrap" }}>
-                  {composerPhiKey && <span className="sf-pill sf-pill--phikey" title="Your ΦKey (session)">ΦKey {composerPhiKey}</span>}
-                  {composerKaiSig && <span className="sf-pill sf-pill--ksig" title="Kai Signature (session)">ΣSig {composerKaiSig}</span>}
+                <div
+                  className="sf-reply-id"
+                  style={{
+                    rowGap: ".4rem",
+                    columnGap: ".4rem",
+                    display: "flex",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {composerPhiKey && (
+                    <span
+                      className="sf-pill sf-pill--phikey"
+                      title="Your ΦKey (session)"
+                    >
+                      ΦKey {composerPhiKey}
+                    </span>
+                  )}
+                  {composerKaiSig && (
+                    <span
+                      className="sf-pill sf-pill--ksig"
+                      title="Kai Signature (session)"
+                    >
+                      ΣSig {composerKaiSig}
+                    </span>
+                  )}
                 </div>
 
                 {/* Optional author handle */}
                 <div className="sf-reply-row">
-                  <label className="sf-label">Author <span className="sf-muted">(optional)</span></label>
+                  <label className="sf-label">
+                    Author <span className="sf-muted">(optional)</span>
+                  </label>
                   <input
                     className="sf-input"
                     type="text"
@@ -1395,14 +2044,25 @@ function SigilFeedPageInner() {
                 {/* Sigil action URL preview (locked) */}
                 {sigilActionUrl ? (
                   <div className="sf-reply-row">
-                    <label className="sf-label">Sigil Verifikation <span className="sf-muted">(URL)</span></label>
-                    <input className="sf-input sf-input--locked" type="url" value={sigilActionUrl} readOnly />
+                    <label className="sf-label">
+                      Sigil Verifikation <span className="sf-muted">(URL)</span>
+                    </label>
+                    <input
+                      className="sf-input sf-input--locked"
+                      type="url"
+                      value={sigilActionUrl}
+                      readOnly
+                    />
                     {!isLikelySigilUrl(sigilActionUrl) && (
-                      <div className="sf-warn" role="status">No kanonical sigil link found; a fallback will be used.</div>
+                      <div className="sf-warn" role="status">
+                        No kanonical sigil link found; a fallback will be used.
+                      </div>
                     )}
                   </div>
                 ) : (
-                  <div className="sf-warn" role="status">No sigil verifikation URL detected; a fallback will be used.</div>
+                  <div className="sf-warn" role="status">
+                    No sigil verifikation URL detected; a fallback will be used.
+                  </div>
                 )}
 
                 {/* Errors / warnings */}
@@ -1411,14 +2071,23 @@ function SigilFeedPageInner() {
 
                 {/* Actions */}
                 <div className="sf-reply-actions">
-                  <button className="sf-btn" onClick={() => void onGenerateReply()} disabled={replyBusy} aria-busy={replyBusy}>
+                  <button
+                    className="sf-btn"
+                    onClick={() => void onGenerateReply()}
+                    disabled={replyBusy}
+                    aria-busy={replyBusy}
+                  >
                     {replyBusy ? "Sealing…" : "Exhale Reply Link"}
                   </button>
                   <button
                     className="sf-btn sf-btn--ghost"
                     onClick={() => {
                       setVerifiedThisSession(false);
-                      try { sessionStorage.removeItem(sessionKey); } catch (e) { report("sessionStorage.removeItem failed", e); }
+                      try {
+                        sessionStorage.removeItem(sessionKey);
+                      } catch (e) {
+                        report("sessionStorage.removeItem failed", e);
+                      }
                     }}
                   >
                     Use a different glyph
@@ -1429,9 +2098,22 @@ function SigilFeedPageInner() {
                 {replyUrl && (
                   <div className="sf-reply-result" ref={resultRef}>
                     <label className="sf-label">Share this link</label>
-                    <input className="sf-input" type="text" readOnly value={replyUrl} onFocus={(e) => e.currentTarget.select()} />
+                    <input
+                      className="sf-input"
+                      type="text"
+                      readOnly
+                      value={replyUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
                     <div className="sf-reply-actions">
-                      <a className="sf-link" href={replyUrl} target="_blank" rel="noopener noreferrer">Open reply →</a>
+                      <a
+                        className="sf-link"
+                        href={replyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open reply →
+                      </a>
                       <KopyButton url={replyUrl} label="Kopy" />
                     </div>
                     <p className="sf-sub"></p>
@@ -1447,8 +2129,9 @@ function SigilFeedPageInner() {
       <section className="sf-list">
         {urls.length === 0 ? (
           <div className="sf-empty">
-            No items yet. Paste a link above or open a <code>/stream/p/&lt;payload&gt;</code> link and
-            reply to start a thread.
+            No items yet. Paste a link above or open a{" "}
+            <code>/stream/p/&lt;payload&gt;</code> link and reply to start a
+            thread.
           </div>
         ) : (
           urls.map((u) => <FeedCard key={u} url={u} />)
@@ -1509,6 +2192,7 @@ function SigilFeedPageInner() {
         }
         .sf-file-type { opacity: .85; }
         .sf-hash { user-select: all; font-size: .85rem; }
+
         .sf-note { margin-top: 6px; opacity: .8; font-size: .9rem; }
 
         .sf-att-link {
@@ -1553,7 +2237,9 @@ function expandShortAliasToCanonical(hrefLike: string): string {
       try {
         const isShort = add.startsWith("/p#t=") || add.startsWith("#t=") || add.includes("/p?t=");
         const expandedAdd = isShort
-          ? expandShortAliasToCanonical(add.startsWith("#t=") ? `${shortBase().origin}/p${add}` : add)
+          ? expandShortAliasToCanonical(
+              add.startsWith("#t=") ? `${shortBase().origin}/p${add}` : add,
+            )
           : add;
         dest.searchParams.set("add", expandedAdd);
       } catch (e) {
@@ -1573,12 +2259,11 @@ function normalizeAddParam(s: string): string {
   if (!v) return v;
   try {
     if (v.startsWith("/p#t=") || v.startsWith("#t=") || v.includes("/p?t=")) {
-      const full =
-        v.startsWith("#t=")
-          ? `${shortBase().origin}/p${v}`
-          : v.startsWith("/p")
-          ? `${shortBase().origin}${v}`
-          : v;
+      const full = v.startsWith("#t=")
+        ? `${shortBase().origin}/p${v}`
+        : v.startsWith("/p")
+        ? `${shortBase().origin}${v}`
+        : v;
       return expandShortAliasToCanonical(full);
     }
     if (v.startsWith("http")) {

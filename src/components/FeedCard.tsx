@@ -5,7 +5,6 @@ import { decodeSigilUrl } from "../utils/sigilDecode";
 import {
   STEPS_BEAT,
   momentFromPulse,
-  toDisplayBeatStep,
   type ChakraDay,
 } from "../utils/kai_pulse";
 import type {
@@ -57,15 +56,15 @@ function toChakra(value: unknown, fallback: ChakraDay): ChakraDay {
   return fallback;
 }
 
-/** Arc name from beat (0..35) — 6 beats per arc */
-function arcFromBeat(beat: number):
+/** Arc name from *zero-based* beat (0..35) — 6 beats per arc */
+function arcFromBeat(beatZ: number):
   | "Ignition Ark"
   | "Integration Ark"
   | "Harmonization Ark"
   | "Reflection Ark"
   | "Purification Ark"
   | "Dream Ark" {
-  const idx = Math.max(0, Math.min(5, Math.floor(beat / 6)));
+  const idx = Math.max(0, Math.min(5, Math.floor(beatZ / 6)));
   return (
     [
       "Ignition Ark",
@@ -78,16 +77,24 @@ function arcFromBeat(beat: number):
   )[idx];
 }
 
-/** Build a Kai-first meta line. NEVER display Chronos. */
-function buildKaiMetaLine(pulse: number, beat: number, stepIndex: number, chakraDay: ChakraDay): string {
-  const { label } = toDisplayBeatStep(beat, stepIndex); // "BB:SS" (1-based label)
-  const arc = arcFromBeat(beat);
+/** Two-digit pad: 0 → "00", 1 → "01", … 9 → "09", etc. */
+const pad2 = (n: number): string => String(Math.max(0, Math.floor(n))).padStart(2, "0");
+
+/** Build a Kai-first meta line with **zero-based**, **two-digit** BB:SS label. NEVER display Chronos. */
+function buildKaiMetaLineZero(
+  pulse: number,
+  beatZ: number,
+  stepZ: number,
+  chakraDay: ChakraDay
+): string {
+  const arc = arcFromBeat(beatZ);
+  const label = `${pad2(beatZ)}:${pad2(stepZ)}`; // zero-based, two-digit BB:SS
   return `Kai:${pulse} • ${label} • ${chakraDay} • ${arc}`;
 }
 
-/** Compute stepPct for KaiSigil from a zero-based stepIndex */
-function stepPctFromIndex(stepIndex: number): number {
-  const s = Math.max(0, Math.min(STEPS_BEAT - 1, Math.floor(stepIndex)));
+/** Compute stepPct for KaiSigil from a *zero-based* step index */
+function stepPctFromIndex(stepZ: number): number {
+  const s = Math.max(0, Math.min(STEPS_BEAT - 1, Math.floor(stepZ)));
   const pct = s / STEPS_BEAT;
   return pct >= 1 ? 1 - 1e-12 : pct;
 }
@@ -138,16 +145,23 @@ export const FeedCard: React.FC<Props> = ({ url }) => {
 
   // Derive Kai meta robustly
   const pulse = typeof data.pulse === "number" ? data.pulse : 0;
-  let beat = typeof data.beat === "number" ? data.beat : 0;
-  let stepIndex = typeof data.stepIndex === "number" ? data.stepIndex : 0;
+
+  // Start from provided numbers or compute from pulse, then normalize to zero-based ints
+  let beatRaw = typeof data.beat === "number" ? data.beat : NaN;
+  let stepRaw = typeof data.stepIndex === "number" ? data.stepIndex : NaN;
   let chakraDay: ChakraDay = toChakra(data.chakraDay, "Crown");
 
-  if (!(typeof data.beat === "number" && typeof data.stepIndex === "number")) {
+  if (!Number.isFinite(beatRaw) || !Number.isFinite(stepRaw) || !data.chakraDay) {
     const m = momentFromPulse(pulse);
-    beat = m.beat;
-    stepIndex = m.stepIndex;
+    // Assume momentFromPulse already returns zero-based; if not, floor & clamp will still neutralize.
+    if (!Number.isFinite(beatRaw)) beatRaw = m.beat;
+    if (!Number.isFinite(stepRaw)) stepRaw = m.stepIndex;
     if (!data.chakraDay) chakraDay = m.chakraDay;
   }
+
+  // Normalize to **zero-based** integers for all downstream usage
+  const beatZ = Math.max(0, Math.floor(beatRaw));
+  const stepZ = Math.max(0, Math.floor(stepRaw));
 
   const kind =
     data.kind ??
@@ -161,24 +175,25 @@ export const FeedCard: React.FC<Props> = ({ url }) => {
   const signaturePresent = isNonEmpty(capsule.kaiSignature);
   const verifiedTitle = signaturePresent ? "Signature present (Kai Signature)" : "Unsigned capsule";
 
-  // ✅ FIX: author is not a field on `data`; only read from capsule
+  // ✅ author only exists on capsule
   const authorBadge = isNonEmpty(capsule.author) ? capsule.author : undefined;
 
-  // Source may exist on capsule or data depending on your decoder type
+  // Source may exist on capsule or (legacy) data
   const sourceBadge =
     (isNonEmpty(capsule.source) ? capsule.source : undefined) ||
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (typeof (data as any).source === "string" ? ((data as any).source as string) : undefined);
 
-  const kaiMeta = buildKaiMetaLine(pulse, beat, stepIndex, chakraDay);
-  const stepPct = stepPctFromIndex(stepIndex);
+  // Build Kai meta with ZERO-BASED, TWO-DIGIT label
+  const kaiMeta = buildKaiMetaLineZero(pulse, beatZ, stepZ, chakraDay);
+  const stepPct = stepPctFromIndex(stepZ);
 
   return (
     <article className="fc" role="article" aria-label={`${kind} glyph`}>
       {/* Left: living sigil */}
       <div className="fc-left" aria-hidden="true">
         <div className="fc-sigil">
-          <KaiSigil pulse={pulse} beat={beat} stepPct={stepPct} chakraDay={chakraDay} />
+          <KaiSigil pulse={pulse} beat={beatZ} stepPct={stepPct} chakraDay={chakraDay} />
         </div>
       </div>
 

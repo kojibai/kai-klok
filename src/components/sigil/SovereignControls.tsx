@@ -513,11 +513,11 @@ useMemo(() => {
                   type="button"
                   className="btn-primary btn-primary--xl file-cta pressable"
                   data-pressed={pressed === "attach"}
-                  title={isArchived ? "Archived — cannot attach" : "Choose files or a folder"}
+                  title={isArchived ? "Archived — cannot attach" : "Inhale files or a folder"}
                   tabIndex={-1}
                   aria-disabled={isArchived ? "true" : undefined}
                 >
-                  Choose Files / Folder
+                  Inhale Files / Folder
                 </button>
 
                 {/* MULTIPLE + FOLDER (via webkitdirectory) */}

@@ -657,12 +657,12 @@ export default function SocialConnector() {
         aria-label="Drop files or folders here"
       >
         <div className="dropzone-inner">
-          <div className="dz-title">Drop documents or folders here</div>
+          <div className="dz-title">Seal documents or folders</div>
           <div className="dz-sub">Tiny files get inlined; large files become cache-backed refs.</div>
           <div className="dz-actions">
             <label className="pill">
               <input type="file" multiple onChange={onPickFiles} className="visually-hidden" />
-              Choose files…
+              Inhale files…
             </label>
 
             {/* Directory picker (webkitdirectory) */}
@@ -675,12 +675,12 @@ export default function SocialConnector() {
                 onChange={onPickFiles}
                 className="visually-hidden"
               />
-              Choose folder…
+              Inhale folder…
             </label>
 
             {files.length > 0 && (
               <button type="button" className="pill subtle" onClick={clearFiles}>
-                Clear
+                Reset
               </button>
             )}
           </div>
@@ -741,8 +741,7 @@ export default function SocialConnector() {
     <div className="social-connector-container">
       <h2 className="social-connector-title">KaiVoh</h2>
       <p className="social-connector-sub">
-        Exhale a shareable post bound to your verified sigil. The pulse seals at the moment of exhaling — no edits, no
-        drift. Supports <strong>attachments</strong> and a <strong>Memory Recorder</strong>.
+        Exhale A Sealed <strong>Memory</strong>.
       </p>
 
       {/* Identity */}
@@ -755,13 +754,13 @@ export default function SocialConnector() {
       <div className="composer two">
         <div className="field">
           <label htmlFor="caption" className="composer-label">
-            Message <span className="muted">(optional)</span>
+            Memory <span className="muted">(Message)</span>
           </label>
         <textarea
             id="caption"
             className="composer-textarea"
             rows={3}
-            placeholder="Say something about this post…"
+            placeholder="What Resonants About This Moment…"
             value={caption}
             onChange={bind(setCaption)}
           />
