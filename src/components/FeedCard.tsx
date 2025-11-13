@@ -335,7 +335,7 @@ export const FeedCard: React.FC<Props> = ({ url }) => {
         {/* Fallback body if no typed content is present */}
         {!post && !message && !share && !reaction && (
           <section className="fc-bodywrap">
-            <h3 className="fc-title">Sigil Action</h3>
+            <h3 className="fc-title">Sigil Verifikation</h3>
             <a className="fc-link" href={url} target="_blank" rel="noreferrer" title={url}>
               {hostOf(url) ?? url}
             </a>

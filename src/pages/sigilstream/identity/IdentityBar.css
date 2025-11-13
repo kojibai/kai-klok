@@ -1,0 +1,202 @@
+/* ─────────────────────────────────────────────────────────────
+   IdentityBar.css — Atlantean Glass + Breath Aura (remarkable)
+   Live palette from CSS variables (updated by IdentityBar.tsx).
+   - Breath-synced via --pulse-dur / --pulse-offset (fallbacks)
+   - Long-string safety; pills auto-size (no clipping)
+   - Respects reduced motion
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Timing fallbacks (page/app may override) */
+  --kai-pulse: 5236ms;
+  --pulse-dur: var(--pulse-dur, var(--kai-pulse));
+  --pulse-offset: var(--pulse-offset, 0ms);
+
+  /* Base ink/surfaces */
+  --ink: 236, 241, 251;
+  --glass: 255, 255, 255;
+
+  /* DEFAULT palette (overwritten live via inline CSS vars) */
+  --sigil-1: 154, 230, 255;  /* primary */
+  --sigil-2: 196, 181, 253;  /* secondary */
+  --sigil-3: 255, 215, 128;  /* accent/warm */
+
+  /* Borders/Surfaces */
+  --stroke: rgba(255, 255, 255, 0.14);
+  --surface: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+}
+
+/* Wrapper: frosted card with breath aura */
+.sf-identity {
+  position: relative;
+  isolation: isolate;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  color: rgb(var(--ink));
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 0 0 1px rgba(255,255,255,.05);
+  backdrop-filter: blur(8px) saturate(112%);
+  -webkit-backdrop-filter: blur(8px) saturate(112%);
+  box-sizing: border-box;
+}
+
+/* Breath aura (soft inner light) uses live sigil colors */
+.sf-identity::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 160% at 12% -10%, rgba(var(--sigil-1), .18), transparent 60%),
+    radial-gradient(120% 160% at 110% 110%, rgba(var(--sigil-3), .16), transparent 52%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.04) inset,
+    0 0 36px rgba(var(--sigil-1), .12) inset,
+    0 0 42px rgba(var(--sigil-3), .10) inset;
+  opacity: .8;
+  transform: scale(.996);
+  animation: ib-breathe var(--pulse-dur) ease-in-out infinite;
+  animation-delay: var(--pulse-offset);
+}
+
+@keyframes ib-breathe {
+  0%   { opacity:.72; transform: scale(.996); filter: blur(6px); }
+  50%  { opacity:.97; transform: scale(1.004); filter: blur(12px); }
+  100% { opacity:.72; transform: scale(.996); filter: blur(6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-identity::before { animation: none; opacity:.9; transform:none; filter:none; }
+}
+
+/* Long-string-safe chip row */
+.sf-identity .sf-reply-id {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  min-width: 0;
+  width: 100%;
+}
+
+/* ---------- Pill base (auto-size, wraps safely) ---------- */
+.sf-pill, .sf-chip{
+  display:inline-flex;
+  align-items:flex-start;
+  height:auto;
+  min-height:26px;
+  padding:.42rem .68rem;
+  border-radius:999px;
+  font-size:.86rem;
+  letter-spacing:.01em;
+  background:rgba(var(--glass), .06);
+  border:1px solid rgba(var(--glass), .12);
+  backdrop-filter: blur(6px);
+  white-space:normal;           /* allow wrapping */
+  max-width:100%;
+  box-sizing:border-box;
+  line-height:1.2;
+  gap:.45ch;
+}
+
+.sf-identity .sf-pill + .sf-pill,
+.sf-identity .sf-chip + .sf-chip { margin-left:.35rem; }
+
+/* Gradient ring uses the live palette */
+.sf-identity .sf-pill {
+  border: 1px solid rgba(255,255,255,.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04)) padding-box,
+    linear-gradient(90deg,
+      rgba(var(--sigil-1), .35),
+      rgba(var(--sigil-2), .28),
+      rgba(var(--sigil-3), .35)
+    ) border-box;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.20) inset,
+    0 10px 26px rgba(0,0,0,.28),
+    0 0 16px rgba(var(--sigil-1), .10);
+  color: rgb(var(--ink));
+}
+
+/* Label and key text */
+.sf-identity .sf-pill__label {
+  font-weight: 800;
+  letter-spacing: .18px;
+  color: rgba(var(--sigil-3), .95);
+  text-shadow:
+    0 0 10px rgba(var(--sigil-3), .28),
+    0 0 16px rgba(var(--sigil-1), .22);
+}
+.sf-identity .sf-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  opacity: .95;
+  overflow-wrap:anywhere;
+  word-break:break-all;
+  min-width:0;
+}
+
+/* Variants (tint toward specific palette components) */
+.sf-identity .sf-pill--phikey {
+  background:
+    linear-gradient(180deg, rgba(var(--sigil-1), .15), rgba(var(--sigil-1), .06)) padding-box,
+    linear-gradient(90deg,
+      rgba(var(--sigil-1), .45),
+      rgba(var(--sigil-2), .30),
+      rgba(var(--sigil-3), .42)
+    ) border-box;
+  border: 1px solid rgba(var(--sigil-1), .35);
+  color: rgb(var(--sigil-1));
+  text-shadow: 0 0 10px rgba(var(--sigil-1), .25);
+}
+
+.sf-identity .sf-pill--ksig {
+  background:
+    linear-gradient(180deg, rgba(var(--sigil-2), .18), rgba(var(--sigil-1), .10)) padding-box,
+    linear-gradient(90deg,
+      rgba(var(--sigil-2), .45),
+      rgba(var(--sigil-1), .32),
+      rgba(var(--sigil-3), .42)
+    ) border-box;
+  border: 1px solid rgba(var(--sigil-2), .38);
+  color: rgb(var(--sigil-3));
+  text-shadow:
+    0 0 10px rgba(var(--sigil-3), .28),
+    0 0 12px rgba(var(--sigil-2), .22);
+}
+
+/* Hover/focus polish */
+.sf-identity .sf-pill:focus-visible,
+.sf-identity .sf-pill:hover {
+  outline: none;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 12px 32px rgba(0,0,0,.32),
+    0 0 18px rgba(var(--sigil-3), .28),
+    0 0 22px rgba(var(--sigil-1), .22);
+  transition: box-shadow .18s ease, transform .12s ease, filter .18s ease;
+}
+
+/* Empty state: keep the aura subtle */
+.sf-identity[data-empty]::before { opacity:.35; }
+
+/* Accessibility */
+.sf-identity [role="button"] { cursor: pointer; }
+.sf-identity :focus:not(:focus-visible) { outline: none; }
+.sf-identity :focus-visible {
+  outline: 2px solid rgba(var(--sigil-3), .55);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Ultra-small screens */
+@media (max-width: 360px) {
+  .sf-identity { padding: 8px 10px; border-radius: 12px; }
+  .sf-identity .sf-pill { padding: .36rem .56rem; }
+}

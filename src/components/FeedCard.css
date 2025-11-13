@@ -394,3 +394,27 @@
   .btn, .fc-actions { display: none !important; }
   .fc-sigil { border: 1px solid #eee; background: #fafafa; }
 }
+/* prevent horizontal creep inside cards */
+.feed-card,
+.feed-card * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.feed-card__title,
+.feed-card__subtitle,
+.feed-card__body,
+.feed-card__meta {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-break: anywhere;
+}
+
+/* media inside card stays within bounds */
+.feed-card img,
+.feed-card video,
+.feed-card iframe {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}

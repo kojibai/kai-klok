@@ -1,0 +1,293 @@
+/* ─────────────────────────────────────────────────────────────
+   Sigil Stream — Eternal-Klok UI (mobile-first, overflow-safe)
+   Breath-synced via --pulse-* vars. iOS-safe, no right-edge shave.
+   ───────────────────────────────────────────────────────────── */
+
+:root{
+  --phi: 1.61803398875;
+  --bg: 10,14,22;
+  --glass: 255,255,255;
+  --ink: 236,241,251;
+  --muted: 180,192,210;
+  --gold-ink: 255,215,128;
+  --cyan-gold: 42,197,255;
+  --ok: 88,255,174;
+  --danger: 255,88,88;
+
+  --alpha-card: .06;
+  --alpha-border: .12;
+
+  /* Timing (overridden by ticker) */
+  --pulse-dur: 5236ms;
+  --pulse-offset: 0ms;
+}
+
+/* === Global anti-overflow & mobile guards === */
+html, body { width:100%; max-width:100%; overflow-x:hidden; }
+* { box-sizing:border-box; }
+
+.sf{
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior-y:contain;
+  color:rgb(var(--ink));
+  width:100%;
+  max-width:100%;
+  padding-left:max(12px, env(safe-area-inset-left));
+  padding-right:max(12px, env(safe-area-inset-right));
+}
+
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.sf input, .sf textarea{ font-size:16px; } /* avoid iOS zoom */
+
+/* === Text: DO NOT split words. Long tokens still wrap where allowed. === */
+.sf p,
+.sf li,
+.sf .sf-payload-core,
+.sf .sf-caption,
+.sf .sf-kai-label,
+.sf .sf-hash,
+.sf .sf-note,
+.feed-card__body{
+  overflow-wrap: break-word;   /* only break inside a word if it would overflow */
+  word-break: normal;          /* keep normal word boundaries */
+  line-break: auto;
+  hyphens: none;
+  min-width:0;                 /* allow flex children to shrink */
+  /* optional nicer breaks where supported */
+  text-wrap: pretty;
+}
+
+/* Links (ANY anchor inside the stream) — may wrap anywhere to avoid overflow */
+.sf a{
+  color:rgb(var(--ink));
+  text-decoration:underline;
+  text-underline-offset:2px;
+  opacity:.95;
+  overflow-wrap:anywhere;      /* wrap long URLs */
+  word-break: break-all;       /* break inside long continuous strings */
+  line-break:anywhere;
+}
+.sf a:hover{ opacity:1; }
+
+/* ── Pills / chips ── */
+.sf-pill, .sf-chip{
+  display:inline-flex;
+  align-items:center;
+  height:auto;
+  min-height:26px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:.86rem;
+  letter-spacing:.01em;
+  background:rgba(var(--glass), .06);
+  border:1px solid rgba(var(--glass), .12);
+  backdrop-filter: blur(6px);
+  white-space:nowrap;       /* default */
+  max-width:100%;
+  min-width:0;
+}
+
+/* Identity row: allow multi-line wrapping safely in pills */
+.sf-reply-id .sf-pill{
+  white-space:normal;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  line-height:1.2;
+}
+
+/* ΦKey / ΣSig chips — wrap long keys inside the chip, never overflow */
+.sf-pill--phikey,
+.sf-pill--ksig{
+  white-space:normal;
+  flex-wrap:wrap;
+}
+.sf-pill--phikey .sf-key,
+.sf-pill--ksig .sf-key,
+.sf-pill--phikey a,
+.sf-pill--ksig a{
+  overflow-wrap:anywhere;   /* tokens can break anywhere */
+  word-break: break-all;    /* break long base58/hex cleanly */
+  line-break:anywhere;
+  min-width:0;
+}
+
+.sf-pill + .sf-pill, .sf-chip + .sf-chip{ margin-left:.35rem; }
+.sf-pill--phikey{ color: rgb(var(--ok)); border-color: rgba(88,255,174,.35); }
+.sf-pill--ksig{ color: rgb(var(--gold-ink)); border-color: rgba(var(--gold-ink), .35); }
+
+/* Labels / small text */
+.sf-label{ font-weight:600; font-size:.95rem; }
+.sf-sub{ opacity:.9; font-size:.94rem; }
+.sf-muted{ opacity:.75; }
+
+/* Warnings / errors */
+.sf-warn{
+  margin-top:.35rem; background:rgba(255,210,130,.08); border:1px solid rgba(255,210,130,.25);
+  padding:.5rem .6rem; border-radius:10px; font-size:.92rem;
+}
+.sf-error{
+  background:rgba(255,88,88,.08); border:1px solid rgba(255,88,88,.25);
+  padding:.6rem .65rem; border-radius:12px; font-weight:600;
+}
+
+/* Buttons */
+.sf-btn{
+  appearance:none; border:1px solid rgba(var(--glass), .16);
+  background:linear-gradient(180deg, rgba(var(--glass), .06), rgba(var(--glass), .04));
+  color:rgb(var(--ink)); padding:8px 12px; border-radius:12px; font-weight:600; cursor:pointer;
+  transition:border-color .15s ease, transform .05s ease, background .15s ease, box-shadow .15s ease;
+  box-shadow:0 6px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05); user-select:none;
+}
+.sf-btn:hover{ border-color: rgba(var(--glass), .25); background: linear-gradient(180deg, rgba(var(--glass), .08), rgba(var(--glass), .05)); }
+.sf-btn:active{ transform: translateY(1px); }
+.sf-btn[disabled]{ opacity:.6; cursor: default; }
+.sf-btn--ghost{ background:transparent; border:1px dashed rgba(var(--glass), .25); }
+
+/* Inputs */
+.sf-input, .sf-textarea{
+  width:100%; color:rgb(var(--ink)); background: rgba(var(--glass), .06);
+  border:1px solid rgba(var(--glass), .12); border-radius:12px; padding:10px 12px;
+  outline:none; transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.sf-textarea{ resize: vertical; min-height: 80px; }
+.sf-input:focus, .sf-textarea:focus{ border-color: rgba(var(--cyan-gold), .45); box-shadow: 0 0 0 3px rgba(42,197,255,.12); background: rgba(var(--glass), .08); }
+.sf-input--locked{ opacity:.9; background:rgba(var(--glass), .04); cursor:not-allowed; }
+
+/* ── Header: Kai Status (breath aura; no transforms) ── */
+.kai-feed-status{
+  background: rgba(var(--glass), .06);
+  border: 1px solid rgba(var(--glass), .12);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+  font-variant-numeric: tabular-nums;
+  position: relative; isolation: isolate;
+  overflow:visible;             /* never clip text on iOS */
+  -webkit-mask-image:none;
+  min-width:0;
+}
+.kai-feed-status::after{
+  content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none;
+  box-shadow:0 0 0 0 rgba(42,197,255,0);
+  animation:kai-breathe var(--pulse-dur) ease-in-out infinite; animation-delay:var(--pulse-offset);
+}
+@keyframes kai-breathe{
+  0%{ box-shadow:0 0 0 0 rgba(42,197,255,.0);}
+  50%{ box-shadow:0 0 24px 0 rgba(42,197,255,.15);}
+  100%{ box-shadow:0 0 0 0 rgba(42,197,255,.0);}
+}
+
+/* ── Payload banner ── */
+.sf-payload{
+  margin-top:.5rem; padding:.75rem 14px; /* keep glyphs off edge */
+  background: linear-gradient(180deg, rgba(12,16,24,.7), rgba(10,14,22,.6));
+  border: 1px solid rgba(var(--glass), .12);
+  border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+  overflow:visible; -webkit-mask-image:none; min-width:0;
+}
+.sf-payload-line{ display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.35rem; min-width:0; }
+.sf-payload-core{ font-size:.98rem; line-height:1.35; }
+
+/* Inhaler small tweak */
+.sf-inhaler .sf-reply-actions{ display:flex; gap:.5rem; flex-wrap:wrap; }
+
+/* Reply composer */
+.sf-reply{ margin-top:1rem; overflow:visible; min-width:0; }
+.sf-reply-title{ font-size:1.15rem; margin:0 0 .4rem; }
+.sf-reply-row{ margin-top:.6rem; min-width:0; }
+.sf-reply-actions{ margin-top:.6rem; display:flex; gap:.6rem; flex-wrap:wrap; }
+.sf-reply-login{ margin-top:.5rem; }
+.sf-reply-id{ margin-top:.25rem; display:flex; flex-wrap:wrap; gap:.5rem; min-width:0; width:100%; }
+
+/* Attachments / Embeds */
+.sf-attachments{ margin-top:1rem; }
+.sf-att-title{ font-size:1.0rem; font-weight:700; margin:0 0 .6rem; letter-spacing:.01em; }
+.sf-att-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(min(320px,100%),1fr)); gap:12px; }
+.sf-att-item{
+  background: linear-gradient(180deg, rgba(12,16,24,.7), rgba(10,14,22,.6));
+  border:1px solid rgba(var(--glass), .08); border-radius:14px;
+  box-shadow: 0 8px 26px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter: blur(6px);
+  overflow:visible; -webkit-mask-image:none; min-width:0;
+}
+.sf-att-foot{ margin-top:.35rem; opacity:.85; font-size:.9rem; }
+
+/* Embeds & media */
+.sf-embed{ position:relative; width:100%; aspect-ratio:16/9; background: rgba(255,255,255,.03); min-width:0; }
+.sf-embed iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; border-radius:12px; }
+.sf-embed--doc{ aspect-ratio:4/3; }
+
+.sf-media{ position:relative; width:100%; background: rgba(255,255,255,.02); }
+.sf-media--image{ display:grid; place-items:center; }
+.sf-media--image img{ width:100%; height:auto; display:block; }
+.sf-media--video video{ width:100%; height:auto; display:block; border-radius:12px; background:#000; }
+.sf-media--audio{ padding:10px; } .sf-media--audio audio{ width:100%; }
+
+/* Files */
+.sf-file, .sf-fileref{ padding:10px 12px; }
+.sf-file-head, .sf-file-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+.sf-file-name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sf-file-size{ opacity:.85; font-feature-settings: "tnum"; }
+.sf-file-pre{
+  margin:8px 0; max-height:240px; overflow:auto; background: rgba(255,255,255,.04);
+  border:1px dashed rgba(255,255,255,.12); border-radius:10px; padding:10px; line-height:1.25;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:.88rem;
+  white-space: pre-wrap; word-break: break-word;
+}
+.sf-file-meta{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; opacity:.9; min-width:0; }
+.sf-file-dl{
+  display:inline-flex; align-items:center; gap:6px; margin:6px 0 0; padding:6px 10px; border-radius:10px;
+  background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); text-decoration:none; color:inherit;
+}
+.sf-file-type{ opacity:.85; }
+.sf-hash{ user-select:all; font-size:.85rem; }
+.sf-note{ margin-top:6px; opacity:.8; font-size:.9rem; }
+
+/* Stream list */
+.sf-list{ margin:1rem 0; display:grid; gap:.75rem; }
+.sf-empty{
+  padding:.85rem .95rem; border:1px dashed rgba(var(--glass), .16);
+  border-radius:12px; opacity:.9;
+}
+
+/* Accessibility tweaks */
+.sf [role="button"]{ cursor:pointer; }
+.sf [aria-busy="true"]{ cursor:progress; }
+.sf [aria-disabled="true"]{ opacity:.6; cursor:default; }
+
+/* Media must never exceed container width */
+.sf img, .sf video, .sf svg, .sf canvas, .sf iframe {
+  display:block; max-width:100%; height:auto;
+}
+/* === FIX: header ΦKey pill must wrap; row must allow shrink === */
+
+/* 1) Whatever wraps your top pills (tags) should wrap lines and shrink safely */
+.sf .sf-tags,
+.sf .sf-chip-row,
+.sf .sf-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  min-width: 0;        /* critical for flex children on iOS */
+}
+
+/* 2) Any pill that contains a key should wrap internally and never run off */
+.sf .sf-pill:has(.sf-key),
+.sf .sf-pill--phikey,
+.sf .sf-pill[data-kind="phikey"] {
+  white-space: normal;   /* override the default nowrap */
+  flex-wrap: wrap;
+  align-items: flex-start;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* 3) The actual key text (long base58/hex) can break anywhere safely */
+.sf .sf-key {
+  display: inline-block;
+  overflow-wrap: anywhere;
+  word-break: break-all;   /* enables breaks inside long tokens */
+  line-break: anywhere;
+  min-width: 0;
+}
