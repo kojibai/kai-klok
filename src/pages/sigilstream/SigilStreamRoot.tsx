@@ -1,6 +1,24 @@
 // src/pages/sigilstream/SigilStreamRoot.tsx
 "use client";
 
+/**
+ * SigilStreamRoot — Memory Stream Shell
+ * v6.1 — /p~ alias + lineage bridge into Sigil Explorer
+ *
+ * - Accepts:
+ *     • Canonical: /stream/p/<token>[?add=<parentUrl>]
+ *     • Short alias: /p~<token>
+ *     • Legacy:     /p#t=<token>, /p?t=<token>
+ *
+ * - Seeds list from:
+ *     • /links.json (static seeds)
+ *     • localStorage[LS_KEY] (recent inhaled links)
+ *
+ * - Lineage + Explorer bridge:
+ *     • Any payload URL decoded from the path is registered via sigilRegistry.
+ *     • Any inhaled URL (via ?add/#add or the Inhaler UI) is registered.
+ *     • Explorer then reconstructs ancestry via resolveLineageBackwards.
+ */
 
 import React, { useEffect, useMemo, useState } from "react";
 import "./styles/sigilstream.css";
@@ -37,6 +55,9 @@ import { useSigilAuth } from "../../components/KaiVoh/SigilAuthContext";
 /* Existing util from app space (payload token extractor) */
 import { extractPayloadToken } from "../../utils/feedPayload";
 
+/* Explorer bridge: register any stream/sigil URL */
+import { registerSigilUrl } from "../../utils/sigilRegistry";
+
 /** Simple source shape */
 type Source = { url: string };
 
@@ -59,17 +80,28 @@ function SigilStreamInner(): React.JSX.Element {
   // Seed from /links.json and localStorage
   useEffect(() => {
     (async () => {
-      const seed = await loadLinksJson();
-      const stored = parseStringArray(
-        typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null,
-      );
-      const merged: Source[] = [...stored.map((u) => ({ url: u })), ...seed];
-      const seen = new Set<string>();
-      const unique = merged.filter(({ url }) =>
-        seen.has(url) ? false : (seen.add(url), true),
-      );
-      setSources(unique);
-    })().catch((e) => report("initial seed load", e));
+      try {
+        const seed = await loadLinksJson();
+        const stored = parseStringArray(
+          typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null,
+        );
+
+        const merged: Source[] = [...stored.map((u) => ({ url: u })), ...seed];
+        const seen = new Set<string>();
+        const unique = merged.filter(({ url }) =>
+          seen.has(url) ? false : (seen.add(url), true),
+        );
+
+        setSources(unique);
+
+        // Bridge: make sure Explorer knows about all seeded/stored URLs.
+        for (const { url } of unique) {
+          registerSigilUrl(url);
+        }
+      } catch (e) {
+        report("initial seed load", e);
+      }
+    })().catch((e) => report("initial seed load outer", e));
   }, []);
 
   // Ingest ?add= and #add= (supports /p~ legacy normalization)
@@ -89,8 +121,18 @@ function SigilStreamInner(): React.JSX.Element {
       setSources((prev) => {
         const seen = new Set(prev.map((s) => s.url));
         const fresh = adds.filter((u) => !seen.has(u));
-        if (fresh.length) prependUniqueToStorage(fresh);
-        return fresh.length ? [...fresh.map((u) => ({ url: u })), ...prev] : prev;
+        if (fresh.length) {
+          // Persist fresh first, then merge.
+          prependUniqueToStorage(fresh);
+
+          // Also bridge new links to Explorer.
+          for (const u of fresh) {
+            registerSigilUrl(u);
+          }
+
+          return [...fresh.map((u) => ({ url: u })), ...prev];
+        }
+        return prev;
       });
     } catch (e) {
       report("add ingestion", e);
@@ -101,6 +143,13 @@ function SigilStreamInner(): React.JSX.Element {
   const { payload, payloadKai, payloadError, payloadAttachments } = usePayload(
     setSources,
   );
+
+  // Bridge: any payload URL (canonical or alias) should be registered.
+  useEffect(() => {
+    if (payload && typeof payload.url === "string" && payload.url.length) {
+      registerSigilUrl(payload.url);
+    }
+  }, [payload]);
 
   // Derived list: show payload first if present
   const urls: string[] = useMemo(() => {
@@ -170,12 +219,13 @@ function SigilStreamInner(): React.JSX.Element {
     [composerMeta],
   );
 
-  /** ---------- Inhaler: add a link to list (with LS persistence) ---------- */
+  /** ---------- Inhaler: add a link to list (with LS persistence + Explorer) ---------- */
   const onAddInhaled = (u: string) => {
     setSources((prev) => {
       const seen = new Set(prev.map((s) => s.url));
       if (!seen.has(u)) {
         prependUniqueToStorage([u]);
+        registerSigilUrl(u);
         return [{ url: u }, ...prev];
       }
       return prev;
@@ -220,15 +270,24 @@ function SigilStreamInner(): React.JSX.Element {
             {payloadError}
           </div>
         ) : (
-          <p className="sf-sub" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
-            Open a payload link at <code>/stream/p/&lt;token&gt;</code>. Replies are Kai-sealed and
-            thread via <code>?add=</code>. Short alias accepted: <code>/p~&lt;token&gt;</code>.
+          <p
+            className="sf-sub"
+            style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+          >
+            Open a payload link at <code>/stream/p/&lt;token&gt;</code>. Replies are
+            Kai-sealed and thread via <code>?add=</code>. Short alias accepted:{" "}
+            <code>/p~&lt;token&gt;</code> (and legacy <code>/p#t=</code>,{" "}
+            <code>/p?t=</code>).
           </p>
         )}
 
         {/* Inhale */}
         {!payload && (
-          <section className="sf-inhaler" aria-labelledby="inhaler-title" style={{ marginTop: "1rem" }}>
+          <section
+            className="sf-inhaler"
+            aria-labelledby="inhaler-title"
+            style={{ marginTop: "1rem" }}
+          >
             <InhaleSection onAdd={onAddInhaled} />
           </section>
         )}
@@ -270,8 +329,8 @@ function SigilStreamInner(): React.JSX.Element {
       <section className="sf-list">
         {urls.length === 0 ? (
           <div className="sf-empty">
-            No items yet. Paste a link above or open a <code>/stream/p/&lt;payload&gt;</code> link
-            and reply to start a thread.
+            No items yet. Paste a link above or open a{" "}
+            <code>/stream/p/&lt;payload&gt;</code> link and reply to start a thread.
           </div>
         ) : (
           <StreamList urls={urls} />

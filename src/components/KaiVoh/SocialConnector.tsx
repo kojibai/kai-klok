@@ -3,11 +3,14 @@
 
 /**
  * KaiVoh — SocialConnector
- * v3.2 — Story Recorder (icon-only trigger) + Attach-any-URL + Upload-any-Document-or-Folder
+ * v4.0 — Lineage-aware stream exhale + Story Recorder + Attach-anything
  *
- * - New: Icon-only button to open the Story Recorder (no visible text).
+ * - Icon-only button to open the Story Recorder (no visible text).
  * - Captured video added as `file-ref` (SHA-256) + inline PNG thumbnail.
- * - Keeps: extra URLs; file/folder upload; inline tiny files; token length guard; verified sigil binding.
+ * - Extra URLs; file/folder upload; inline tiny files; token length guard; verified sigil binding.
+ * - NEW: Each /stream/p/<token> exhale:
+ *      • embeds parentUrl/originUrl into FeedPostPayload
+ *      • registers the stream URL with the Sigil Explorer via sigilRegistry
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -30,6 +33,8 @@ import {
 import { momentFromUTC } from "../../utils/kai_pulse";
 import { useSigilAuth } from "./SigilAuthContext";
 import StoryRecorder, { type CapturedStory } from "./StoryRecorder";
+import { registerSigilUrl } from "../../utils/sigilRegistry";
+import { getOriginUrl } from "../../utils/sigilUrl";
 
 /* ───────────────────────── Inline Icons (no visible text) ───────────────────────── */
 
@@ -419,7 +424,7 @@ export default function SocialConnector() {
     setStoryOpen(false);
   }
 
-  /* ───────────── Generate payload/link ───────────── */
+  /* ───────────── Generate payload/link (with lineage + registry) ───────────── */
 
   const onGenerate = async (): Promise<void> => {
     setErr(null);
@@ -429,7 +434,9 @@ export default function SocialConnector() {
     setTokenLength(0);
 
     const rawUrl = (sigilActionUrl || "").trim();
-    if (!isLikelySigilUrl(rawUrl)) {
+    const looksSigil = isLikelySigilUrl(rawUrl);
+
+    if (!looksSigil) {
       setWarn("Sigil verifikation URL not detected; using fallback. Link generation will still work.");
     }
 
@@ -449,6 +456,11 @@ export default function SocialConnector() {
       const mergedItems: AttachmentItem[] = [...attachments.items, ...extraUrls];
       const mergedAttachments = mergedItems.length > 0 ? makeAttachments(mergedItems) : undefined;
 
+      // Lineage: parent = sigilActionUrl (when it looks like a sigil/stream);
+      // origin = deepest ancestor if resolvable, else parent.
+      const parentUrl = looksSigil ? rawUrl : undefined;
+      const originUrl = parentUrl ? getOriginUrl(parentUrl) ?? parentUrl : undefined;
+
       const basePayload: FeedPostPayload = {
         v: 1,
         url: rawUrl,
@@ -460,6 +472,9 @@ export default function SocialConnector() {
         kaiSignature: hasVerifiedSigil && kaiSignature ? kaiSignature : undefined,
         ts: Date.now(),
         attachments: mergedAttachments,
+        // NEW: lineage fields (optional in FeedPostPayload)
+        parentUrl,
+        originUrl,
       };
 
       // Prepare (materialize inlines → file-refs in CacheStorage, prune thumbnails)
@@ -480,6 +495,9 @@ export default function SocialConnector() {
       // Canonical share URL: /stream/p/<token>
       const origin = globalThis.location?.origin ?? "https://kaiklok.com";
       const shareUrl = `${origin}/stream/p/${encodeURIComponent(token)}`;
+
+      // Register with Explorer (lineage-aware stream child)
+      registerSigilUrl(shareUrl);
 
       // Copy
       try {
@@ -756,7 +774,7 @@ export default function SocialConnector() {
           <label htmlFor="caption" className="composer-label">
             Memory <span className="muted">(Message)</span>
           </label>
-        <textarea
+          <textarea
             id="caption"
             className="composer-textarea"
             rows={3}

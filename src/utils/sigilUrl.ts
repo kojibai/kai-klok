@@ -1,6 +1,12 @@
 // src/utils/sigilUrl.ts
-// Compact, no-dependency encoder/decoder for ?p= payloads
+// Compact encoder/decoder for sigil ?p= payloads + lineage helpers.
 // Uses short-key JSON + base64url (no compression) for maximum compatibility.
+// Also bridges KaiVoh Stream URLs (/stream/p/<token>, /p~<token>, #t=<token>)
+// into lightweight SigilSharePayloadLoose so Explorer can walk glyph ←→ stream.
+
+import { decodeFeedPayload, extractPayloadToken } from "./feedPayload";
+import type { FeedPostPayload } from "./feedPayload";
+import { momentFromPulse } from "./kai_pulse";
 
 export type SigilSharePayload = {
   pulse: number;
@@ -28,6 +34,7 @@ export type SigilTransferLite = {
   r?: string; // receiverSignature
   p: number;  // pulse
 };
+
 export function encodeSigilHistory(history: SigilTransferLite[]): string {
   const json = JSON.stringify(history);
   const b64url = toB64url(toB64(new TextEncoder().encode(json)));
@@ -53,6 +60,14 @@ export type SigilSharePayloadLoose = SigilSharePayload & {
   claimExtendUnit?: "breaths" | "steps";
   claimExtendAmount?: number;
   [k: string]: unknown; // future-proof pass-through
+};
+
+type KaiMomentLike = {
+  beatIndex?: number;
+  beat?: number;
+  stepIndex?: number;
+  chakraDay?: SigilSharePayload["chakraDay"];
+  stepsPerBeat?: number;
 };
 
 /* ───────── base64url helpers ───────── */
@@ -272,15 +287,112 @@ export function extractPayloadParamFromUrl(url: string): string | null {
   }
 }
 
-/** Decode the payload embedded in a sigil URL (returns null if not present/decodable). */
-export function extractPayloadFromUrl(url: string): SigilSharePayloadLoose | null {
-  const qp = extractPayloadParamFromUrl(url);
-  if (!qp) return null;
+/** Internal: extract FeedPost token from any Stream URL (/stream, /stream/p, /p~, #t=). */
+function extractFeedTokenFromUrl(url: string): string | null {
   try {
-    return decodeSigilPayload(qp);
+    const u = new URL(url, "https://example.invalid");
+
+    // 1) Hash form: #t=<token>
+    if (u.hash) {
+      const hashToken = new URLSearchParams(u.hash.replace(/^#/, "")).get("t");
+      if (hashToken) return hashToken;
+    }
+
+    // 2) Path forms handled by feedPayload.extractPayloadToken
+    const tokenFromPath = extractPayloadToken(u.pathname);
+    if (tokenFromPath) return tokenFromPath;
+
+    // 3) Query param ?p=<token> (rare, but we support it)
+    const qp = u.searchParams.get("p");
+    return qp ?? null;
   } catch {
-    return null;
+    // Fallback: regex-based parse (very defensive)
+    const hashMatch = url.match(/#(?:t|p)=([^&#]+)/);
+    if (hashMatch) return decodeURIComponent(hashMatch[1]);
+
+    const tildeMatch = url.match(/\/p~([^/?#]+)/);
+    if (tildeMatch) return decodeURIComponent(tildeMatch[1]);
+
+    const pathMatch = url.match(/\/(?:stream|feed)\/p\/([^/]+)/);
+    if (pathMatch) return decodeURIComponent(pathMatch[1]);
+
+    const qpMatch = url.match(/[?&]p=([^&#]+)/);
+    return qpMatch ? decodeURIComponent(qpMatch[1]) : null;
   }
+}
+
+/** Internal: decode a Stream URL into a SigilSharePayloadLoose via FeedPostPayload. */
+function extractStreamSigilPayload(url: string): SigilSharePayloadLoose | null {
+  const token = extractFeedTokenFromUrl(url);
+  if (!token) return null;
+
+  const feed: FeedPostPayload | null = decodeFeedPayload(token);
+  if (!feed) return null;
+
+  // Derive Kai moment from pulse (beat/step/chakraDay/stepsPerBeat)
+  let beat = 0;
+  let stepIndex = 0;
+  let chakraDay: SigilSharePayload["chakraDay"] = "Root";
+  let stepsPerBeat = 44;
+
+  try {
+    const m = momentFromPulse(feed.pulse) as KaiMomentLike;
+    if (typeof m.beat === "number") {
+      beat = m.beat;
+    } else if (typeof m.beatIndex === "number") {
+      beat = m.beatIndex;
+    }
+    if (typeof m.stepIndex === "number") {
+      stepIndex = m.stepIndex;
+    }
+    if (typeof m.chakraDay === "string") {
+      chakraDay = m.chakraDay as SigilSharePayload["chakraDay"];
+    }
+    if (typeof m.stepsPerBeat === "number") {
+      stepsPerBeat = m.stepsPerBeat;
+    }
+  } catch {
+    // fall back to defaults if Kai moment isn't available
+  }
+
+  const parentUrl =
+    typeof feed.parentUrl === "string"
+      ? feed.parentUrl
+      : typeof (feed as { parent?: string }).parent === "string"
+      ? (feed as { parent: string }).parent
+      : undefined;
+
+  const out: SigilSharePayloadLoose = {
+    pulse: feed.pulse,
+    beat,
+    stepIndex,
+    chakraDay,
+    stepsPerBeat,
+    kaiSignature: typeof feed.kaiSignature === "string" ? feed.kaiSignature : undefined,
+    userPhiKey: typeof feed.phiKey === "string" ? feed.phiKey : undefined,
+    parentUrl,
+    originUrl: typeof feed.originUrl === "string" ? feed.originUrl : undefined,
+    // expose full FeedPostPayload for Explorer / introspection
+    feed,
+  };
+
+  return out;
+}
+
+/** Decode the payload embedded in a sigil or stream URL (null if not present/decodable). */
+export function extractPayloadFromUrl(url: string): SigilSharePayloadLoose | null {
+  // 1) Sigil (?p=c:...) case
+  const qp = extractPayloadParamFromUrl(url);
+  if (qp) {
+    try {
+      return decodeSigilPayload(qp);
+    } catch {
+      // fall through to stream decode if it wasn't a sigil payload
+    }
+  }
+
+  // 2) KaiVoh Stream URL (/stream/p/<token>, /p~<token>, #t=<token>)
+  return extractStreamSigilPayload(url);
 }
 
 /** Build a child payload with correct lineage from a parent URL. */
@@ -323,7 +435,7 @@ export function resolveLineageBackwards(startUrl: string): string[] {
   return chain;
 }
 
-/** Get the originUrl for any glyph URL (falls back to the top of the backward chain). */
+/** Get the originUrl for any glyph/stream URL (falls back to the top of the backward chain). */
 export function getOriginUrl(startUrl: string): string | undefined {
   const p = extractPayloadFromUrl(startUrl);
   if (p?.originUrl) return p.originUrl;
@@ -535,6 +647,7 @@ export function makeCanonicalQrUrl(currentUrl: string): string | null {
     return null;
   }
 }
+
 // Optional: augment Vite env typing (keeps strict TS happy without `any`)
 declare global {
   interface ImportMetaEnv {

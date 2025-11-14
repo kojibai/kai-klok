@@ -51,6 +51,14 @@ export type Attachments = {
   items: AttachmentItem[];
 };
 
+/**
+ * FeedPostPayload — single KaiVoh “memory” / stream post.
+ *
+ * Lineage fields:
+ *  - parentUrl: canonical immediate parent (sigil or stream URL)
+ *  - originUrl: root origin of the thread (top-most sigil/stream)
+ *  - parent:    legacy field, kept for back-compat; prefer parentUrl.
+ */
 export type FeedPostPayload = {
   v: typeof FEED_PAYLOAD_VERSION; // schema version
   url: string;                    // sigil/action URL to render
@@ -61,7 +69,16 @@ export type FeedPostPayload = {
   sigilId?: string;               // short glyph/sigil identifier
   phiKey?: string;                // optional ΦKey (short)
   kaiSignature?: string;          // optional Kai Signature (short)
-  parent?: string;                // canonical parent URL (/stream/p/<token> or absolute)
+
+  /** Legacy parent field (can be sigil or stream URL). Prefer parentUrl. */
+  parent?: string;
+
+  /** Canonical immediate parent URL (sigil or stream). */
+  parentUrl?: string;
+
+  /** Root-most origin URL (sigil or original stream). */
+  originUrl?: string;
+
   ts?: number;                    // unix ms (optional; never display)
   attachments?: Attachments;      // videos/images/files/url refs
 };
@@ -149,6 +166,8 @@ export function isFeedPostPayload(x: unknown): x is FeedPostPayload {
     isOptionalString(x["phiKey"]) &&
     isOptionalString(x["kaiSignature"]) &&
     isOptionalString(x["parent"]) &&
+    isOptionalString(x["parentUrl"]) &&
+    isOptionalString(x["originUrl"]) &&
     isOptionalNumber(x["ts"]) &&
     (x["attachments"] === undefined || isAttachments(x["attachments"]))
   );
@@ -492,10 +511,16 @@ export function makeBasePayload(args: {
   sigilId?: string;
   phiKey?: string;
   kaiSignature?: string;
+  /** Legacy parent; if parentUrl not provided, we mirror this into parentUrl. */
   parent?: string;
+  /** Canonical immediate parent URL (preferred). */
+  parentUrl?: string;
+  /** Root-most origin URL for the thread. */
+  originUrl?: string;
   ts?: number;
   attachments?: Attachments;
 }): FeedPostPayload {
+  const parentUrl = args.parentUrl ?? args.parent;
   const p: FeedPostPayload = {
     v: FEED_PAYLOAD_VERSION,
     url: args.url,
@@ -507,6 +532,8 @@ export function makeBasePayload(args: {
     phiKey: args.phiKey,
     kaiSignature: args.kaiSignature,
     parent: args.parent,
+    parentUrl,
+    originUrl: args.originUrl,
     ts: args.ts,
     attachments: args.attachments,
   };
@@ -517,7 +544,7 @@ export function makeBasePayload(args: {
 
 export function makeAttachments(items: AttachmentItem[]): Attachments {
   const A: Attachments = { version: ATTACHMENTS_VERSION, items: items.slice() };
-  const { totalBytes, inlinedBytes } = computeAttachmentStats({ v: 1, url: "", pulse: 0, attachments: A });
+  const { totalBytes, inlinedBytes } = computeAttachmentStats({ v: FEED_PAYLOAD_VERSION, url: "", pulse: 0, attachments: A });
   A.totalBytes = totalBytes;
   A.inlinedBytes = inlinedBytes;
   return A;
